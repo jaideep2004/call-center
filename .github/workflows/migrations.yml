@@ -1,0 +1,25 @@
+# Checks migration files on disk against public.schema_migrations in the DB.
+# Fails when a migration file exists but is not applied/recorded, or when file
+# numbering is broken. Runs on PRs and pushes to main.
+name: migrations
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check migration drift
+        env:
+          # Point CI at a disposable/non-prod database.
+          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+        run: npm run check:migrations

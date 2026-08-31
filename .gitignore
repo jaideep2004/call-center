@@ -1,0 +1,19 @@
+node_modules
+.next
+.env
+.env.local
+coverage
+*.tsbuildinfo
+
+# design-worker self-contained folder (2026-08-27) — all txt/img/DESIGN.md live here
+.design-work/
+!/.design-work/DESIGN.md
+logs/shots/
+*.screenshot.png
+DESIGN-DRAFT*.md
+DESIGN.md
+
+# Hermes 2026-08-31
+.DS_Store
+*.log
+playwright-a11y.test.ts

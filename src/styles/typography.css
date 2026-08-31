@@ -1,0 +1,61 @@
+.text-h1 {
+	font: 600 clamp(38px, 5vw, 74px)/0.98 var(--serif);
+	letter-spacing: -0.06em;
+}
+.text-h2 {
+	font: 500 clamp(28px, 3.5vw, 42px)/1.05 var(--serif);
+	letter-spacing: -0.04em;
+}
+.text-h3 {
+	font: 500 clamp(20px, 2.5vw, 28px)/1.15 var(--serif);
+	letter-spacing: -0.03em;
+}
+.text-h4 {
+	font: 600 16px/1.2 var(--serif);
+	letter-spacing: -0.02em;
+}
+.text-body {
+	font: 400 15px/1.65 var(--sans);
+	color: #d8d2e8;
+}
+.text-body-sm {
+	font: 400 13px/1.55 var(--sans);
+	color: #9a90b5;
+}
+.text-caption {
+	font: 11px var(--mono);
+	letter-spacing: 1px;
+	color: var(--muted);
+}
+.text-label {
+	font: 11px var(--mono);
+	letter-spacing: 1.4px;
+	color: var(--cyan);
+}
+.text-mono {
+	font: 12px var(--mono);
+}
+.text-mono-sm {
+	font: 11px var(--mono);
+}
+.text-accent {
+	color: var(--cyan);
+}
+.text-success {
+	color: var(--success);
+}
+.text-warning {
+	color: var(--warning);
+}
+.text-muted {
+	color: var(--muted);
+}
+.font-serif {
+	font-family: var(--serif);
+}
+.font-sans {
+	font-family: var(--sans);
+}
+.font-mono {
+	font-family: var(--mono);
+}

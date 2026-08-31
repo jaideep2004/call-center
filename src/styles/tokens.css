@@ -1,0 +1,162 @@
+:root {
+	/* ── Dashboard UI Color System ─────────────────────────────── */
+	--ink: #FAFAFC;
+	--muted: #867E99;
+	--ground: #12071E;
+	--panel: #1F1037;
+	--line: #3A225D;
+	--acid: #A855F7;
+	--cyan: #60A5FA;
+	--amber: #F59E0B;
+	--orange: #EF4444;
+
+	--serif: Poppins, ui-sans-serif, system-ui, sans-serif;
+	--sans: Inter, ui-sans-serif, system-ui, sans-serif;
+	--mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-7: 28px;
+	--space-8: 32px;
+	--space-10: 40px;
+	--space-12: 48px;
+	--space-16: 64px;
+	--radius-sm: 8px;
+	--radius-md: 12px;
+	--radius-lg: 18px;
+	--radius-full: 9999px;
+	--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+	--shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+	--shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
+	--transition-fast: 150ms ease;
+	--transition-base: 250ms ease;
+	--z-dropdown: 100;
+	--z-sticky: 200;
+	--z-modal: 300;
+	--z-toast: 400;
+
+	--accent: var(--acid);
+	--accent-glow: rgba(168, 85, 247, 0.28);
+	--accent-rgb: 168, 85, 247;
+	--accent-active-bg: #2A184C;
+
+	/* Status */
+	--success: #22C55E;
+	--warning: #F59E0B;
+	--error: #EF4444;
+	--info: #60A5FA;
+
+	/* ── Coverage Calls Homepage Tokens (DESIGN.md § Shared System — exhaustive) ── */
+	/* Page + section backgrounds */
+	--hp-bg: #080510;
+	--hp-bg-hero: #07040d;
+	--hp-bg-alt: #0d0618;
+	--hp-section: #1a1033;
+	--hp-surface: #21143d;
+	--hp-elevated: #2a184c;
+	--hp-card: #22153f;
+	--hp-card-hover: #2c1a4e;
+	--hp-inset: rgba(26, 16, 51, 0.6);
+	--hp-inset-strong: #140a26;
+	--hp-fallback: #0a0512;
+	/* Elevated purple gradients / tag */
+	--hp-avatar-from: #3b2269;
+	--hp-avatar-to: #22153f;
+	--hp-tag-bg: rgba(168, 85, 247, 0.14);
+	/* Brand / accent */
+	--hp-primary: #7a3ef2;
+	--hp-primary-hover: #6b2fe6;
+	--hp-accent: #a855f7;
+	--hp-accent-light: #c084fc;
+	--hp-pale: #b794f6;
+	--hp-pale-alt: #c4b5fd;
+	/* Text */
+	--hp-heading: #fafafc;
+	--hp-white: #ffffff;
+	--hp-body: #d8d2e8;
+	--hp-secondary: #b8aecb;
+	--hp-muted: #9a90b5;
+	--hp-muted-alt: #9a92b2;
+	--hp-faint: #6f6790;
+	--hp-faint-alt: #8b82a6;
+	/* Glows / ambient */
+	--hp-glow: rgba(168, 85, 247, 0.28);
+	--hp-glow-soft: rgba(168, 85, 247, 0.22);
+	--hp-glow-strong: rgba(168, 85, 247, 0.35);
+	--hp-soft-glow: rgba(124, 58, 237, 0.18);
+	--hp-white-glow: rgba(255, 255, 255, 0.08);
+	--hp-hero-ambient: rgba(168, 85, 247, 0.35);
+	--hp-spotlight: #f6e7ff;
+	--hp-orb-outer: #37146d;
+	--hp-orb-core: #8541ec;
+	--hp-orb-highlight: #f3e0ff;
+	/* Semantic */
+	--hp-success: #22c55e;
+	--hp-success-glow: rgba(34, 197, 94, 0.8);
+	--hp-success-delta: #4ade80;
+	--hp-error: #ef4444;
+	--hp-error-bg: rgba(239, 68, 68, 0.16);
+	--hp-error-border: rgba(239, 68, 68, 0.4);
+	--hp-error-text: #fca5a5;
+	--hp-star: #f5b942;
+	/* Chart */
+	--hp-chart-answered: #a855f7;
+	--hp-chart-billable: #3b82f6;
+	--hp-chart-revenue: #ec4899;
+	--hp-chart-grid: rgba(255, 255, 255, 0.05);
+	/* Borders */
+	--hp-border-purple: rgba(168, 85, 247, 0.45);
+	--hp-border-purple-soft: rgba(168, 85, 247, 0.16);
+	--hp-border-purple-faint: rgba(168, 85, 247, 0.1);
+	--hp-border-purple-strong: rgba(168, 85, 247, 0.9);
+	--hp-border-purple-mid: rgba(168, 85, 247, 0.35);
+	--hp-border-neutral: rgba(255, 255, 255, 0.08);
+	--hp-border-neutral-soft: rgba(255, 255, 255, 0.06);
+	--hp-border-neutral-strong: rgba(255, 255, 255, 0.14);
+	--hp-border-neutral-faint: rgba(255, 255, 255, 0.07);
+	--hp-border-tag: rgba(168, 85, 247, 0.35);
+	--hp-border-avatar: rgba(192, 132, 252, 0.4);
+	/* Shadows / glows */
+	--hp-shadow-card: 0 30px 80px rgba(0, 0, 0, 0.55);
+	--hp-shadow-card-soft: 0 0 60px rgba(168, 85, 247, 0.16);
+	--hp-shadow-feature: 0 0 50px rgba(168, 85, 247, 0.22);
+	--hp-shadow-nav: 0 18px 50px rgba(0, 0, 0, 0.45);
+	--hp-glow-node: 0 0 28px rgba(122, 62, 242, 0.2);
+	/* Navbar */
+	--hp-nav-bg: rgba(20, 10, 38, 0.45);
+	--hp-nav-bg-scrolled: rgba(22, 12, 42, 0.78);
+	--hp-nav-border: rgba(255, 255, 255, 0.07);
+	--hp-nav-border-scrolled: rgba(168, 85, 247, 0.22);
+	--hp-nav-link: #b8aecb;
+	--hp-nav-link-hover: #fafafc;
+	--hp-nav-chevron: #9a90b5;
+	--hp-nav-login: #d8d2e8;
+	/* Typography */
+	--hp-font: Poppins, ui-sans-serif, system-ui, sans-serif;
+	--hp-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	/* Radii */
+	--hp-radius-pill: 9999px;
+	--hp-radius-btn: 9px;
+	--hp-radius-card-sm: 14px;
+	--hp-radius-card-md: 16px;
+	--hp-radius-card-lg: 18px;
+	--hp-radius-banner: 22px;
+}
+
+[data-role="agent"] {
+	--accent: var(--cyan);
+	--accent-glow: rgba(96, 165, 250, 0.18);
+	--accent-rgb: 96, 165, 250;
+	--accent-active-bg: #152A45;
+}
+
+[data-role="publisher"] {
+	--accent: var(--amber);
+	--accent-glow: rgba(245, 158, 11, 0.18);
+	--accent-rgb: 245, 158, 11;
+	--accent-active-bg: #2B2413;
+}

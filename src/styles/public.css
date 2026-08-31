@@ -1,0 +1,307 @@
+/* Public marketing pages — premium purple skin. */
+
+.landing-shell {
+	min-height: 100vh;
+	background:
+		radial-gradient(circle at 80% 6%, rgba(168, 85, 247, 0.16), transparent 30rem),
+		radial-gradient(circle at 15% 88%, rgba(122, 62, 242, 0.1), transparent 26rem),
+		var(--ground);
+	color: var(--ink);
+	font-family: var(--sans);
+	overflow-x: hidden;
+}
+
+/* Public navbar sits at the top of the page flow (not fixed like the homepage). */
+.public-nav {
+	width: 100%;
+	max-width: none;
+	border-radius: 0;
+	border: 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	background: rgba(20, 10, 38, 0.6);
+	backdrop-filter: blur(14px);
+	-webkit-backdrop-filter: blur(14px);
+}
+
+.public-nav .site-nav-inner {
+	max-width: 1180px;
+	margin: 0 auto;
+}
+
+.public-footer {
+	padding-top: 80px;
+}
+
+.page-section {
+	padding: 10vh 9vw;
+	max-width: 1180px;
+	margin: 0 auto;
+	width: 100%;
+}
+
+.page-section-light {
+	background: linear-gradient(180deg, var(--panel), #1a1033);
+	border-top: 1px solid var(--line);
+	border-bottom: 1px solid var(--line);
+	color: var(--ink);
+	max-width: none;
+}
+
+.page-section h1 {
+	font: 600 clamp(42px, 6vw, 82px) / 0.95 var(--serif);
+	letter-spacing: -0.04em;
+	margin: 22px 0;
+	color: var(--ink);
+	text-wrap: balance;
+}
+
+.page-section h2 {
+	font: 600 clamp(28px, 4vw, 52px) / 1 var(--serif);
+	letter-spacing: -0.03em;
+	margin: 0 0 12px;
+	color: var(--ink);
+}
+
+.page-section-light h2 {
+	color: var(--ink);
+}
+
+.steps-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 24px;
+	margin-top: 48px;
+}
+
+.step-card {
+	border: 1px solid var(--line);
+	background: var(--panel);
+	border-radius: var(--radius-md);
+	padding: 28px;
+	transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.step-card:hover {
+	border-color: rgba(168, 85, 247, 0.45);
+	transform: translateY(-2px);
+}
+
+.step-card span {
+	font: 11px var(--mono);
+	color: var(--acid);
+}
+
+.step-card h3 {
+	font: 600 20px var(--serif);
+	margin: 16px 0 8px;
+}
+
+.step-card p {
+	font-size: 14px;
+	line-height: 1.6;
+	color: var(--muted);
+}
+
+.feature-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 20px;
+	margin-top: 40px;
+}
+
+.feature-card {
+	padding: 24px;
+	border: 1px solid var(--line);
+	background: var(--panel);
+	border-radius: var(--radius-md);
+}
+
+.feature-card h3 {
+	font: 600 18px var(--serif);
+	margin: 0 0 6px;
+}
+
+.feature-card p {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--muted);
+}
+
+.faq-list {
+	max-width: 720px;
+	margin-top: 40px;
+}
+
+.faq-item {
+	padding: 20px 0;
+	border-bottom: 1px solid var(--line);
+}
+
+.faq-item:last-child {
+	border: 0;
+}
+
+.faq-item h3 {
+	font: 500 16px var(--serif);
+	margin: 0 0 8px;
+}
+
+.faq-item p {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--muted);
+}
+
+.testimonial-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 20px;
+	margin-top: 40px;
+}
+
+.testimonial-card {
+	border: 1px solid var(--line);
+	background: var(--panel);
+	border-radius: var(--radius-md);
+	padding: 24px;
+	transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.testimonial-card:hover {
+	border-color: rgba(168, 85, 247, 0.4);
+	transform: translateY(-2px);
+}
+
+.testimonial-card p {
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--muted);
+	margin: 0 0 16px;
+}
+
+.testimonial-card .attribution {
+	font: 10px var(--mono);
+	color: var(--muted);
+}
+
+.pricing-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 16px;
+	margin-top: 40px;
+}
+
+.pricing-card {
+	border: 1px solid var(--line);
+	background: var(--panel);
+	border-radius: var(--radius-md);
+	padding: 28px;
+	text-align: center;
+}
+
+.pricing-card.featured {
+	border-color: var(--acid);
+	box-shadow: 0 0 40px rgba(168, 85, 247, 0.15);
+}
+
+.pricing-card h3 {
+	font: 600 18px var(--serif);
+	margin: 0;
+}
+
+.pricing-card .price {
+	font: 500 36px var(--serif);
+	letter-spacing: -0.05em;
+	margin: 20px 0 8px;
+}
+
+.pricing-card .price span {
+	font: 12px var(--mono);
+	color: var(--muted);
+}
+
+.pricing-card ul {
+	list-style: none;
+	padding: 0;
+	margin: 20px 0;
+	font-size: 13px;
+	color: var(--muted);
+}
+
+.pricing-card li {
+	padding: 6px 0;
+}
+
+.pricing-card .btn {
+	width: 100%;
+}
+
+.contact-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 40px;
+	margin-top: 40px;
+}
+
+.contact-info p {
+	font-size: 14px;
+	line-height: 1.7;
+	color: var(--muted);
+	margin: 0 0 20px;
+}
+
+.contact-form {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.content-page {
+	max-width: 720px;
+	margin: 0 auto;
+}
+
+.content-page p {
+	font-size: 15px;
+	line-height: 1.8;
+	color: var(--muted);
+	margin: 16px 0;
+}
+
+.text-link {
+	font: 12px var(--mono);
+	color: var(--muted);
+	transition: color 0.2s ease;
+}
+
+.text-link:hover {
+	color: var(--ink);
+}
+
+@media (max-width: 850px) {
+	.steps-grid,
+	.feature-grid,
+	.testimonial-grid {
+		grid-template-columns: 1fr;
+	}
+	.pricing-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+	.contact-grid {
+		grid-template-columns: 1fr;
+	}
+	.site-nav-links {
+		display: none;
+	}
+}
+
+@media (max-width: 520px) {
+	.pricing-grid {
+		grid-template-columns: 1fr;
+	}
+	.page-section {
+		padding: 8vh 6vw;
+	}
+}
