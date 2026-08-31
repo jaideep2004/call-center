@@ -146,3 +146,31 @@ npx tsx -e "import {renderScriptTemplate} from './src/server/services/script-ren
 # publisher (after linking)
 # see §3 curl block
 ```
+
+---
+
+## Phase 5 — Pending Dashboards COMPLETE (2026-08-31)
+
+10/10 missing dashboards shipped via 13 new vitest tests (396 → 409 passed | 5 skipped).
+
+**Admin**
+- `/dashboard/admin/support` — queue, reply modal, close
+- `/dashboard/admin/revenue` — daily aggregation + CSV
+- `/dashboard/admin/cms` — CRUD `cms_sections`
+- `/dashboard/admin/dispositions` — pending/confirmed summary + per-agent pill grid + agency-scope fix verified
+
+**Agent**
+- `/dashboard/support` — create + my tickets + threaded reply
+- `wallet/agent` Stripe Checkout UI (handleTopUp → /api/v1/wallet/agent/create-checkout)
+- Scripts/Tutorials wired in agentNav + publisherNav
+
+**Publisher**
+- `/dashboard/publisher/payouts` — qualified `retreaver_calls payout>0` ledger + totals
+- `/dashboard/publisher/settings` — self-service profile
+- `▶ Play` recording playback on publisher calls (5-step Telnyx checklist in `/dashboard/recordings`)
+
+**Verify:** `TSC:0`, `409 passed | 5 skipped (35 files)`, build 148 routes clean. Dev server OFF throughout per "take your time".
+
+**Live test:** `stripe listen --forward-to localhost:30001/api/webhooks/stripe` + `4242 4242 4242 4242` → balance reflects via wallet polling. Publisher account link `UPDATE app.publishers SET user_id='XyWMl...' WHERE id='4134fdda...'` to exercise portal.
+
+**Next:** VPS deploy (Dockerfile + docker-compose 4 services web/gateway/worker/redis-7-alpine).

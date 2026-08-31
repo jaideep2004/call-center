@@ -304,21 +304,21 @@ All items done. Handoff notes:
 ## Pending Frontend / Dashboard Pages (explicit list)
 
 ### Admin (missing)
-- `/dashboard/admin/support` — ticket queue (Phase 2.2)
-- `/dashboard/admin/revenue` — revenue report (Phase 2.7)
-- `/dashboard/admin/cms` — CMS editor (Phase 2.6)
-- `/dashboard/admin/dispositions` — exists; needs agency-scope fix + per-agent summary
+- `/dashboard/admin/support` — ticket queue (Phase 2.2) **DONE 2026-08-31**
+- `/dashboard/admin/revenue` — revenue report (Phase 2.7) **DONE 2026-08-31**
+- `/dashboard/admin/cms` — CMS editor (Phase 2.6) **DONE 2026-08-31**
+- `/dashboard/admin/dispositions` — exists; agency-scope fix + per-agent summary **DONE 2026-08-31**
 - Sub-admin scoped views — folder absent (Phase 2.7)
 
 ### Agent (missing)
-- `/dashboard/support` — tickets (Phase 2.2)
-- Scripts/Tutorials pages exist but not linked in nav (Phase 2.10)
-- Wallet page needs Stripe checkout UI (Phase 2.1)
+- `/dashboard/support` — tickets (Phase 2.2) **DONE 2026-08-31**
+- Scripts/Tutorials pages exist but not linked in nav (Phase 2.10) **DONE 2026-08-31** (publisherNav + agentNav both wired)
+- Wallet page needs Stripe checkout UI (Phase 2.1) **DONE 2026-08-31** (handleTopUp in wallet/agent/page.tsx already posts /api/v1/wallet/agent/create-checkout)
 
 ### Publisher (missing)
-- `/dashboard/publisher/payouts` (Phase 2.4)
-- `/dashboard/publisher/settings` (Phase 2.4)
-- Recording playback on calls page (Phase 2.4)
+- `/dashboard/publisher/payouts` (Phase 2.4) **DONE 2026-08-31**
+- `/dashboard/publisher/settings` (Phase 2.4) **DONE 2026-08-31**
+- Recording playback on calls page (Phase 2.4) **DONE 2026-08-31** (▶ Play renders when recording_url present)
 
 ### Public
 - CMS-driven homepage sections (Phase 2.6 — coordinate with homepage session)
