@@ -64,6 +64,7 @@ export async function POST(request: Request, context: { params: Promise<{ provid
     return NextResponse.json({ accepted: true, correlationId, result }, { status: 202 });
   } catch (e: any) {
     dlog(`${providerName} error: ${e?.message ?? "unknown"}`);
+    console.error(`[webhook:${providerName}]`, e?.message ?? e);
     return NextResponse.json({ error: "Malformed provider event" }, { status: 400 });
   }
 }

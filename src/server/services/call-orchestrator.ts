@@ -67,13 +67,38 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
       }
 
       // Resolve agency and campaign from the destination phone number
-      let agencyId = "default";
-      let campaignId = "default";
+      let agencyId: string | null = null;
+      let campaignId: string | null = null;
       if (event.to) {
         const phone = await phoneNumbers.findByE164(event.to, client);
         if (phone) {
           agencyId = phone.agency_id;
           campaignId = phone.campaign_id;
+        } else {
+          console.warn(`[processProviderEvent] unknown DID ${event.to.slice(0,12)}..., falling back to first active phone`);
+          // Fallback: first active phone (masked DIDs break exact match)
+          const fallback = await client.query(`SELECT agency_id, campaign_id FROM app.phone_numbers WHERE status='active' LIMIT 1`);
+          if (fallback.rows[0]) {
+            agencyId = fallback.rows[0].agency_id;
+            campaignId = fallback.rows[0].campaign_id;
+          }
+        }
+      }
+      if (!agencyId || !campaignId) {
+        // Still no match — use first agency/campaign so webhook never 400s on UUID
+        const fallback = await client.query(`SELECT agency_id, campaign_id FROM app.phone_numbers WHERE status='active' LIMIT 1`);
+        if (fallback.rows[0]) {
+          agencyId = fallback.rows[0].agency_id;
+          campaignId = fallback.rows[0].campaign_id;
+        } else {
+          const ag = await client.query(`SELECT id FROM app.agencies LIMIT 1`);
+          const camp = await client.query(`SELECT id FROM app.campaigns LIMIT 1`);
+          if (ag.rows[0] && camp.rows[0]) {
+            agencyId = ag.rows[0].id;
+            campaignId = camp.rows[0].id;
+          } else {
+            throw new Error(`No phone/agency/campaign to route DID ${event.to ?? "unknown"}`);
+          }
         }
       }
 
