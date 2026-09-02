@@ -17,3 +17,4 @@ DESIGN.md
 .DS_Store
 *.log
 playwright-a11y.test.ts
+live-*.mjs
