@@ -101,14 +101,17 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
           }
         }
       }
+      // narrowed to string after the throws above
+      const resolvedAgencyId = agencyId as string;
+      const resolvedCampaignId = campaignId as string;
 
       call = await calls.create({
-        agency_id: agencyId,
-        campaign_id: campaignId,
+        agency_id: resolvedAgencyId,
+        campaign_id: resolvedCampaignId,
         provider: event.provider,
         provider_call_id: event.providerCallId,
       }, client);
-      call = await calls.updateState(call.id, "received", agencyId, {
+      call = await calls.updateState(call.id, "received", resolvedAgencyId, {
         from_hash: fromHash,
         to_number: event.to ?? null,
         caller_state: callerState,
