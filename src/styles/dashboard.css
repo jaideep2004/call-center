@@ -263,6 +263,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	overflow: hidden;
 }
 .admin-chart-label {
 	font: 9px var(--mono);
@@ -273,6 +274,16 @@
 .admin-chart-value {
 	font: 500 20px var(--serif);
 	letter-spacing: -0.04em;
+}
+.admin-chart-main-grid {
+	display: grid;
+	grid-template-columns: 1.35fr 0.85fr;
+	gap: var(--space-4);
+}
+@media (max-width: 980px) {
+	.admin-chart-main-grid {
+		grid-template-columns: 1fr;
+	}
 }
 @media (max-width: 850px) {
 	.admin-chart-grid {

@@ -22,19 +22,19 @@ interface LayoutOptions {
 }
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
-const BG = "#12071E";
-const CARD = "#1F1037";
-const BORDER = "#3A225D";
-const TEXT = "#FAFAFC";
-const MUTED = "#9A90B5";
-const ACCENT = "#A855F7";
+const BG = "#F4F5F7";
+const CARD = "#FFFFFF";
+const BORDER = "#E5E7EB";
+const TEXT = "#111827";
+const MUTED = "#6B7280";
+const ACCENT = "#7C3AED";
 
 function ctaButton(label: string, href: string): string {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 28px auto 0;">
       <tr>
         <td align="center" style="border-radius: 8px;">
-          <a href="${href}" style="display: inline-block; background: ${ACCENT}; color: ${BG}; font-family: ${FONT}; font-size: 15px; font-weight: 700; line-height: 1; padding: 14px 32px; border-radius: 8px; text-decoration: none; letter-spacing: 0.02em;">
+          <a href="${href}" style="display: inline-block; background: ${ACCENT}; color: #FFFFFF; font-family: ${FONT}; font-size: 15px; font-weight: 700; line-height: 1; padding: 14px 32px; border-radius: 8px; text-decoration: none; letter-spacing: 0.02em;">
             ${escapeHtml(label)}
           </a>
         </td>

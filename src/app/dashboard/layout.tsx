@@ -193,6 +193,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {publisherNav.map((item) => (
             <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
               <b>{item.icon}</b>{item.label}
+              {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
             </Link>
           ))}
         </nav>
@@ -312,7 +313,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {toasts.length > 0 && (
         <div style={{ position: "fixed", bottom: "var(--space-6)", right: "var(--space-6)", display: "flex", flexDirection: "column", gap: 8, zIndex: 9999 }}>
           {toasts.map((t) => (
-            <div key={t.id} className={`toast ${t.type === "success" ? "toast-success" : ""}${t.type === "error" ? "toast-error" : ""}`} onClick={() => dismiss(t.id)} style={{ cursor: "pointer" }}>
+            <div key={t.id} className={`toast ${t.type === "success" ? "toast-success" : t.type === "error" ? "toast-error" : t.type === "warning" ? "toast-warning" : "toast-info"}`} onClick={() => dismiss(t.id)} style={{ cursor: "pointer" }}>
               {t.message}
             </div>
           ))}
