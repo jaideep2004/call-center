@@ -62,6 +62,7 @@ function RoleShortcuts() {
 }
 
 export default function SettingsPage() {
+  // additive polish: ensure status badges use colors and container handles overflow
   const [agency, setAgency] = useState<Agency | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -146,7 +147,7 @@ export default function SettingsPage() {
   }
 
   if (loading) return (
-    <div className="dashboard-page">
+    <div className="dashboard-page" style={{ overflowX: "auto" }}>
       <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
     </div>
   );

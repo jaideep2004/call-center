@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import DataTable from "@/components/data-table";
+import type { Column } from "@/components/data-table";
 
 interface EarningsRow {
+  id: string;
   agent_id: string;
   call_count: number;
   total_seconds: number;
@@ -15,16 +20,37 @@ function formatDuration(s: number): string {
   const m = Math.floor((s % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
-
 function formatCents(c: number): string {
   return `$${(c / 100).toFixed(2)}`;
 }
+const PAGE_SIZE = 10;
 
-export default function AgentEarningsPage() {
+function EarningsInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQ = searchParams.get("q") ?? "";
+  const initialPage = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
+
   const [rows, setRows] = useState<EarningsRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [searchInput, setSearchInput] = useState(initialQ);
+  const [debouncedQ, setDebouncedQ] = useState(initialQ);
+  const [page, setPage] = useState(initialPage);
+  const [agentMap, setAgentMap] = useState<Record<string, string>>({});
+  const [startDate, setStartDate] = useState(searchParams.get("start") ?? "");
+  const [endDate, setEndDate] = useState(searchParams.get("end") ?? "");
+  const hasMounted = useRef(false);
+
+  useEffect(() => {
+    fetch("/api/v1/agents?limit=100").then(async (r) => {
+      if (!r.ok) return;
+      const b = await r.json();
+      const list: Array<{ id: string; user_name?: string; user_email?: string; membership_id?: string }> = b.data ?? [];
+      const m: Record<string, string> = {};
+      for (const a of list) if (a.id) m[a.id] = a.user_name || a.user_email || a.membership_id?.slice(0, 8) || a.id.slice(0, 8);
+      setAgentMap(m);
+    }).catch(() => {});
+  }, []);
 
   const fetchEarnings = useCallback(async () => {
     setLoading(true);
@@ -34,15 +60,55 @@ export default function AgentEarningsPage() {
     const res = await fetch(`/api/v1/agents/earnings?${params}`);
     if (res.ok) {
       const body = await res.json();
-      setRows(body.data);
+      const raw: Omit<EarningsRow, "id">[] = body.data ?? [];
+      setRows(raw.map((r) => ({ ...r, id: r.agent_id })));
     }
     setLoading(false);
   }, [startDate, endDate]);
 
   useEffect(() => { fetchEarnings(); }, [fetchEarnings]);
 
-  const totalCents = rows.reduce((s, r) => s + r.total_cents, 0);
-  const totalCalls = rows.reduce((s, r) => s + r.call_count, 0);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const trimmed = searchInput.trim().toLowerCase();
+      if (trimmed !== debouncedQ) { setDebouncedQ(trimmed); setPage(1); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput, debouncedQ]);
+
+  useEffect(() => {
+    if (!hasMounted.current) { hasMounted.current = true; return; }
+    const p = new URLSearchParams();
+    if (debouncedQ) p.set("q", debouncedQ);
+    if (startDate) p.set("start", startDate);
+    if (endDate) p.set("end", endDate);
+    if (page > 1) p.set("page", String(page));
+    const qs = p.toString();
+    if (qs === searchParams.toString()) return;
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+  }, [debouncedQ, startDate, endDate, page, router, searchParams]);
+
+  const filtered = useMemo(() => {
+    if (!debouncedQ) return rows;
+    const q = debouncedQ;
+    return rows.filter((r) => (agentMap[r.agent_id] ?? r.agent_id).toLowerCase().includes(q));
+  }, [rows, debouncedQ, agentMap]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
+
+  const totalCents = filtered.reduce((s, r) => s + r.total_cents, 0);
+  const totalCalls = filtered.reduce((s, r) => s + r.call_count, 0);
+
+  const columns: Column<EarningsRow>[] = [
+    { key: "agent_id", header: "Agent", render: (r) => <Link href={`/dashboard/agents/${r.agent_id}`} className="clickable" style={{ fontWeight: 500 }}>{agentMap[r.agent_id] ?? r.agent_id.slice(0, 8)}</Link> },
+    { key: "call_count", header: "Calls", render: (r) => <span className="badge badge-info">{r.call_count}</span> },
+    { key: "total_seconds", header: "Duration", render: (r) => <span className="text-mono-sm">{formatDuration(r.total_seconds)}</span> },
+    { key: "total_cents", header: "Total", render: (r) => <span className="text-mono-sm" style={{ color: "var(--accent)", fontWeight: 600 }}>{formatCents(r.total_cents)}</span> },
+    { key: "avg_cents", header: "Avg / Call", render: (r) => <span className="text-mono-sm">{formatCents(r.avg_cents)}</span> },
+  ];
+
+  if (loading) return <div className="dashboard-page"><div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div></div>;
 
   return (
     <div className="dashboard-page">
@@ -52,39 +118,40 @@ export default function AgentEarningsPage() {
           <h1>Agent Earnings</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ maxWidth: 160 }} />
-          <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ maxWidth: 160 }} />
+          <input className="input" type="search" placeholder="Search agent..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 180 }} />
+          <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ maxWidth: 140 }} />
+          <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ maxWidth: 140 }} />
           <span className="text-mono-sm">{formatCents(totalCents)} total · {totalCalls} calls</span>
         </div>
       </div>
-      {loading ? (
-        <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
-      ) : rows.length === 0 ? (
-        <div className="empty-state"><p>No earnings data found.</p></div>
+      {rows.length === 0 ? (
+        <div className="empty-state"><p>No earnings data yet. Earnings appear after qualifying calls are completed.</p></div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state"><p>No agents match &quot;{debouncedQ}&quot;.</p></div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Agent</th>
-              <th>Calls</th>
-              <th>Duration</th>
-              <th>Total</th>
-              <th>Avg / Call</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.agent_id}>
-                <td className="text-mono-sm">{r.agent_id.slice(0, 8)}</td>
-                <td className="text-mono-sm">{r.call_count}</td>
-                <td className="text-mono-sm">{formatDuration(r.total_seconds)}</td>
-                <td className="text-mono-sm">{formatCents(r.total_cents)}</td>
-                <td className="text-mono-sm">{formatCents(r.avg_cents)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div style={{ overflowX: "auto" }}>
+          <DataTable
+            columns={columns}
+            data={paginated}
+            emptyMessage="No earnings"
+            page={page}
+            totalPages={totalPages}
+            total={filtered.length}
+            onPageChange={setPage}
+            sortBy="total_cents"
+            order="desc"
+            onSort={() => {}}
+          />
+        </div>
       )}
     </div>
+  );
+}
+
+export default function AgentEarningsPage() {
+  return (
+    <Suspense fallback={<div className="dashboard-page"><div className="skeleton skeleton-text" /></div>}>
+      <EarningsInner />
+    </Suspense>
   );
 }

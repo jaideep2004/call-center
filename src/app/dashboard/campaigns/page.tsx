@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
 
@@ -15,26 +16,32 @@ interface Campaign {
   retreaver_cid: string | null;
   created_at: string;
 }
-
 function formatCents(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
-
-export default function CampaignsPage() {
+const PAGE_SIZE = 10;
+function CampaignsInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQ = searchParams.get("q") ?? "";
+  const initialStatus = searchParams.get("status") ?? "";
+  const initialPage = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState(initialQ);
+  const [debouncedQ, setDebouncedQ] = useState(initialQ);
+  const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState("created_at");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const hasMounted = useRef(false);
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: "25", sortBy, order });
-    if (search) params.set("search", search);
+    const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), sortBy, order });
+    if (debouncedQ) params.set("search", debouncedQ);
     if (statusFilter) params.set("status", statusFilter);
     const res = await fetch(`/api/v1/campaigns?${params}`);
     if (res.ok) {
@@ -44,9 +51,28 @@ export default function CampaignsPage() {
       setTotal(body.pagination.total);
     }
     setLoading(false);
-  }, [page, sortBy, order, search, statusFilter]);
+  }, [page, sortBy, order, debouncedQ, statusFilter]);
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const trimmed = searchInput.trim();
+      if (trimmed !== debouncedQ) { setDebouncedQ(trimmed); setPage(1); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput, debouncedQ]);
+
+  useEffect(() => {
+    if (!hasMounted.current) { hasMounted.current = true; return; }
+    const p = new URLSearchParams();
+    if (debouncedQ) p.set("q", debouncedQ);
+    if (statusFilter) p.set("status", statusFilter);
+    if (page > 1) p.set("page", String(page));
+    const qs = p.toString();
+    if (qs === searchParams.toString()) return;
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+  }, [debouncedQ, statusFilter, page, router, searchParams]);
 
   function toggleSort(field: string) {
     if (sortBy === field) setOrder(order === "asc" ? "desc" : "asc");
@@ -54,11 +80,11 @@ export default function CampaignsPage() {
   }
 
   const columns: Column<Campaign>[] = [
-    { key: "name", header: "Name", sortable: true, render: (c) => <Link href={`/dashboard/campaigns/${c.id}`} className="clickable">{c.name}</Link> },
-    { key: "status", header: "Status", sortable: true, render: (c) => <span className={`badge${c.status === "active" ? " badge-success" : ""}`}>{c.status}</span> },
+    { key: "name", header: "Name", sortable: true, render: (c) => <Link href={`/dashboard/campaigns/${c.id}`} className="clickable" style={{ fontWeight: 500 }}>{c.name}</Link> },
+    { key: "status", header: "Status", sortable: true, render: (c) => <span className={`badge${c.status === "active" ? " badge-success" : c.status === "paused" ? " badge-warning" : c.status === "archived" ? " badge-danger" : ""}`}>{c.status}</span> },
     { key: "routing_strategy", header: "Strategy", render: (c) => <span className="text-mono-sm">{c.routing_strategy}</span> },
-    { key: "price_cents", header: "Price", sortable: true, render: (c) => <span className="text-mono-sm">{c.price_cents != null ? formatCents(c.price_cents) : "—"}</span> },
-    { key: "retreaver_cid", header: "Retreaver", render: (c) => c.retreaver_cid ? <span className="badge badge-success">Linked · {c.retreaver_cid}</span> : <span className="text-muted text-mono-sm">—</span> },
+    { key: "price_cents", header: "Price", sortable: true, render: (c) => <span className="text-mono-sm" style={{ color: "var(--accent)" }}>{c.price_cents != null ? formatCents(c.price_cents) : "\u2014"}</span> },
+    { key: "retreaver_cid", header: "Retreaver", render: (c) => c.retreaver_cid ? <span className="badge badge-success">Linked · {c.retreaver_cid}</span> : <span className="text-muted text-mono-sm">\u2014</span> },
     { key: "min_connected_seconds", header: "Min connect", render: (c) => <span className="text-mono-sm">{c.min_connected_seconds}s</span> },
     { key: "created_at", header: "Created", sortable: true, render: (c) => <span className="text-mono-sm">{new Date(c.created_at).toLocaleDateString()}</span> },
   ];
@@ -71,7 +97,7 @@ export default function CampaignsPage() {
           <h1>Campaigns</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search campaigns..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <input className="input" type="search" placeholder="Search campaigns..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
           <Link href="/dashboard/campaigns/new" className="btn btn-primary">+ Create</Link>
           <span className="text-mono-sm">{total} total</span>
         </div>
@@ -85,14 +111,12 @@ export default function CampaignsPage() {
           <option value="archived">Archived</option>
         </select>
       </div>
-      {loading ? (
-        <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
-      ) : campaigns.length === 0 ? (
-        <div className="empty-state"><p>No campaigns found.</p></div>
-      ) : (
+      <div style={{ overflowX: "auto" }}>
         <DataTable
           columns={columns}
           data={campaigns}
+          loading={loading}
+          emptyMessage="No campaigns found. Create your first campaign to start routing calls."
           page={page}
           totalPages={totalPages}
           total={total}
@@ -101,7 +125,14 @@ export default function CampaignsPage() {
           order={order}
           onSort={toggleSort}
         />
-      )}
+      </div>
     </div>
+  );
+}
+export default function CampaignsPage() {
+  return (
+    <Suspense fallback={<div className="dashboard-page"><div className="skeleton skeleton-text" /></div>}>
+      <CampaignsInner />
+    </Suspense>
   );
 }
