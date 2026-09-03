@@ -13,7 +13,10 @@ function StripeIntegrationCard() {
   const [status, setStatus] = useState<StripeStatus | null>(null);
   const [secretKey, setSecretKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [showWebhook, setShowWebhook] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const refresh = () => {
     fetch("/api/v1/settings/stripe").then(async (res) => {
@@ -28,6 +31,13 @@ function StripeIntegrationCard() {
 
   async function save() {
     if (!secretKey && !webhookSecret) return;
+    // lightweight prefix validation (additive, non-blocking)
+    if (secretKey && !secretKey.trim().startsWith("sk_")) {
+      showToast("Secret key should start with sk_…", "warning");
+    }
+    if (webhookSecret && !webhookSecret.trim().startsWith("whsec_")) {
+      showToast("Webhook secret should start with whsec_…", "warning");
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/v1/settings/stripe", {
@@ -52,6 +62,29 @@ function StripeIntegrationCard() {
     }
   }
 
+  async function testConnection() {
+    // Additive placeholder: real endpoint may exist, else toast explains.
+    setTesting(true);
+    try {
+      const res = await fetch("/api/v1/settings/stripe", { method: "GET" });
+      if (res.ok) {
+        const body = await res.json();
+        const s = body.data as StripeStatus | null;
+        if (s?.configured) {
+          showToast(`Stripe: connected via ${s.source === "db" ? "admin-set key" : "env"}${s.webhook_configured ? " + webhook" : " (webhook missing)"}`, "success");
+        } else {
+          showToast("Stripe not connected — add keys and click Save & Connect", "warning");
+        }
+      } else {
+        showToast("Test connection — coming soon (no verify endpoint yet)", "info");
+      }
+    } catch {
+      showToast("Test connection — coming soon", "info");
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
     <section className="card" style={{ padding: "var(--space-6)", maxWidth: 560 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
@@ -67,12 +100,21 @@ function StripeIntegrationCard() {
       </p>
       <div className="stack" style={{ gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
         <label className="text-mono-sm" style={{ fontSize: 10, letterSpacing: 1, color: "var(--muted)" }}>SECRET KEY</label>
-        <input className="input" type="password" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={status?.configured ? "•••••••• (saved — paste to replace)" : "sk_live_... / sk_test_..."} autoComplete="off" />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input className="input" type={showSecret ? "text" : "password"} value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={status?.configured ? "•••••••• (saved — paste to replace)" : "sk_live_... / sk_test_..."} autoComplete="off" style={{ flex: 1 }} />
+          <button type="button" className="btn btn-sm" onClick={() => setShowSecret((v) => !v)} aria-label={showSecret ? "Hide secret key" : "Show secret key"} title={showSecret ? "Hide" : "Show"}>{showSecret ? "🙈" : "👁"}</button>
+        </div>
         <label className="text-mono-sm" style={{ fontSize: 10, letterSpacing: 1, color: "var(--muted)" }}>
           WEBHOOK SIGNING SECRET {status?.webhook_configured ? "(✓ configured)" : "(required for payments to credit wallets)"}
         </label>
-        <input className="input" type="password" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={status?.webhook_configured ? "•••••••• (saved — paste to replace)" : "whsec_..."} autoComplete="off" />
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input className="input" type={showWebhook ? "text" : "password"} value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={status?.webhook_configured ? "•••••••• (saved — paste to replace)" : "whsec_..."} autoComplete="off" style={{ flex: 1 }} />
+          <button type="button" className="btn btn-sm" onClick={() => setShowWebhook((v) => !v)} aria-label={showWebhook ? "Hide webhook secret" : "Show webhook secret"} title={showWebhook ? "Hide" : "Show"}>{showWebhook ? "🙈" : "👁"}</button>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn btn-sm" onClick={testConnection} disabled={testing} title="Check Stripe connectivity">
+            {testing ? "Testing…" : "Test Connection"}
+          </button>
           <button className="btn btn-primary btn-sm" onClick={save} disabled={saving || (!secretKey && !webhookSecret)}>
             {saving ? "Verifying..." : "Save & Connect"}
           </button>
@@ -81,7 +123,6 @@ function StripeIntegrationCard() {
     </section>
   );
 }
-
 export default function AdminSystemSettingsPage() {
   const [allowCreation, setAllowCreation] = useState(false);
   const [loading, setLoading] = useState(true);

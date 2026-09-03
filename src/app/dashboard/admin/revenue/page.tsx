@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { formatCents } from "@/lib/format";
 import Sparkline from "@/components/sparkline";
 
@@ -8,6 +8,27 @@ interface RevenueDay {
   date: string;
   revenue_cents: number;
   count: number;
+}
+
+/** Fill missing calendar dates with zero rows so avg/day is correct (additive, non-breaking). */
+function fillMissingDates(rows: RevenueDay[], days: number): RevenueDay[] {
+  if (rows.length === 0) return [];
+  const map = new Map<string, RevenueDay>();
+  for (const r of rows) map.set(r.date.slice(0, 10), r);
+  // Build last `days` dates including today
+  const out: RevenueDay[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const hit = map.get(key);
+    out.push(hit ? { date: key, revenue_cents: Number(hit.revenue_cents), count: hit.count } : { date: key, revenue_cents: 0, count: 0 });
+  }
+  // If API returned older dates outside window (edge), merge them first
+  // Already covered; just return window.
+  return out;
 }
 
 export default function AdminRevenuePage() {
@@ -26,8 +47,14 @@ export default function AdminRevenuePage() {
     }).catch(() => setLoading(false));
   }, [days]);
 
+  // Additive: filled series for chart/avg correctness; raw rows kept for table if needed
+  const filled = useMemo(() => fillMissingDates(rows, days), [rows, days]);
+  // Use filled for stats when we have data, else fall back to rows
+  const chartRows = filled.length > 0 ? filled : rows;
+
   const total = rows.reduce((s, r) => s + Number(r.revenue_cents), 0);
-  const totalCalls = rows.reduce((s, r) => s + r.count, 0);
+  const totalInvoices = rows.reduce((s, r) => s + r.count, 0);
+  const avgPerDay = days > 0 ? Math.round(total / days) : 0;
 
   return (
     <div className="dashboard-page">
@@ -49,12 +76,14 @@ export default function AdminRevenuePage() {
           <p className="stat-value">{formatCents(total)}</p>
         </div>
         <div className="card stat-card">
-          <p className="text-mono-sm">PAID INVOICES</p>
-          <p className="stat-value">{totalCalls}</p>
+          <p className="text-mono-sm">INVOICE COUNT</p>
+          <p className="stat-value">{totalInvoices}</p>
+          <span className="form-hint" style={{ fontSize: 11 }}>Paid invoices in period (was “Paid Invoices” — renamed for clarity)</span>
         </div>
         <div className="card stat-card">
           <p className="text-mono-sm">AVG / DAY</p>
-          <p className="stat-value">{formatCents(rows.length > 0 ? Math.round(total / rows.length) : 0)}</p>
+          <p className="stat-value">{formatCents(avgPerDay)}</p>
+          <span className="form-hint" style={{ fontSize: 11 }}>Total ÷ {days} days (zero-filled)</span>
         </div>
         <div className="card stat-card">
           <p className="text-mono-sm">PERIOD</p>
@@ -62,10 +91,13 @@ export default function AdminRevenuePage() {
         </div>
       </div>
 
-      {rows.length > 1 && (
+      {chartRows.length > 1 && (
         <section className="card" style={{ marginBottom: "var(--space-6)" }}>
           <h2>Revenue Trend</h2>
-          <Sparkline data={rows.map((r) => Number(r.revenue_cents))} width={720} height={64} />
+          <p className="text-muted" style={{ fontSize: 11, margin: "0 0 var(--space-3)" }}>Zero-filled to {days} days for correct averaging</p>
+          <div style={{ width: "100%", overflow: "hidden" }}>
+            <Sparkline data={chartRows.map((r) => Number(r.revenue_cents))} width={720} height={64} responsive />
+          </div>
         </section>
       )}
 
@@ -81,7 +113,7 @@ export default function AdminRevenuePage() {
             <tbody>
               {[...rows].reverse().map((r) => (
                 <tr key={r.date}>
-                  <td>{r.date}</td>
+                  <td>{r.date.slice(0, 10)}</td>
                   <td>{r.count}</td>
                   <td className="text-right text-mono-sm">{formatCents(Number(r.revenue_cents))}</td>
                 </tr>

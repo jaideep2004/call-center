@@ -27,6 +27,8 @@ export default function AdminPlansPage() {
   const [callAllowance, setCallAllowance] = useState(0);
   const [billingType, setBillingType] = useState<'prepaid' | 'postpaid'>('prepaid');
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
     fetch("/api/v1/agent-plans").then(async (res) => {
@@ -105,7 +107,8 @@ export default function AdminPlansPage() {
   };
 
   const deletePlan = async (plan: AgentPlan) => {
-    if (!window.confirm(`Delete "${plan.name}"? This will deactivate it.`)) return;
+    // Soft-delete: API deactivates — renamed to Archive (additive, no DB migration)
+    if (!window.confirm(`Archive "${plan.name}"? This will deactivate it.`)) return;
     try {
       const res = await fetch(`/api/v1/agent-plans/${plan.id}`, { method: "DELETE" });
       if (res.ok) {
@@ -119,10 +122,11 @@ export default function AdminPlansPage() {
     }
   };
 
-  const columns: Column<AgentPlan>[] = [
+    const columns: Column<AgentPlan>[] = [
     { key: "name", header: "Name", render: (p) => <strong>{p.name}</strong> },
+    // Price stored as integer cents to avoid float drift (display via /100)
     { key: "price_cents", header: "Price", render: (p) => <span>${(p.price_cents / 100).toFixed(2)}</span> },
-    { key: "call_allowance", header: "Call Allowance", render: (p) => <span>{p.call_allowance}</span> },
+    { key: "call_allowance", header: "Call Allowance", render: (p) => p.call_allowance === 0 ? <span className="badge badge-info">Unlimited</span> : <span>{p.call_allowance}</span> },
     {
       key: "billing_type", header: "Billing",
       render: (p) => <span className={`badge ${p.billing_type === 'postpaid' ? 'badge-info' : 'badge-success'}`}>{p.billing_type ?? 'prepaid'}</span>,
@@ -139,7 +143,7 @@ export default function AdminPlansPage() {
           <button className={`btn btn-sm ${p.active ? "" : "btn-primary"}`} onClick={() => toggleActive(p)}>
             {p.active ? "Deactivate" : "Activate"}
           </button>
-          <button className="btn btn-sm btn-danger" onClick={() => deletePlan(p)}>Delete</button>
+          <button className="btn btn-sm btn-danger" onClick={() => deletePlan(p)}>Archive</button>
         </div>
       ),
     },
@@ -150,6 +154,10 @@ export default function AdminPlansPage() {
       <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
     </div>
   );
+
+  const totalPages = Math.max(1, Math.ceil(plans.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedPlans = plans.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="dashboard-page">
@@ -178,10 +186,11 @@ export default function AdminPlansPage() {
               <label className="form-label">Price</label>
               <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
                 <span style={{ font: "16px var(--sans)", color: "var(--muted)" }}>$</span>
+                {/* cents: integer cents in state avoids float drift; display as dollars */}
                 <input className="input" type="number" min="0" step="0.01" placeholder="0.00" value={priceCents ? (priceCents / 100).toFixed(2) : ""} onChange={(e) => setPriceCents(Math.round(parseFloat(e.target.value || "0") * 100))} style={{ maxWidth: 160 }} />
                 <span className="text-muted" style={{ fontSize: 13 }}>USD / month</span>
               </div>
-              <span className="form-hint">Set to $0.00 for a free plan.</span>
+              <span className="form-hint">Set to $0.00 for a free plan. Stored as integer cents.</span>
             </div>
             <div className="form-group">
               <label className="form-label">Call Allowance</label>
@@ -211,12 +220,12 @@ export default function AdminPlansPage() {
 
       <DataTable
         columns={columns}
-        data={plans}
+        data={pagedPlans}
         emptyMessage="No plans created yet."
-        page={1}
-        totalPages={1}
+        page={safePage}
+        totalPages={totalPages}
         total={plans.length}
-        onPageChange={() => {}}
+        onPageChange={setPage}
         sortBy=""
         order="desc"
         onSort={() => {}}
