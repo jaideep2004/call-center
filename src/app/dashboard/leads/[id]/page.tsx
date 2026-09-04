@@ -232,28 +232,32 @@ export default function LeadDetailPage() {
             {calls.length === 0 ? (
               <p className="text-muted" style={{ fontSize: 12 }}>No calls recorded for this caller.</p>
             ) : (
-              <table className="table" style={{ width: "100%", fontSize: 13 }}>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Duration</th>
-                    <th>Disposition</th>
-                    <th>Premium</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {calls.map((c) => (
-                    <tr key={c.id}>
-                      <td className="text-mono-sm">{c.started_at ? new Date(c.started_at).toLocaleString() : "—"}</td>
-                      <td className="text-mono-sm">{formatDurationSec(c.duration_seconds)}</td>
-                      <td>{c.disposition_outcome ? <span className="badge">{c.disposition_outcome}</span> : <span className="text-muted">—</span>}</td>
-                      <td className="text-mono-sm">{c.annual_premium_cents !== null && c.annual_premium_cents !== undefined ? `$${(c.annual_premium_cents / 100).toFixed(2)}` : "—"}</td>
-                      <td style={{ textAlign: "right" }}><Link href={`/dashboard/calls/${c.id}`} className="text-mono-sm" style={{ color: "var(--cyan)" }}>View →</Link></td>
+              <div style={{ overflowX: "auto" }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Duration</th>
+                      <th>Disposition</th>
+                      <th>Premium</th>
+                      <th></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {calls.length === 0 ? (
+                      <tr><td colSpan={5}><div className="empty-state"><p>No call history for this lead yet.</p></div></td></tr>
+                    ) : calls.map((c) => (
+                      <tr key={c.id}>
+                        <td className="text-mono-sm">{c.started_at ? new Date(c.started_at).toLocaleString() : "—"}</td>
+                        <td className="text-mono-sm">{formatDurationSec(c.duration_seconds)}</td>
+                        <td>{c.disposition_outcome ? <span className={`badge ${c.disposition_outcome === "sold" ? "badge-success" : c.disposition_outcome === "no_answer" ? "badge-warning" : "badge-info"}`}>{c.disposition_outcome}</span> : <span className="text-muted">—</span>}</td>
+                        <td className="text-mono-sm" style={{ color: "var(--accent)" }}>{c.annual_premium_cents !== null && c.annual_premium_cents !== undefined ? `$${(c.annual_premium_cents / 100).toFixed(2)}` : "—"}</td>
+                        <td style={{ textAlign: "right" }}><Link href={`/dashboard/calls/${c.id}`} className="text-mono-sm" style={{ color: "var(--cyan)" }}>View →</Link></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

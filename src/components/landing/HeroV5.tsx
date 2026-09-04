@@ -15,9 +15,8 @@ import {
   Play,
   Activity,
 } from "lucide-react";
-import "./FinalHero.css";
 
-export default function FinalHero() {
+export default function HeroV5() {
   const heroRef = useRef<HTMLDivElement>(null);
   const waveformRef = useRef<HTMLDivElement>(null);
   const cardRightRef = useRef<HTMLDivElement>(null);
@@ -31,7 +30,7 @@ export default function FinalHero() {
   useEffect(() => {
     const stageInterval = setInterval(() => {
       setCallStage((prev) => (prev + 1) % 4);
-    }, 4500);
+    }, 2200);
     return () => clearInterval(stageInterval);
   }, []);
 
@@ -98,7 +97,7 @@ export default function FinalHero() {
   return (
     <div
       ref={heroRef}
-      className="final-hero-root h-screen w-screen bg-[#030008] text-white overflow-hidden flex flex-col justify-between relative selection:bg-purple-500 selection:text-white"
+      className="h-screen w-screen bg-[#030008] text-white overflow-hidden flex flex-col justify-between relative selection:bg-purple-500 selection:text-white"
     >
       <div className="planet-glow-v5 pointer-events-none" />
       <div ref={planetRef} className="cosmic-planet-v5 pointer-events-none" />
@@ -161,18 +160,17 @@ export default function FinalHero() {
         <div className="mountain-mist-v5" />
       </div>
 
-      <header className="relative z-50 max-w-[1300px] w-full mx-auto px-6 pt-5">
-        <nav className="glass-pill rounded-full px-6 py-3.5 flex items-center justify-between border border-white/10 shadow-2xl">
+      <header className="fixed top-0 left-0 right-0 z-50 max-w-[1300px] w-full mx-auto px-6 pt-5">
+        <nav className="glass-pill rounded-full px-6 pt-[0.55rem] pb-[0.55rem] flex items-center justify-between border border-white/10 shadow-2xl">
           <div className="flex items-center gap-2.5 nav-item-v5 cursor-pointer">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center glow-purple">
-              <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <span className="font-bold tracking-wider text-xs uppercase text-white/90">COVERAGE CALLS</span>
+            <img
+              src="/images/coveragec1.png"
+              alt="Coverage Calls"
+              className="h-[2.7rem] w-auto object-contain"
+            />
           </div>
 
-          <div className="hidden md:flex items-center gap-7 text-xs text-gray-300 font-medium">
+          <div className="hidden md:flex items-center gap-7 text-[0.9rem] text-gray-300 font-medium">
             <div className="flex items-center gap-1 nav-item-v5 hover:text-white cursor-pointer transition">
               <span>Product</span>
               <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
@@ -198,7 +196,7 @@ export default function FinalHero() {
             <a href="#login" className="hidden sm:block text-xs font-medium text-gray-300 hover:text-white nav-item-v5 transition">
               Log in
             </a>
-            <button className="nav-item-v5 relative group px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-[length:200%_auto] text-xs font-semibold shadow-lg glow-purple hover:bg-[position:right_center] transition-all duration-500">
+            <button className="nav-item-v5 relative group px-4 py-2 rounded-full border-0 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-[length:200%_auto] text-xs font-semibold shadow-lg glow-purple hover:bg-[position:right_center] transition-all duration-500">
               <span className="flex items-center gap-1.5">
                 Start free trial
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -208,7 +206,7 @@ export default function FinalHero() {
         </nav>
       </header>
 
-      <main className="relative z-20 max-w-[1300px] w-full mx-auto px-6 my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pb-8">
+      <main className="relative z-20 max-w-[1300px] w-full mx-auto px-0 pt-[70px] my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pb-8">
         <div className="hero-content-v5 lg:col-span-6 flex flex-col items-start">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-pill border border-purple-500/30 text-[11px] font-semibold tracking-wider text-purple-300 uppercase mb-5 shadow-inner">
             <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
@@ -227,7 +225,7 @@ export default function FinalHero() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mb-7">
-            <button className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 font-semibold text-sm shadow-xl glow-purple flex items-center justify-center gap-2.5 group transition-all">
+            <button className="px-6 py-3 rounded-xl border-0 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 font-semibold text-sm shadow-xl glow-purple flex items-center justify-center gap-2.5 group transition-all">
               <span>Start 7-day free trial</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
@@ -309,7 +307,7 @@ export default function FinalHero() {
               <div className="relative flex items-center justify-between px-2">
                 <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-[2px] bg-purple-950 z-0" />
                 <div
-                  className="absolute left-4 top-1/2 -translate-y-1/2 h-[2px] bg-purple-500 z-0 transition-all duration-500 shadow-[0_0_10px_#a855f7]"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 h-[2px] bg-purple-500 z-0 transition-all duration-300 shadow-[0_0_10px_#a855f7]"
                   style={{ width: `${(callStage / 3) * 85}%` }}
                 />
 
@@ -375,7 +373,7 @@ export default function FinalHero() {
 
           <div
             ref={cardRightRef}
-            className={`hidden xl:flex flex-col glass-card-v5 rounded-3xl p-6 w-64 relative z-20 shadow-2xl transition-all duration-500 min-h-[420px] ${isAgentActive ? "border-purple-500/60" : ""}`}
+            className={`hidden xl:flex flex-col glass-card-v5 rounded-3xl p-6 w-[18rem] relative z-20 shadow-2xl transition-all duration-500 min-h-[420px] ${isAgentActive ? "border-purple-500/60" : ""}`}
             style={isAgentActive ? { boxShadow: "0 0 35px rgba(168,85,247,0.45)" } : undefined}
           >
             <div className="flex items-center justify-between pb-3.5 border-b border-white/10">
@@ -406,7 +404,7 @@ export default function FinalHero() {
             </div>
 
             <button
-              className={`w-full py-3 rounded-xl font-semibold text-xs tracking-wide shadow-lg transition-all ${
+              className={`w-full py-3 rounded-xl border-0 font-semibold text-xs tracking-wide shadow-lg transition-all ${
                 isAgentActive
                   ? "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 glow-purple text-white"
                   : "glass-pill text-gray-300"
@@ -433,3 +431,4 @@ export default function FinalHero() {
     </div>
   );
 }
+

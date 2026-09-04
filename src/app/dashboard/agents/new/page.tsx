@@ -49,10 +49,10 @@ export default function NewAgentPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="split" style={{ "--gap": "var(--space-6)" } as React.CSSProperties}>
+        <div className="split" style={{ gap: "var(--space-6)" } as React.CSSProperties}>
           <div className="stack" style={{ flex: 2, gap: "var(--space-5)" }}>
-            <section className="card" style={{ padding: "var(--space-6)" }}>
-              <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Agent Email</h2>
+            <section className="card card--form">
+              <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em" }}>Agent Email</h2>
               <div className="form-group">
                 <label className="form-label" htmlFor="email">Email address</label>
                 <input
@@ -71,11 +71,11 @@ export default function NewAgentPage() {
               </div>
             </section>
 
-            <section className="card" style={{ padding: "var(--space-6)" }}>
-              <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Vertical</h2>
+            <section className="card card--form">
+              <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em" }}>Vertical</h2>
               <div className="form-group">
                 <label className="form-label">Select vertical for this agent</label>
-                <div className="stack-h" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                <div className="stack-h" style={{ gap: 8, flexWrap: "wrap", marginTop: 4 }}>
                   {SKILL_OPTIONS.map((s) => (
                     <button
                       key={s}
@@ -95,9 +95,9 @@ export default function NewAgentPage() {
             </section>
           </div>
 
-          <div className="stack" style={{ flex: 1, gap: "var(--space-5)" }}>
-            <section className="card" style={{ padding: "var(--space-6)" }}>
-              <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Summary</h2>
+          <div className="stack" style={{ flex: 1, gap: "var(--space-4)" }}>
+            <section className="card card--form">
+              <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em" }}>Summary</h2>
               <dl className="data-list">
                 <dt>Email</dt>
                 <dd className="text-mono-sm">{email || "—"}</dd>

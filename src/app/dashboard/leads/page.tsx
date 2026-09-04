@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
 import { showToast } from "@/lib/use-toast";
@@ -21,49 +22,66 @@ interface Lead {
   created_at: string;
 }
 
-interface Agent { id: string; membership_id: string; }
+interface Agent { id: string; membership_id: string; user_name?: string; user_email?: string; }
 
 const STATUS_OPTIONS = ["", "new", "contacted", "qualified", "converted", "lost", "disqualified"];
-
 function formatDurationSec(sec: number | null) {
-  if (sec === null || sec === undefined) return "—";
+  if (sec === null || sec === undefined) return "\u2014";
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}m ${s}s`;
 }
-
 function formatPremium(cents: number | null) {
-  if (cents === null || cents === undefined) return "—";
+  if (cents === null || cents === undefined) return "\u2014";
   return `$${(cents / 100).toFixed(2)}`;
 }
+const PAGE_SIZE = 10;
 
-export default function LeadsPage() {
+function LeadsInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQ = searchParams.get("q") ?? "";
+  const initialStatus = searchParams.get("status") ?? "";
+  const initialPage = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
+
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState(initialQ);
+  const [debouncedQ, setDebouncedQ] = useState(initialQ);
+  const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState("created_at");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
 
-  const [statusFilter, setStatusFilter] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
-  const [agentFilter, setAgentFilter] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [sourceFilter, setSourceFilter] = useState(searchParams.get("source") ?? "");
+  const [agentFilter, setAgentFilter] = useState(searchParams.get("agent") ?? "");
+  const [startDate, setStartDate] = useState(searchParams.get("start") ?? "");
+  const [endDate, setEndDate] = useState(searchParams.get("end") ?? "");
   const [sources, setSources] = useState<string[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [agentMap, setAgentMap] = useState<Record<string, string>>({});
+  const hasMounted = useRef(false);
 
   useEffect(() => {
-    fetch("/api/v1/leads/sources").then(async (r) => { if (r.ok) { const b = await r.json(); setSources(b.data); } });
-    fetch("/api/v1/agents?limit=100").then(async (r) => { if (r.ok) { const b = await r.json(); setAgents(b.data); } });
+    fetch("/api/v1/leads/sources").then(async (r) => { if (r.ok) { const b = await r.json(); setSources(b.data ?? []); } });
+    fetch("/api/v1/agents?limit=100").then(async (r) => {
+      if (r.ok) {
+        const b = await r.json();
+        const rows: Agent[] = b.data ?? [];
+        setAgents(rows);
+        const m: Record<string, string> = {};
+        for (const a of rows) if (a.id) m[a.id] = a.user_name || a.user_email || a.membership_id?.slice(0, 8) || a.id.slice(0, 8);
+        setAgentMap(m);
+      }
+    });
   }, []);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: "25", sortBy, order });
-    if (search) params.set("search", search);
+    const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), sortBy, order });
+    if (debouncedQ) params.set("search", debouncedQ);
     if (statusFilter) params.set("status", statusFilter);
     if (sourceFilter) params.set("source", sourceFilter);
     if (agentFilter) params.set("assignedAgentId", agentFilter);
@@ -77,9 +95,32 @@ export default function LeadsPage() {
       setTotal(body.pagination.total);
     }
     setLoading(false);
-  }, [page, sortBy, order, search, statusFilter, sourceFilter, agentFilter, startDate, endDate]);
+  }, [page, sortBy, order, debouncedQ, statusFilter, sourceFilter, agentFilter, startDate, endDate]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const trimmed = searchInput.trim();
+      if (trimmed !== debouncedQ) { setDebouncedQ(trimmed); setPage(1); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput, debouncedQ]);
+
+  useEffect(() => {
+    if (!hasMounted.current) { hasMounted.current = true; return; }
+    const p = new URLSearchParams();
+    if (debouncedQ) p.set("q", debouncedQ);
+    if (statusFilter) p.set("status", statusFilter);
+    if (sourceFilter) p.set("source", sourceFilter);
+    if (agentFilter) p.set("agent", agentFilter);
+    if (startDate) p.set("start", startDate);
+    if (endDate) p.set("end", endDate);
+    if (page > 1) p.set("page", String(page));
+    const qs = p.toString();
+    if (qs === searchParams.toString()) return;
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+  }, [debouncedQ, statusFilter, sourceFilter, agentFilter, startDate, endDate, page, router, searchParams]);
 
   function toggleSort(field: string) {
     if (sortBy === field) setOrder(order === "asc" ? "desc" : "asc");
@@ -112,27 +153,27 @@ export default function LeadsPage() {
 
   const columns: Column<Lead>[] = [
     { key: "created_at", header: "Date", sortable: true, render: (l) => <time className="text-mono-sm">{new Date(l.created_at).toLocaleDateString()}</time> },
-    { key: "email_hash", header: "Email", render: (l) => <Link href={`/dashboard/leads/${l.id}`} className="clickable">{l.email_hash?.slice(0, 16)}...</Link> },
-    { key: "phone_hash", header: "Phone", render: (l) => <span className="text-mono-sm">{l.phone_hash?.slice(0, 12)}...</span> },
+    { key: "email_hash", header: "Email", render: (l) => <Link href={`/dashboard/leads/${l.id}`} className="clickable">{l.email_hash?.slice(0, 16) ?? "\u2014"}</Link> },
+    { key: "phone_hash", header: "Phone", render: (l) => <span className="text-mono-sm">{l.phone_hash?.slice(0, 12) ?? "\u2014"}</span> },
     { key: "source", header: "Source", sortable: true, render: (l) => <span className="badge">{l.source ?? "direct"}</span> },
     { key: "status", header: "Status", sortable: true, render: (l) => <span className={statusBadge(l.status)}>{l.status}</span> },
-    { key: "last_call_started_at", header: "Last Call", render: (l) => <span className="text-mono-sm">{l.last_call_started_at ? new Date(l.last_call_started_at).toLocaleDateString() : "—"}</span> },
+    { key: "last_call_started_at", header: "Last Call", render: (l) => <span className="text-mono-sm">{l.last_call_started_at ? new Date(l.last_call_started_at).toLocaleDateString() : "\u2014"}</span> },
     { key: "last_call_duration_seconds", header: "Duration", render: (l) => <span className="text-mono-sm">{formatDurationSec(l.last_call_duration_seconds)}</span> },
-    { key: "disposition_outcome", header: "Disposition", render: (l) => l.disposition_outcome ? <span className={statusBadge(l.disposition_outcome)}>{l.disposition_outcome}</span> : <span className="text-muted">—</span> },
+    { key: "disposition_outcome", header: "Disposition", render: (l) => l.disposition_outcome ? <span className={statusBadge(l.disposition_outcome)}>{l.disposition_outcome}</span> : <span className="text-muted">\u2014</span> },
     { key: "annual_premium_cents", header: "Premium", render: (l) => <span className="text-mono-sm" style={{ color: "var(--accent)" }}>{formatPremium(l.annual_premium_cents)}</span> },
     {
-      key: "assigned_agent_id", header: "Assigned",
+      key: "assigned_agent_id", header: "Assigned", className: "actions-cell",
       render: (l) => (
-        <select className="input" style={{ width: 120, padding: "4px 8px", fontSize: 11 }} value={l.assigned_agent_id ?? ""} onChange={(e) => handleAssign(l.id, e.target.value)}>
+        <select className="select" style={{ width: 148, minWidth: 0 }} value={l.assigned_agent_id ?? ""} onChange={(e) => handleAssign(l.id, e.target.value)}>
           <option value="">Unassigned</option>
-          {agents.map((a) => <option key={a.id} value={a.id}>{a.membership_id.slice(0, 8)}</option>)}
+          {agents.map((a) => <option key={a.id} value={a.id}>{agentMap[a.id] ?? a.membership_id.slice(0, 8)}</option>)}
         </select>
       ),
     },
     {
-      key: "delete", header: "",
+      key: "delete", header: "", className: "actions-cell",
       render: (l) => (
-        <button className="btn btn-ghost btn-sm" onClick={async () => {
+        <button className="btn btn-ghost btn-sm" aria-label="Delete lead" title="Delete lead" style={{ padding: "6px 8px", lineHeight: 1 }} onClick={async () => {
           if (!confirm("Delete this lead?")) return;
           try {
             const res = await fetch(`/api/v1/leads/${l.id}`, { method: "DELETE" });
@@ -159,41 +200,52 @@ export default function LeadsPage() {
           <h1>Leads</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search leads..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <a className="btn btn-ghost" href={`/api/v1/leads/export?search=${search}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>CSV</a>
-          <a className="btn btn-ghost" href={`/api/v1/leads/export?format=xlsx&search=${search}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>Excel</a>
-          <span className="text-mono-sm">{total} total</span>
+          <input className="input" type="search" placeholder="Search leads..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{total} total</span>
         </div>
       </div>
       <div className="filter-bar">
-        <select className="input" style={{ width: 130 }} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+        <select className="select" style={{ maxWidth: 140 }} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="">All statuses</option>
           {STATUS_OPTIONS.filter(Boolean).map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="input" style={{ width: 130 }} value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}>
+        <select className="select" style={{ maxWidth: 140 }} value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}>
           <option value="">All sources</option>
           {sources.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="input" style={{ width: 140 }} value={agentFilter} onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}>
+        <select className="select" style={{ maxWidth: 160 }} value={agentFilter} onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}>
           <option value="">All agents</option>
-          {agents.map((a) => <option key={a.id} value={a.id}>{a.membership_id.slice(0, 8)}</option>)}
+          {agents.map((a) => <option key={a.id} value={a.id}>{agentMap[a.id] ?? a.membership_id.slice(0, 8)}</option>)}
         </select>
-        <input className="input" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} style={{ width: 140 }} />
-        <input className="input" type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} style={{ width: 140 }} />
+        <input className="input" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} style={{ maxWidth: 150 }} />
+        <input className="input" type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} style={{ maxWidth: 150 }} />
+        <div className="stack-h" style={{ gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
+          <a className="btn btn-ghost btn-sm" href={`/api/v1/leads/export?search=${debouncedQ}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>CSV</a>
+          <a className="btn btn-ghost btn-sm" href={`/api/v1/leads/export?format=xlsx&search=${debouncedQ}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>Excel</a>
+          {(statusFilter || sourceFilter || agentFilter || startDate || endDate) && <button className="btn btn-ghost btn-sm" onClick={() => { setStatusFilter(""); setSourceFilter(""); setAgentFilter(""); setStartDate(""); setEndDate(""); setPage(1); }}>Clear</button>}
+        </div>
       </div>
       <DataTable
-        columns={columns}
-        data={leads}
-        loading={loading}
-        emptyMessage="No leads found."
-        page={page}
-        totalPages={totalPages}
-        total={total}
-        onPageChange={setPage}
-        sortBy={sortBy}
-        order={order}
-        onSort={toggleSort}
-      />
+          columns={columns}
+          data={leads}
+          loading={loading}
+          emptyMessage="No leads found. Try adjusting search or filters."
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          onPageChange={setPage}
+          sortBy={sortBy}
+          order={order}
+          onSort={toggleSort}
+        />
     </div>
+  );
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div className="dashboard-page"><div className="skeleton skeleton-text" /></div>}>
+      <LeadsInner />
+    </Suspense>
   );
 }

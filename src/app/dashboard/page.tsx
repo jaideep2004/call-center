@@ -218,7 +218,7 @@ export default function DashboardPage() {
                   <h2>{volData.reduce((a, b) => a + b.count, 0)} total</h2>
                 </div>
               </div>
-              <Sparkline data={volData.map((d) => d.count)} width={280} height={52} />
+              <div style={{ overflowX: "auto", width: "100%" }}><Sparkline data={volData.map((d) => d.count)} width={280} height={52} responsive /></div>
             </div>
 
             <div className="panel">
@@ -228,7 +228,7 @@ export default function DashboardPage() {
                   <h2>{durData.length > 0 ? `${Math.round(durData.reduce((a, b) => a + b.avg_seconds, 0) / durData.length / 60)}m avg` : "—"}</h2>
                 </div>
               </div>
-              <Sparkline data={durData.map((d) => d.avg_seconds)} width={280} height={52} />
+              <div style={{ overflowX: "auto", width: "100%" }}><Sparkline data={durData.map((d) => d.avg_seconds)} width={280} height={52} responsive /></div>
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>

@@ -66,7 +66,7 @@ export default function NewScriptPage() {
           <h1>New Script</h1>
         </div>
       </div>
-      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: 680 }}>
+      <form onSubmit={handleSubmit} className="card card--form" style={{ maxWidth: 680 }}>
         {error && <div className="error-banner"><p>{error}</p></div>}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
           <div className="form-group">
@@ -108,8 +108,8 @@ export default function NewScriptPage() {
             Use dynamic variables to auto-fill during calls: {"{{agent_name}}"}, {"{{phone}}"}, {"{{npn}}"}, {"{{state}}"}, {"{{beneficiary}}"}. Unfilled variables stay visible for the agent to complete.
           </span>
         </div>
-        <div style={{ display: "flex", gap: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border)" }}>
-          <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? "Saving..." : "Create Script"}</button>
+        <div style={{ display: "flex", gap: "var(--space-3)", paddingTop: "var(--space-4)", borderTop: "1px solid var(--line)", marginTop: "var(--space-2)" }}>
+          <button className="btn btn-primary" type="submit" disabled={saving} style={{ whiteSpace: "nowrap" }}>{saving ? "Saving..." : "Create Script"}</button>
           <button className="btn btn-ghost" type="button" onClick={() => router.back()}>Cancel</button>
         </div>
       </form>

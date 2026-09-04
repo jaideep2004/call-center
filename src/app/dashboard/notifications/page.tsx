@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useMemo, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import DataTable from "@/components/data-table";
+import type { Column } from "@/components/data-table";
 import { showToast } from "@/lib/use-toast";
 import { useSocket } from "@/lib/use-socket";
 
@@ -11,11 +14,28 @@ interface Notification {
   occurred_at: string;
   dispatched_at: string | null;
 }
+const PAGE_SIZE = 10;
+const TOPIC_COLORS: Record<string, string> = {
+  "call.new": "badge-info",
+  "call.ended": "badge-success",
+  "lead.assigned": "badge-warning",
+  "support.new": "badge-warning",
+  default: "",
+};
 
-export default function NotificationsPage() {
+function NotificationsInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQ = searchParams.get("q") ?? "";
+  const initialPage = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [membershipId, setMembershipId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState(initialQ);
+  const [debouncedQ, setDebouncedQ] = useState(initialQ);
+  const [page, setPage] = useState(initialPage);
+  const hasMounted = useRef(false);
 
   useEffect(() => {
     fetch("/api/v1/me").then(async (res) => {
@@ -30,15 +50,13 @@ export default function NotificationsPage() {
 
   const refresh = () => {
     fetch("/api/v1/notifications").then(async (res) => {
-      if (res.ok) { const b = await res.json(); setNotifications(b.data); }
+      if (res.ok) { const b = await res.json(); setNotifications(b.data ?? []); }
       setLoading(false);
     });
   };
 
   useEffect(refresh, []);
 
-  // Live updates: the gateway pushes notification:new to the agent's socket
-  // room the moment a notification row is created.
   useEffect(() => {
     if (!socket) return;
     const handler = () => {
@@ -49,6 +67,24 @@ export default function NotificationsPage() {
     return () => { socket.off("notification:new", handler); };
   }, [socket]);
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const trimmed = searchInput.trim().toLowerCase();
+      if (trimmed !== debouncedQ) { setDebouncedQ(trimmed); setPage(1); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput, debouncedQ]);
+
+  useEffect(() => {
+    if (!hasMounted.current) { hasMounted.current = true; return; }
+    const p = new URLSearchParams();
+    if (debouncedQ) p.set("q", debouncedQ);
+    if (page > 1) p.set("page", String(page));
+    const qs = p.toString();
+    if (qs === searchParams.toString()) return;
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+  }, [debouncedQ, page, router, searchParams]);
+
   async function markRead(id: string) {
     const res = await fetch(`/api/v1/notifications/${id}`, { method: "PATCH" });
     if (res.ok) {
@@ -58,20 +94,34 @@ export default function NotificationsPage() {
   }
 
   async function markAllRead() {
-    for (const n of notifications.filter((n) => !n.dispatched_at)) {
-      await fetch(`/api/v1/notifications/${n.id}`, { method: "PATCH" });
-    }
-    setNotifications((prev) => prev.map((n) => ({ ...n, dispatched_at: n.dispatched_at ?? new Date().toISOString() })));
-    showToast("All notifications marked as read", "success");
+    try {
+      const res = await fetch("/api/v1/notifications/mark-all-read", { method: "POST" });
+      if (res.ok) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, dispatched_at: new Date().toISOString() })));
+        showToast("All notifications marked as read", "success");
+      }
+    } catch {}
   }
 
-  if (loading) return (
-    <div className="dashboard-page">
-      <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
-    </div>
-  );
+  const filtered = useMemo(() => {
+    if (!debouncedQ) return notifications;
+    const q = debouncedQ;
+    return notifications.filter((n) => n.topic.toLowerCase().includes(q) || JSON.stringify(n.payload).toLowerCase().includes(q));
+  }, [notifications, debouncedQ]);
 
-  const unread = notifications.filter((n) => !n.dispatched_at).length;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
+  const unread = filtered.filter((n) => !n.dispatched_at).length;
+
+  const columns: Column<Notification>[] = [
+    { key: "topic", header: "Topic", render: (n) => <span className={`badge ${TOPIC_COLORS[n.topic] ?? TOPIC_COLORS.default}`}>{n.topic}</span> },
+    { key: "payload", header: "Payload", render: (n) => <span className="text-mono-sm" style={{ fontSize: 11, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", display: "inline-block", whiteSpace: "nowrap" }} title={JSON.stringify(n.payload)}>{JSON.stringify(n.payload)}</span> },
+    { key: "occurred_at", header: "When", render: (n) => <time className="text-mono-sm" style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>{new Date(n.occurred_at).toLocaleString()}</time> },
+    { key: "dispatched_at", header: "Status", render: (n) => !n.dispatched_at ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--cyan)", display: "inline-block" }} title="Unread" /> : <span className="badge">read</span> },
+    { key: "actions", header: "", className: "actions-cell", render: (n) => !n.dispatched_at ? <button className="btn btn-sm btn-secondary" style={{ whiteSpace: "nowrap" }} onClick={() => markRead(n.id)}>Mark read</button> : null },
+  ];
+
+  if (loading) return <div className="dashboard-page"><div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div></div>;
 
   return (
     <div className="dashboard-page">
@@ -80,43 +130,38 @@ export default function NotificationsPage() {
           <p className="eyebrow"><i /> NOTIFICATIONS</p>
           <h1>Notifications</h1>
         </div>
-        <div className="split" style={{ gap: 8, alignItems: "center" } as React.CSSProperties}>
-          <span className="text-mono-sm">{unread} unread</span>
-          {unread > 0 && <button className="btn btn-secondary" style={{ fontSize: 11 }} onClick={markAllRead}>Mark all read</button>}
+        <div className="search-bar">
+          <input className="input" type="search" placeholder="Search topic or payload..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 200 }} />
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{unread} unread · {filtered.length} total</span>
+          {unread > 0 && <button className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }} onClick={markAllRead}>Mark all read</button>}
         </div>
       </div>
       {notifications.length === 0 ? (
-        <div className="empty-state"><p>No notifications yet.</p></div>
+        <div className="empty-state"><p>No notifications yet. You&apos;ll see calls, leads and system alerts here.</p></div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state"><p>No notifications match &quot;{debouncedQ}&quot;.</p></div>
       ) : (
-        <div className="stack" style={{ gap: 4 }}>
-          {notifications.map((n) => (
-            <div
-              key={n.id}
-              className="card"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "var(--space-3) var(--space-4)",
-                opacity: n.dispatched_at ? 0.5 : 1,
-                cursor: n.dispatched_at ? "default" : "pointer",
-              }}
-              onClick={() => !n.dispatched_at && markRead(n.id)}
-            >
-              <div>
-                <span className="badge" style={{ marginRight: "var(--space-2)" }}>{n.topic}</span>
-                <span className="text-mono-sm" style={{ fontSize: 12 }}>{JSON.stringify(n.payload)}</span>
-              </div>
-              <div className="split" style={{ gap: 8, alignItems: "center" } as React.CSSProperties}>
-                <time className="text-mono-sm" style={{ fontSize: 10, color: "var(--muted)" }}>
-                  {new Date(n.occurred_at).toLocaleString()}
-                </time>
-                {!n.dispatched_at && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--cyan)" }} />}
-              </div>
-            </div>
-          ))}
-        </div>
+        <DataTable
+            columns={columns}
+            data={paginated}
+            emptyMessage="No notifications"
+            page={page}
+            totalPages={totalPages}
+            total={filtered.length}
+            onPageChange={setPage}
+            sortBy="occurred_at"
+            order="desc"
+            onSort={() => {}}
+          />
       )}
     </div>
+  );
+}
+
+export default function NotificationsPage() {
+  return (
+    <Suspense fallback={<div className="dashboard-page"><div className="skeleton skeleton-text" /></div>}>
+      <NotificationsInner />
+    </Suspense>
   );
 }

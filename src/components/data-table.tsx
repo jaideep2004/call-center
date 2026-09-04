@@ -51,6 +51,7 @@ export default function DataTable<T extends { id: string }>({
 
   return (
     <>
+      <div className="data-table-wrap">
       <table className="data-table">
         <thead>
           <tr>
@@ -80,6 +81,7 @@ export default function DataTable<T extends { id: string }>({
           ))}
         </tbody>
       </table>
+      </div>
       {totalPages > 1 && (
         <div className="pagination">
           <button className="pagination-item" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>&lsaquo;</button>
