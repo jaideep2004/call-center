@@ -8,7 +8,7 @@ Follow phases **in order**. Do not start a later phase until the current one pas
 - `graphify update .` after structural changes
 - No new TODO/placeholder code shipped
 
-**Legend:** CRITICAL / HIGH / MEDIUM
+**Legend:** CRITICAL / HIGH / MEDIUM...
 
 ---
 
