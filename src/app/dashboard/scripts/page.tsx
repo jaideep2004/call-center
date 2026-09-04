@@ -90,21 +90,24 @@ function ScriptsInner() {
           <h1>Scripts</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search scripts..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 180 }} />
-          <select className="select" value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} style={{ maxWidth: 140 }}>
+          <input className="input" type="search" placeholder="Search scripts..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 180 }} />
+          <Link href="/dashboard/scripts/new" className="btn btn-primary" style={{ whiteSpace: "nowrap" }}>+ New Script</Link>
+        </div>
+      </div>
+      <div className="filter-bar">
+        <select className="select" value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
             <option value="">All categories</option>
             {categories.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <Link href="/dashboard/scripts/new" className="btn btn-primary">+ New Script</Link>
-        </div>
+        <span className="text-mono-sm" style={{ marginLeft: "auto", color: "var(--muted)", fontSize: 11 }}>{filtered.length} scripts</span>
+        {category && <button className="btn btn-ghost btn-sm" onClick={() => setCategory("")}>Clear</button>}
       </div>
       {loading ? (
         <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>{scripts.length === 0 ? "No scripts yet. Create your first call script to guide agents." : `No scripts match "${debouncedQ}".`}</p></div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <DataTable
+        <DataTable
             columns={columns}
             data={paginated}
             emptyMessage="No scripts"
@@ -116,7 +119,6 @@ function ScriptsInner() {
             order="asc"
             onSort={() => {}}
           />
-        </div>
       )}
     </div>
   );

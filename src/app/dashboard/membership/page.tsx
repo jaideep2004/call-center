@@ -140,13 +140,13 @@ function MembershipInner() {
     {
       key: "role", header: "Role",
       render: (m) => (
-        <select className="input" value={m.role} onChange={(e) => updateRole(m.id, e.target.value)} style={{ maxWidth: 140, fontSize: 11 }}>
+        <select className="select" value={m.role} onChange={(e) => updateRole(m.id, e.target.value)} style={{ maxWidth: 150 }}>
           {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
       ),
     },
     { key: "status", header: "Status", render: (m) => <span className={`badge ${m.status === "active" ? "badge-success" : m.status === "suspended" ? "badge-warning" : m.status === "invited" ? "badge-info" : ""}`}>{m.status}</span> },
-    { key: "actions", header: "Actions", render: (m) => <button className="btn btn-secondary" style={{ fontSize: 11 }} onClick={() => toggleStatus(m.id, m.status)}>{m.status === "active" ? "Suspend" : "Activate"}</button> },
+    { key: "actions", header: "Actions", className: "actions-cell", render: (m) => <button className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }} onClick={() => toggleStatus(m.id, m.status)}>{m.status === "active" ? "Suspend" : "Activate"}</button> },
   ];
 
   if (loading) return (
@@ -163,13 +163,13 @@ function MembershipInner() {
           <h1>Membership</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search members..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 180 }} />
-          <span className="text-mono-sm">{filtered.length} total</span>
+          <input className="input" type="search" placeholder="Search members..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 180 }} />
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{filtered.length} total</span>
         </div>
       </div>
 
       <div className="split" style={{ gap: "var(--space-6)", flexWrap: "wrap" } as React.CSSProperties}>
-        <div style={{ flex: 2, minWidth: 320, overflowX: "auto" }}>
+        <div style={{ flex: 2, minWidth: 320 }}>
           {filtered.length === 0 ? (
             <div className="empty-state"><p>{members.length === 0 ? "No members yet. Invite via user ID on the right." : `No members match "${debouncedQ}".`}</p></div>
           ) : (
@@ -187,14 +187,21 @@ function MembershipInner() {
             />
           )}
         </div>
-        <form onSubmit={handleInvite} className="card" style={{ flex: 1, minWidth: 280 }}>
+        <form onSubmit={handleInvite} className="card card--form" style={{ flex: 1, minWidth: 280 }}>
           <h2>Invite member</h2>
-          <div className="stack" style={{ gap: 8, marginTop: "var(--space-3)" }}>
-            <input className="input" placeholder="User ID (from Users table)" value={inviteUserId} onChange={(e) => setInviteUserId(e.target.value)} required />
-            <select className="select" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+          <p className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>Add a user to this agency by ID. Find IDs in Admin → Users.</p>
+          <div className="stack" style={{ gap: "var(--space-4)", marginTop: "var(--space-1)" }}>
+            <div className="form-group">
+              <label className="form-label">User ID</label>
+              <input className="input" placeholder="User ID (from Users table)" value={inviteUserId} onChange={(e) => setInviteUserId(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Role</label>
+              <select className="select" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
               {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            <button className="btn btn-primary" type="submit" disabled={inviting || !inviteUserId.trim()}>{inviting ? "..." : "Send invite"}</button>
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={inviting || !inviteUserId.trim()} style={{ width: "100%", justifyContent: "center" }}>{inviting ? "..." : "Send invite"}</button>
           </div>
         </form>
       </div>

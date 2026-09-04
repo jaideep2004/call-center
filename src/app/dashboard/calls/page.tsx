@@ -153,14 +153,12 @@ function CallsInner() {
           <h1>Calls</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search calls..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
-          <a className="btn btn-ghost" href={`/api/v1/calls/export?state=${stateFilter}&search=${debouncedQ}`} download>CSV</a>
-          <a className="btn btn-ghost" href={`/api/v1/calls/export?format=xlsx&state=${stateFilter}&search=${debouncedQ}`} download>Excel</a>
-          <span className="text-mono-sm">{total} total</span>
+          <input className="input" type="search" placeholder="Search calls..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 200 }} />
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{total} total</span>
         </div>
       </div>
       <div className="filter-bar">
-        <select className="input" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value); setPage(1); }}>
+        <select className="select" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
           <option value="">All states</option>
           <option value="received">Received</option>
           <option value="validating">Validating</option>
@@ -175,10 +173,13 @@ function CallsInner() {
           <option value="cancelled">Cancelled</option>
           <option value="disputed">Disputed</option>
         </select>
-        <button className="btn btn-sm" onClick={simulateCall} disabled={simulating}>{simulating ? "Simulating..." : "Simulate Call"}</button>
+        <div className="stack-h" style={{ gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
+          <a className="btn btn-ghost btn-sm" href={`/api/v1/calls/export?state=${stateFilter}&search=${debouncedQ}`} download>CSV</a>
+          <a className="btn btn-ghost btn-sm" href={`/api/v1/calls/export?format=xlsx&state=${stateFilter}&search=${debouncedQ}`} download>Excel</a>
+          <button className="btn btn-secondary btn-sm" onClick={simulateCall} disabled={simulating} style={{ whiteSpace: "nowrap" }}>{simulating ? "Simulating..." : "Simulate Call"}</button>
+        </div>
       </div>
-      <div style={{ overflowX: "auto" }}>
-        <DataTable
+      <DataTable
           columns={columns}
           data={calls}
           loading={loading}
@@ -191,7 +192,6 @@ function CallsInner() {
           order={order}
           onSort={toggleSort}
         />
-      </div>
     </div>
   );
 }

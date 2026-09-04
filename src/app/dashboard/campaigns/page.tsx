@@ -97,22 +97,21 @@ function CampaignsInner() {
           <h1>Campaigns</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search campaigns..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+          <input className="input" type="search" placeholder="Search campaigns..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
           <Link href="/dashboard/campaigns/new" className="btn btn-primary">+ Create</Link>
-          <span className="text-mono-sm">{total} total</span>
         </div>
       </div>
       <div className="filter-bar">
-        <select className="input" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+        <select className="select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 160 }}>
           <option value="">All statuses</option>
           <option value="draft">Draft</option>
           <option value="active">Active</option>
           <option value="paused">Paused</option>
           <option value="archived">Archived</option>
         </select>
+        <span className="text-mono-sm" style={{ marginLeft: "auto", color: "var(--muted)", fontSize: 11 }}>{total} campaigns</span>
       </div>
-      <div style={{ overflowX: "auto" }}>
-        <DataTable
+      <DataTable
           columns={columns}
           data={campaigns}
           loading={loading}
@@ -125,7 +124,6 @@ function CampaignsInner() {
           order={order}
           onSort={toggleSort}
         />
-      </div>
     </div>
   );
 }

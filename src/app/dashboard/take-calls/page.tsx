@@ -255,8 +255,8 @@ function TakeCallsInner() {
         )}
       </div>
 
-      <div className="card" style={{ maxWidth: 640 }}>
-        <h2 style={{ marginBottom: 12 }}>Device Check</h2>
+      <div className="card card--spacious" style={{ maxWidth: 640 }}>
+        <h2 style={{ marginBottom: 4, font: "500 16px var(--serif)" }}>Device Check</h2>
         <p className="text-muted" style={{ fontSize: 12, marginBottom: "var(--space-4)" }}>
           Verify your headset before going online. Grant mic access when prompted.
         </p>
@@ -264,8 +264,8 @@ function TakeCallsInner() {
       </div>
 
       {agentId && (
-        <div className="card">
-          <h2 style={{ marginBottom: 12 }}>Agent Status</h2>
+        <div className="card card--spacious">
+          <h2 style={{ marginBottom: 14, font: "500 16px var(--serif)" }}>Agent Status</h2>
           <div className="call-detail-grid">
             <div className="call-detail-field">
               <span className="call-detail-label">Approval</span>
@@ -286,7 +286,7 @@ function TakeCallsInner() {
             </div>
             <div className="call-detail-field">
               <span className="call-detail-label">Endpoint</span>
-              <span className="call-detail-value text-mono-sm">{agentInfo?.endpoint_types?.join(", ") ?? "\u2014"}</span>
+              <span className="call-detail-value text-mono-sm">{agentInfo?.endpoint_types?.join(", ") ?? "—"}</span>
             </div>
             <div className="call-detail-field">
               <span className="call-detail-label">Forwarding</span>
@@ -294,7 +294,7 @@ function TakeCallsInner() {
             </div>
           </div>
           {(!isApproved || !isOnline) && (
-            <div className="error-banner" style={{ marginTop: 12 }}>
+            <div className="error-banner" style={{ marginTop: 16 }}>
               <p>
                 {!agentId ? "No agent profile. Click 'Create Agent Profile' above." :
                  !isApproved ? "Your agent profile needs admin approval before you can receive calls." :
@@ -304,7 +304,7 @@ function TakeCallsInner() {
             </div>
           )}
           {isApproved && isOnline && (
-            <div className="error-banner" style={{ marginTop: 12, borderColor: "#465f57", background: "rgba(70,95,87,0.1)" }}>
+            <div className="error-banner" style={{ marginTop: 16, borderColor: "#465f57", background: "rgba(70,95,87,0.1)" }}>
               <p style={{ color: "#b9d7c3" }}>Ready to receive calls. Incoming calls will be routed to you.</p>
             </div>
           )}
@@ -313,15 +313,20 @@ function TakeCallsInner() {
 
       {error && <p className="form-error" style={{ marginTop: 8 }}>{error}</p>}
 
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0 }}>Recent Calls</h2>
-          <input className="input" type="search" placeholder="Search calls..." value={callSearch} onChange={(e) => setCallSearch(e.target.value)} style={{ maxWidth: 180 }} />
+      <div className="filter-bar">
+        <div className="filter-bar__primary">
+          <h2 style={{ margin: 0, font: "500 16px var(--serif)" }}>Recent Calls</h2>
         </div>
+        <div className="filter-bar__group" style={{ marginLeft: "auto" }}>
+          <input className="input" type="search" placeholder="Search calls…" value={callSearch} onChange={(e) => setCallSearch(e.target.value)} style={{ minWidth: 220 }} />
+          <span className="filter-bar__meta" style={{ marginLeft: 0 }}>{filteredCalls.length} call(s){callDebounced ? " (filtered)" : ""}{filteredCalls.length > PAGE_SIZE ? ` — page ${callPage}/${callTotalPages}` : ""}</span>
+        </div>
+      </div>
+
+      <div className="card card--spacious">
         {filteredCalls.length === 0 ? (
           <div className="empty-state"><p>{calls.length === 0 ? "No calls yet. Once you go online, incoming calls will appear here." : `No calls match "${callDebounced}".`}</p></div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
             <DataTable
               columns={callColumns}
               data={paginatedCalls}
@@ -334,7 +339,6 @@ function TakeCallsInner() {
               order="desc"
               onSort={() => {}}
             />
-          </div>
         )}
       </div>
     </div>

@@ -101,11 +101,11 @@ function RecordingsInner() {
     { key: "duration_seconds", header: "Duration", render: (r) => <span className="text-mono-sm">{formatDuration(r.duration_seconds)}</span> },
     { key: "created_at", header: "Date", render: (r) => <span className="text-mono-sm">{new Date(r.created_at).toLocaleString()}</span> },
     {
-      key: "actions", header: "Actions",
+      key: "actions", header: "Actions", className: "actions-cell",
       render: (r) => (
-        <div className="stack-h" style={{ gap: 6 }}>
-          <a href={`/api/v1/recordings/${r.id}/download`} className="btn btn-secondary btn-sm" download>Download</a>
-          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r.id)}>Delete</button>
+        <div className="stack-h" style={{ gap: 6, justifyContent: "flex-end" }}>
+          <a href={`/api/v1/recordings/${r.id}/download`} className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }} download>Download</a>
+          <button className="btn btn-danger btn-sm" style={{ whiteSpace: "nowrap" }} onClick={() => handleDelete(r.id)}>Delete</button>
         </div>
       ),
     },
@@ -126,8 +126,8 @@ function RecordingsInner() {
           <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4, maxWidth: 720 }}>Call recordings are stored when <code>campaign.record_calls=true</code> and your Telnyx Connection has <b>Record calls</b> enabled. Webhook <code>recording.saved</code> must reach <code>/api/telephony/telnyx/webhook</code>.</p>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search by call or type..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 220 }} />
-          <span className="text-mono-sm">{filtered.length} total</span>
+          <input className="input" type="search" placeholder="Search by call or type..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{filtered.length} total</span>
         </div>
       </div>
       {recordings.length === 0 ? (
@@ -145,8 +145,7 @@ function RecordingsInner() {
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>No recordings match &quot;{debouncedQ}&quot;.</p></div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <DataTable
+        <DataTable
             columns={columns}
             data={paginated}
             emptyMessage="No recordings"
@@ -158,7 +157,6 @@ function RecordingsInner() {
             order="desc"
             onSort={() => {}}
           />
-        </div>
       )}
     </div>
   );

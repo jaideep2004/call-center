@@ -180,15 +180,16 @@ function RecruitInner() {
       {success && <p className="form-success" style={{ color: "var(--acid)" }}>{success}</p>}
 
       <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: "var(--space-3)", flexWrap: "wrap" }}>
           <h2>Sub-Agencies</h2>
-          <input className="input" type="search" placeholder="Search sub-agencies..." value={subQ} onChange={(e) => setSubQ(e.target.value)} style={{ maxWidth: 180 }} />
+          <div className="filter-bar filter-bar--plain" style={{ flex: "1 1 220px", maxWidth: 320, justifyContent: "flex-end" }}>
+            <input className="input" type="search" placeholder="Search sub-agencies..." value={subQ} onChange={(e) => setSubQ(e.target.value)} style={{ maxWidth: 260 }} />
+          </div>
         </div>
         {filteredSubs.length === 0 ? (
           <p className="text-muted" style={{ padding: "var(--space-3) 0", fontSize: 12 }}>{subAgencies.length === 0 ? "No sub-agencies yet. Create one below." : `No sub-agencies match "${subQ}".`}</p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <DataTable
+          <DataTable
               columns={subColumns as any}
               data={filteredSubs}
               emptyMessage="No sub-agencies"
@@ -200,27 +201,36 @@ function RecruitInner() {
               order="asc"
               onSort={() => {}}
             />
-          </div>
         )}
-        <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} onClick={() => setShowCreateSub(!showCreateSub)}>
+        <button className="btn btn-primary btn-sm" style={{ marginTop: "var(--space-4)" }} onClick={() => setShowCreateSub(!showCreateSub)}>
           {showCreateSub ? "Cancel" : "Create Sub-Agency"}
         </button>
         {showCreateSub && (
-          <div className="stack" style={{ gap: 8, marginTop: 8 }}>
-            <input className="input" placeholder="Agency name" value={subName} onChange={(e) => setSubName(e.target.value)} />
-            <input className="input" placeholder="slug-name" value={subSlug} onChange={(e) => setSubSlug(e.target.value)} />
-            <label className="label">Commission Rate (%)</label>
-            <input className="input" type="number" min={0} max={100} value={subCommission} onChange={(e) => setSubCommission(Number(e.target.value))} />
-            <button className="btn btn-primary btn-sm" onClick={handleCreateSub} disabled={sending || !subName || !subSlug}>Create</button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)", marginTop: "var(--space-4)", padding: "var(--space-4)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", background: "rgba(20,10,38,0.4)" }}>
+            <div className="form-group">
+              <label className="form-label">Agency name</label>
+              <input className="input" placeholder="Acme Sub" value={subName} onChange={(e) => setSubName(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Slug</label>
+              <input className="input" placeholder="acme-sub" value={subSlug} onChange={(e) => setSubSlug(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Commission Rate (%)</label>
+              <input className="input" type="number" min={0} max={100} value={subCommission} onChange={(e) => setSubCommission(Number(e.target.value))} />
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end" }}>
+              <button className="btn btn-primary btn-sm" onClick={handleCreateSub} disabled={sending || !subName || !subSlug} style={{ height: 42, width: "100%" }}>Create</button>
+            </div>
           </div>
         )}
       </div>
 
       <div className="card">
         <h2>Send Invite</h2>
-        <div className="filter-bar">
-          <input className="input" type="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button className="btn btn-primary btn-sm" onClick={handleSendInvite} disabled={sending || !email}>{sending ? "Sending..." : "Send Invite"}</button>
+        <div className="filter-bar filter-bar--plain" style={{ marginTop: "var(--space-3)", padding: 0, gap: "var(--space-3)" }}>
+          <input className="input" type="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ flex: 1 }} />
+          <button className="btn btn-primary btn-sm" onClick={handleSendInvite} disabled={sending || !email} style={{ height: 38, whiteSpace: "nowrap" }}>{sending ? "Sending..." : "Send Invite"}</button>
         </div>
       </div>
 
@@ -229,8 +239,7 @@ function RecruitInner() {
         {filteredInvites.length === 0 ? (
           <div className="empty-state"><p>{invites.length === 0 ? "No invites sent yet. Send your first invite above." : `No invites match "${debouncedQ}".`}</p></div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <DataTable
+          <DataTable
               columns={inviteColumns}
               data={paginatedInvites}
               emptyMessage="No invites"
@@ -242,7 +251,6 @@ function RecruitInner() {
               order="desc"
               onSort={() => {}}
             />
-          </div>
         )}
       </div>
     </div>

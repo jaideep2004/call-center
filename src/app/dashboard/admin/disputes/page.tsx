@@ -227,7 +227,7 @@ function DisputesInner() {
       key: "actions",
       header: "Actions",
       render: (c) => (
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "nowrap" }}>
           <button className="btn btn-success btn-sm" disabled={acting === c.id} onClick={() => handleResolve(c.id, "confirm")}>
             Confirm (payout)
           </button>
@@ -271,14 +271,14 @@ function DisputesInner() {
           </Link>
         </div>
       </div>
-      <div className="filter-bar" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+      <div className="filter-bar">
         <button className={`btn btn-sm ${filter === "disputed" ? "btn-primary" : "btn-secondary"}`} onClick={() => handleFilterChange("disputed")}>
           Pending Disputed
         </button>
         <button className={`btn btn-sm ${filter === "all" ? "btn-primary" : "btn-secondary"}`} onClick={() => handleFilterChange("all")}>
           All
         </button>
-        <div style={{ position: "relative", flex: "1 1 200px", maxWidth: 300 }}>
+        <div style={{ position: "relative", flex: "1 1 220px", maxWidth: 340 }}>
           <input
             className="input"
             placeholder="Search call, caller, campaign, agent…"
@@ -296,12 +296,12 @@ function DisputesInner() {
             </button>
           )}
         </div>
-        <span className="text-muted" style={{ fontSize: 11, alignSelf: "center", marginLeft: "auto" }}>
+        <span className="text-muted" style={{ fontSize: 11, whiteSpace: "nowrap", marginLeft: "auto" }}>
           {filtered.length} result(s){filtered.length > PAGE_SIZE ? ` — page ${safePage}/${totalPages}` : ""} {debouncedQ ? "(filtered)" : ""}
         </span>
       </div>
       {filtered.length === 0 ? (
-        <div className="card" style={{ padding: 24, textAlign: "center", marginTop: "var(--space-4)" }}>
+        <div className="card" style={{ padding: 24, textAlign: "center" }}>
           <p className="text-muted">{debouncedQ ? `No disputed calls match “${debouncedQ}”.` : "No disputed calls — all clear."}</p>
           <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
             When an agent or system marks a call <code>disputed</code>, it appears here for admin review. Use <code>PATCH /api/v1/calls/{"{id}"}</code> with{" "}
@@ -309,8 +309,7 @@ function DisputesInner() {
           </p>
         </div>
       ) : (
-        <div style={{ marginTop: "var(--space-4)" }}>
-          <DataTable
+        <DataTable
             columns={columns}
             data={paged}
             loading={false}
@@ -323,7 +322,6 @@ function DisputesInner() {
             order="desc"
             onSort={() => {}}
           />
-        </div>
       )}
     </div>
   );

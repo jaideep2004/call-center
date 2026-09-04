@@ -118,19 +118,22 @@ function EarningsInner() {
           <h1>Agent Earnings</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search agent..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 180 }} />
-          <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ maxWidth: 140 }} />
-          <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ maxWidth: 140 }} />
-          <span className="text-mono-sm">{formatCents(totalCents)} total · {totalCalls} calls</span>
+          <input className="input" type="search" placeholder="Search agent..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 180 }} />
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{formatCents(totalCents)} total · {totalCalls} calls</span>
         </div>
+      </div>
+      <div className="filter-bar">
+        <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ maxWidth: 160 }} />
+        <input className="input" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ maxWidth: 160 }} />
+        <span className="text-mono-sm" style={{ marginLeft: "auto", color: "var(--muted)", fontSize: 11 }}>{filtered.length} agents shown</span>
+        {(startDate || endDate) && <button className="btn btn-ghost btn-sm" onClick={() => { setStartDate(""); setEndDate(""); }}>Clear dates</button>}
       </div>
       {rows.length === 0 ? (
         <div className="empty-state"><p>No earnings data yet. Earnings appear after qualifying calls are completed.</p></div>
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>No agents match &quot;{debouncedQ}&quot;.</p></div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <DataTable
+        <DataTable
             columns={columns}
             data={paginated}
             emptyMessage="No earnings"
@@ -142,7 +145,6 @@ function EarningsInner() {
             order="desc"
             onSort={() => {}}
           />
-        </div>
       )}
     </div>
   );

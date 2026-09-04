@@ -156,33 +156,33 @@ export default function AdminSkillsPage() {
 
       <section className="card" style={{ padding: "var(--space-6)", marginBottom: "var(--space-5)" }}>
         <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Add Skill</h2>
-        <form onSubmit={handleCreate} style={{ display: "flex", gap: "var(--space-3)", alignItems: "flex-end", flexWrap: "wrap" }}>
-          <div className="form-group" style={{ flex: 2, minWidth: 220 }}>
+        <form onSubmit={handleCreate} style={{ display: "flex", gap: "var(--space-4)", alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div className="form-group" style={{ flex: "2 1 220px", minWidth: 220 }}>
             <label className="form-label" htmlFor="skill-name">Skill name</label>
             <input id="skill-name" className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. final_expense" required maxLength={100} />
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ flex: "0 0 110px" }}>
             <label className="form-label" htmlFor="skill-sort">Sort</label>
-            <input id="skill-sort" className="input" type="number" min="0" value={sort} onChange={(e) => setSort(e.target.value)} style={{ maxWidth: 90 }} />
+            <input id="skill-sort" className="input" type="number" min="0" value={sort} onChange={(e) => setSort(e.target.value)} />
           </div>
-          <button className="btn btn-primary" type="submit" disabled={creating || !name.trim()}>
+          <button className="btn btn-primary" type="submit" disabled={creating || !name.trim()} style={{ height: 42, padding: "0 20px" }}>
             {creating ? <span className="spinner" /> : "Add Skill"}
           </button>
         </form>
-        {error && <p className="form-error" style={{ marginTop: 8 }}>{error}</p>}
-        <p className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>
+        {error && <p className="form-error" style={{ marginTop: 12 }}>{error}</p>}
+        <p className="text-muted" style={{ fontSize: 11, marginTop: 12 }}>
           Skills appear in agent profiles and campaign targeting. Disabling a skill hides it from new selections but keeps existing tags.
         </p>
       </section>
 
-      <div className="filter-bar" style={{ marginBottom: "var(--space-4)" }}>
-        <input className="input" type="search" placeholder="Search name or slug…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 300 }} />
-        <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} style={{ maxWidth: 160 }}>
+      <div className="filter-bar">
+        <input className="input" type="search" placeholder="Search name or slug…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 320 }} />
+        <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} style={{ maxWidth: 180 }}>
           <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="disabled">Disabled</option>
         </select>
-        <span className="text-mono-sm">{filtered.length} skills</span>
+        <span className="text-mono-sm" style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>{filtered.length} skills</span>
       </div>
 
       {loading ? (
@@ -192,8 +192,7 @@ export default function AdminSkillsPage() {
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>No skills match &quot;{search}&quot;.</p></div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <DataTable
+        <DataTable
             columns={columns}
             data={paged}
             loading={false}
@@ -206,7 +205,6 @@ export default function AdminSkillsPage() {
             order={order}
             onSort={handleSort}
           />
-        </div>
       )}
     </div>
   );

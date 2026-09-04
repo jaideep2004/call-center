@@ -124,11 +124,11 @@ function AgentsInner() {
   const columns: Column<Agent>[] = [
     {
       key: "select", header: "",
-      render: (a) => <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)} aria-label={`Select ${a.id}`} />,
+      render: (a) => <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggleSelect(a.id)} aria-label={`Select ${a.id}`} style={{ accentColor: "var(--accent)" }} />,
     },
     {
       key: "availability", header: "Status",
-      render: (a) => <span className={a.availability === "available" ? "text-success" : "text-muted"} style={{ fontSize: 16 }}>{a.availability === "available" ? "\u25CF" : "\u25CB"}</span>,
+      render: (a) => <span className={a.availability === "available" ? "text-success" : "text-muted"} style={{ fontSize: 16 }} title={a.availability}>{a.availability === "available" ? "\u25CF" : "\u25CB"}</span>,
     },
     {
       key: "user_name", header: "Name",
@@ -144,17 +144,17 @@ function AgentsInner() {
       render: (a) => <span className="text-mono-sm">{a.skills?.slice(0, 3).join(", ") || "\u2014"}</span>,
     },
     {
-      key: "actions", header: "Actions",
+      key: "actions", header: "Actions", className: "actions-cell",
       render: (a) => (
-        <div className="stack-h" style={{ gap: 4 }}>
+        <div className="stack-h" style={{ gap: 6, justifyContent: "flex-end" }}>
           {a.approval_status !== "approved" && (
-            <button className="btn btn-sm" style={{ background: "var(--accent)", color: "#0a0a0a", border: "none" }} onClick={() => updateApproval(a.id, "approved")}>Approve</button>
+            <button className="btn btn-sm" style={{ background: "var(--accent)", color: "#0a0a0a", border: "none", whiteSpace: "nowrap" }} onClick={() => updateApproval(a.id, "approved")}>Approve</button>
           )}
           {a.approval_status !== "rejected" && (
-            <button className="btn btn-sm btn-secondary" onClick={() => updateApproval(a.id, "rejected")}>Decline</button>
+            <button className="btn btn-sm btn-secondary" style={{ whiteSpace: "nowrap" }} onClick={() => updateApproval(a.id, "rejected")}>Decline</button>
           )}
           {a.approval_status === "approved" && (
-            <button className="btn btn-sm btn-secondary" onClick={() => updateApproval(a.id, "suspended")}>Suspend</button>
+            <button className="btn btn-sm btn-secondary" style={{ whiteSpace: "nowrap" }} onClick={() => updateApproval(a.id, "suspended")}>Suspend</button>
           )}
         </div>
       ),
@@ -169,30 +169,29 @@ function AgentsInner() {
           <h1>Agents</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search by name or email..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+          <input className="input" type="search" placeholder="Search by name or email..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
           <Link href="/dashboard/agents/new" className="btn btn-primary">+ Invite</Link>
-          <span className="text-mono-sm">{total} total</span>
         </div>
       </div>
 
-      <div className="stack-h" style={{ gap: 6, marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
+      <div className="filter-bar" style={{ marginBottom: "var(--space-1)" }}>
         {["", "pending", "approved", "rejected", "suspended"].map((s) => (
-          <button key={s} className={`btn btn-sm${statusFilter === s ? " btn-primary" : ""}`} onClick={() => { setStatusFilter(s); setPage(1); }}>
+          <button key={s} className={`btn btn-sm${statusFilter === s ? " btn-primary" : " btn-secondary"}`} onClick={() => { setStatusFilter(s); setPage(1); }} style={{ textTransform: "capitalize" }}>
             {s || "All"}
           </button>
         ))}
+        <span className="text-mono-sm" style={{ marginLeft: "auto", whiteSpace: "nowrap", color: "var(--muted)" }}>{total} total</span>
       </div>
 
       {selected.size > 0 && (
-        <div className="card" style={{ padding: "var(--space-3) var(--space-4)", marginBottom: "var(--space-3)", display: "flex", gap: 8, alignItems: "center", background: "var(--panel)" }}>
+        <div className="card" style={{ padding: "var(--space-3) var(--space-4)", marginBottom: "var(--space-2)", display: "flex", gap: 8, alignItems: "center", background: "var(--panel)" }}>
           <span className="text-mono-sm">{selected.size} selected</span>
           <button className="btn btn-sm btn-secondary" onClick={() => showToast("Bulk actions coming soon — approve/reject selected agents", "info")}>Bulk actions</button>
           <button className="btn btn-sm btn-ghost" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}
 
-      <div style={{ overflowX: "auto" }}>
-        <DataTable
+      <DataTable
           columns={columns}
           data={agents}
           loading={loading}
@@ -205,7 +204,6 @@ function AgentsInner() {
           order="desc"
           onSort={() => {}}
         />
-      </div>
     </div>
   );
 }

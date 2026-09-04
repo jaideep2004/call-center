@@ -227,8 +227,8 @@ function PublisherCallsInner() {
       </div>
 
       {sparklineData && sparklineData.length >= 2 && (
-        <section className="card" style={{ padding: "var(--space-5)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <section className="card card--spacious">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             <div>
               <h2 style={{ font: "500 16px var(--serif)", margin: 0 }}>Payout Trend</h2>
               <p className="text-muted" style={{ fontSize: 11, margin: "4px 0 0" }}>Daily payout (de-duplicated by day)</p>
@@ -237,15 +237,15 @@ function PublisherCallsInner() {
               {formatCents(sparklineData.reduce((a, b) => a + b, 0))} total · {formatCents(Math.max(...sparklineData))} peak
             </span>
           </div>
-          <div style={{ width: "100%", overflow: "hidden", marginTop: "var(--space-3)" }}>
+          <div style={{ width: "100%", overflow: "hidden", marginTop: "var(--space-4)" }}>
             <Sparkline data={sparklineData} width={720} height={52} responsive />
           </div>
         </section>
       )}
 
-      <section className="card" style={{ padding: "var(--space-6)" }}>
-        <div className="filter-bar" style={{ marginBottom: "var(--space-4)" }}>
-          <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 360 }}>
+      <div className="filter-bar">
+        <div className="filter-bar__primary">
+          <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 380 }}>
             <input
               className="input"
               placeholder="Search caller, campaign, status, date…"
@@ -259,7 +259,7 @@ function PublisherCallsInner() {
                 aria-label="Clear search"
                 style={{
                   position: "absolute",
-                  right: 8,
+                  right: 10,
                   top: "50%",
                   transform: "translateY(-50%)",
                   background: "none",
@@ -267,16 +267,20 @@ function PublisherCallsInner() {
                   cursor: "pointer",
                   color: "var(--muted)",
                   fontSize: 16,
+                  lineHeight: 1,
                 }}
               >
                 ×
               </button>
             )}
           </div>
-          <span className="text-mono-sm" style={{ marginLeft: "auto", color: "var(--muted)" }}>
-            {filtered.length > PAGE_SIZE ? `Page ${safePage} of ${totalPages}` : `${filtered.length} call(s)`}
-          </span>
         </div>
+        <span className="filter-bar__meta">
+          {filtered.length > PAGE_SIZE ? `Page ${safePage} of ${totalPages}` : `${filtered.length} call(s)`}{debouncedQ ? " (filtered)" : ""}
+        </span>
+      </div>
+
+      <section className="card card--spacious">
 
         {filtered.length === 0 ? (
           <div className="empty-state">
@@ -285,11 +289,11 @@ function PublisherCallsInner() {
             </p>
             <p className="text-muted">{debouncedQ ? "Try a different search or clear the filter." : "Calls routed through your campaign will appear here."}</p>
             {debouncedQ ? (
-              <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-3)" }} onClick={() => setSearchInput("")}>
+              <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-4)" }} onClick={() => setSearchInput("")}>
                 Clear search
               </button>
             ) : (
-              <div style={{ display: "flex", gap: 8, marginTop: "var(--space-3)", justifyContent: "center", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, marginTop: "var(--space-4)", justifyContent: "center", flexWrap: "wrap" }}>
                 <Link href="/dashboard/publisher/campaigns" className="btn btn-primary btn-sm">
                   View Campaigns
                 </Link>
@@ -300,8 +304,7 @@ function PublisherCallsInner() {
             )}
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <DataTable
+          <DataTable
               columns={columns}
               data={paged}
               loading={false}
@@ -314,7 +317,6 @@ function PublisherCallsInner() {
               order={order}
               onSort={handleSort}
             />
-          </div>
         )}
       </section>
     </div>

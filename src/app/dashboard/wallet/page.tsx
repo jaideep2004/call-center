@@ -53,7 +53,6 @@ function formatCents(cents: number) {
 }
 
 const PAGE_SIZE = 10;
-
 function WalletInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -215,8 +214,8 @@ function WalletInner() {
   const entryColumns: Column<WalletEntry>[] = [
     { key: "type", header: "Type", render: (e) => <span className={`badge ${TYPE_COLORS[e.type] ?? ""}`}>{TYPE_LABELS[e.type] ?? e.type}</span> },
     { key: "amount_cents", header: "Amount", render: (e) => <span style={{ color: e.amount_cents > 0 ? "var(--accent)" : "var(--orange)", fontWeight: 600 }}>{formatCents(e.amount_cents)}</span> },
-    { key: "call_id", header: "Call", render: (e) => <span className="text-mono-sm">{e.call_id?.slice(0, 8) ?? "\u2014"}</span> },
-    { key: "provider_reference", header: "Reference", render: (e) => <span className="text-mono-sm">{e.provider_reference ? e.provider_reference.slice(0, 12) : "\u2014"}</span> },
+    { key: "call_id", header: "Call", render: (e) => <span className="text-mono-sm">{e.call_id?.slice(0, 8) ?? "—"}</span> },
+    { key: "provider_reference", header: "Reference", render: (e) => <span className="text-mono-sm">{e.provider_reference ? e.provider_reference.slice(0, 12) : "—"}</span> },
     { key: "created_at", header: "Date", render: (e) => <span className="text-mono-sm">{new Date(e.created_at).toLocaleDateString()}</span> },
   ];
 
@@ -231,97 +230,102 @@ function WalletInner() {
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-page-header">
+      <div className="filter-bar">
         <div>
-          <p className="eyebrow"><i /> FINANCE / WALLET</p>
-          <h1>Wallet</h1>
+          <p className="eyebrow" style={{ margin: 0 }}><i /> FINANCE / WALLET</p>
+          <h1 style={{ margin: "4px 0 0" }}>Wallet</h1>
         </div>
-        <div className="search-bar">
-          <input className="input" type="search" placeholder="Search entries..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 160 }} />
-          <button className="btn btn-primary" onClick={() => setShowRecharge(true)}>+ Top Up</button>
+        <div className="filter-bar__group" style={{ marginLeft: "auto" }}>
+          <input className="input" type="search" placeholder="Search entries…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
+          <button className="btn btn-primary" style={{ height: 40, whiteSpace: "nowrap" }} onClick={() => setShowRecharge(true)}>+ Top Up</button>
         </div>
       </div>
       {loading ? (
         <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
       ) : (
         <>
-          <div className="card" style={{ textAlign: "center", padding: "2rem" }}>
+          <div className="card card--spacious wallet-balance-card">
             <label className="form-label" style={{ fontSize: 11, letterSpacing: "0.08em", margin: 0 }}>CURRENT BALANCE</label>
-            <p style={{ font: "500 48px/1 var(--serif)", margin: "8px 0 0", letterSpacing: "-0.03em" }}>{formatCents(balance)}</p>
-            <p className="text-muted" style={{ fontSize: 12 }}>USD</p>
+            <p style={{ font: "500 48px/1 var(--serif)", margin: "10px 0 0", letterSpacing: "-0.03em" }}>{formatCents(balance)}</p>
+            <p className="text-muted" style={{ fontSize: 12, marginTop: 6 }}>USD · Available for top-up and transfers</p>
           </div>
 
           {showRecharge && (
-            <div className="card" style={{ marginTop: "var(--space-4)" }}>
-              <h3>Top up</h3>
-              <div className="filter-bar" style={{ marginTop: "var(--space-3)", flexWrap: "wrap" }}>
-                {PRESET_AMOUNTS.map((amt) => (
-                  <button key={amt} className={`btn btn-sm ${selectedPreset === amt ? "btn-primary" : ""}`} onClick={() => { setSelectedPreset(amt); setCustomAmount(""); }}>{formatCents(amt)}</button>
-                ))}
-                <input className="input" type="number" placeholder="Custom $" value={customAmount} onChange={(e) => { setCustomAmount(e.target.value); setSelectedPreset(null); }} style={{ maxWidth: 120 }} />
-                <button className="btn btn-primary btn-sm" onClick={handleRecharge} disabled={recharging}>{recharging ? "..." : "Checkout"}</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowRecharge(false)}>Cancel</button>
+            <div className="card card--spacious">
+              <h3 style={{ margin: "0 0 4px", font: "500 16px var(--serif)" }}>Top up</h3>
+              <p className="text-muted" style={{ fontSize: 11, margin: "0 0 var(--space-4)" }}>Grouped presets + custom amount — checkout via Stripe.</p>
+              <div className="filter-bar filter-bar--plain" style={{ marginTop: 0, padding: 0, flexWrap: "wrap" }}>
+                <div className="filter-bar__group" style={{ flexWrap: "wrap" }}>
+                  {PRESET_AMOUNTS.map((amt) => (
+                    <button key={amt} className={`btn btn-sm ${selectedPreset === amt ? "btn-primary" : ""}`} onClick={() => { setSelectedPreset(amt); setCustomAmount(""); }}>{formatCents(amt)}</button>
+                  ))}
+                  <input className="input" type="number" placeholder="Custom $" value={customAmount} onChange={(e) => { setCustomAmount(e.target.value); setSelectedPreset(null); }} style={{ maxWidth: 130, minWidth: 110 }} />
+                </div>
+                <div className="filter-bar__group" style={{ marginLeft: "auto" }}>
+                  <button className="btn btn-primary btn-sm" style={{ height: 36 }} onClick={handleRecharge} disabled={recharging}>{recharging ? "…" : "Checkout"}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowRecharge(false)}>Cancel</button>
+                </div>
               </div>
             </div>
           )}
 
-          <div className="card" style={{ marginTop: "var(--space-6)", padding: 16 }}>
-            <h2>Transaction History</h2>
-            <div style={{ overflowX: "auto", marginTop: "var(--space-3)" }}>
-              <DataTable
-                columns={entryColumns}
-                data={entries}
-                emptyMessage="No transactions yet."
-                page={page}
-                totalPages={totalPages}
-                total={entries.length}
-                onPageChange={setPage}
-                sortBy="created_at"
-                order="desc"
-                onSort={() => {}}
-              />
+          <div className="card card--spacious">
+            <div className="card-header" style={{ padding: 0, border: 0, marginBottom: 0 }}>
+              <h2 style={{ margin: 0, font: "500 16px var(--serif)" }}>Transaction History</h2>
+              <span className="filter-bar__meta">{entries.length} shown · page {page}/{totalPages}</span>
             </div>
+            <DataTable
+              columns={entryColumns}
+              data={entries}
+              emptyMessage="No transactions yet."
+              page={page}
+              totalPages={totalPages}
+              total={entries.length}
+              onPageChange={setPage}
+              sortBy="created_at"
+              order="desc"
+              onSort={() => {}}
+            />
           </div>
 
-          <div className="dashboard-page-header" style={{ marginTop: "var(--space-6)", marginBottom: "var(--space-4)" }}>
+          <div className="filter-bar">
             <div>
               <label className="form-label" style={{ fontSize: 11, letterSpacing: "0.08em", margin: 0 }}>AGENT FUNDING</label>
-              <h2 style={{ font: "500 22px var(--serif)", margin: "4px 0 0" }}>Agent Performance & Transfers</h2>
+              <h2 style={{ font: "500 16px var(--serif)", margin: "4px 0 0" }}>Agent Performance & Transfers</h2>
             </div>
-            <div className="search-bar">
-              <input className="input" type="search" placeholder="Search agents..." value={agentSearch} onChange={(e) => setAgentSearch(e.target.value)} style={{ maxWidth: 180 }} />
+            <div className="filter-bar__primary" style={{ justifyContent: "flex-end" }}>
+              <input className="input" type="search" placeholder="Search agents…" value={agentSearch} onChange={(e) => setAgentSearch(e.target.value)} style={{ minWidth: 220, maxWidth: 300 }} />
             </div>
+            <span className="filter-bar__meta">{filteredAgents.length} agent(s){agentDebounced ? " (filtered)" : ""}</span>
           </div>
 
-          <div className="card" style={{ padding: 16 }}>
+          <div className="card card--spacious">
             {filteredAgents.length === 0 ? (
               <div className="empty-state"><p>{agents.length === 0 ? "No agents found. Transfer balance to approved agents to keep them call-ready." : `No agents match "${agentDebounced}".`}</p></div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
-                <DataTable
-                  columns={agentColumns}
-                  data={paginatedAgents}
-                  emptyMessage="No agents"
-                  page={agentPage}
-                  totalPages={agentTotalPages}
-                  total={filteredAgents.length}
-                  onPageChange={setAgentPage}
-                  sortBy="name"
-                  order="asc"
-                  onSort={() => {}}
-                />
-              </div>
+              <DataTable
+                columns={agentColumns}
+                data={paginatedAgents}
+                emptyMessage="No agents"
+                page={agentPage}
+                totalPages={agentTotalPages}
+                total={filteredAgents.length}
+                onPageChange={setAgentPage}
+                sortBy="name"
+                order="asc"
+                onSort={() => {}}
+              />
             )}
           </div>
 
           {transferTarget && (
-            <div className="card" style={{ marginTop: "var(--space-4)" }}>
-              <h3>Transfer to {transferTarget.name}</h3>
-              <div className="stack" style={{ gap: 8, marginTop: "var(--space-3)" }}>
+            <div className="card card--spacious">
+              <h3 style={{ margin: "0 0 var(--space-4)", font: "500 16px var(--serif)" }}>Transfer to {transferTarget.name}</h3>
+              <div style={{ display: "grid", gap: 12, maxWidth: 420 }}>
                 <input className="input" type="number" placeholder="Amount $" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
                 <input className="input" placeholder="Reason (optional)" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} />
-                <div className="stack-h" style={{ gap: 8 }}>
-                  <button className="btn btn-primary btn-sm" onClick={handleTransfer} disabled={transferring || !transferAmount}>Send</button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" style={{ height: 36 }} onClick={handleTransfer} disabled={transferring || !transferAmount}>Send</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setTransferTarget(null)}>Cancel</button>
                 </div>
               </div>

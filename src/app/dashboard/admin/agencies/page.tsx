@@ -115,7 +115,7 @@ function AdminAgenciesInner() {
           <Link href="/dashboard/admin/agencies/new" className="btn btn-primary" style={{ fontSize: 11 }}>+ New Agency</Link>
         </div>
       </div>
-      <div className="filter-bar" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+      <div className="filter-bar">
         <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ maxWidth: 180 }}>
           <option value="">All statuses</option>
           <option value="active">Active</option>
@@ -123,7 +123,7 @@ function AdminAgenciesInner() {
           <option value="suspended">Suspended</option>
           <option value="closed">Closed</option>
         </select>
-        <div style={{ position: "relative", flex: "1 1 200px", maxWidth: 320 }}>
+        <div style={{ position: "relative", flex: "1 1 220px", maxWidth: 340 }}>
           <input
             className="input"
             placeholder="Search name or slug…"
@@ -144,6 +144,7 @@ function AdminAgenciesInner() {
         <div className="empty-state"><p>{debouncedQ ? `No agencies match “${debouncedQ}”.` : "No agencies found."}</p></div>
       ) : (
         <>
+          <div className="data-table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -173,6 +174,7 @@ function AdminAgenciesInner() {
               ))}
             </tbody>
           </table>
+          </div>
           {totalPages > 1 && (
             <div className="pagination" style={{ marginTop: "var(--space-4)" }}>
               <button className="pagination-item" disabled={safePage <= 1} onClick={() => handlePageChange(safePage - 1)}>&lsaquo;</button>

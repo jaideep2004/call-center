@@ -257,7 +257,7 @@ function PublisherPayoutsInner() {
         </button>
       </div>
 
-      <div className="grid-4" style={{ marginBottom: "var(--space-6)" }}>
+      <div className="grid-4" style={{ marginBottom: 4 }}>
         <div className="card stat-card">
           <p className="text-mono-sm">TOTAL PAYOUTS</p>
           <p className="stat-value">{formatCents(data?.summary.total_payout_cents ?? 0)}</p>
@@ -277,7 +277,7 @@ function PublisherPayoutsInner() {
       </div>
 
       {sparklineData && sparklineData.length >= 2 && (
-        <section className="card" style={{ padding: "var(--space-6)", marginBottom: "var(--space-6)" }}>
+        <section className="card card--spacious">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             <div>
               <h2 style={{ font: "500 18px var(--serif)", margin: 0 }}>Revenue Trend</h2>
@@ -293,8 +293,8 @@ function PublisherPayoutsInner() {
         </section>
       )}
 
-      <div className="filter-bar" style={{ marginBottom: "var(--space-3)" }}>
-        <div style={{ display: "flex", gap: 8 }}>
+      <div className="filter-bar">
+        <div className="filter-bar__segment">
           <button
             className={`btn btn-sm ${activeTab === "monthly" ? "btn-primary" : "btn-secondary"}`}
             onClick={() => setActiveTab("monthly")}
@@ -308,35 +308,38 @@ function PublisherPayoutsInner() {
             Qualified Calls
           </button>
         </div>
-        <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 360 }}>
-          <input
-            className="input"
-            placeholder={activeTab === "monthly" ? "Search month, payout…" : "Search caller, campaign…"}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            aria-label="Search payouts"
-          />
-          {searchInput && (
-            <button
-              onClick={() => setSearchInput("")}
-              aria-label="Clear search"
-              style={{
-                position: "absolute",
-                right: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--muted)",
-                fontSize: 16,
-              }}
-            >
-              ×
-            </button>
-          )}
+        <div className="filter-bar__primary">
+          <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 380 }}>
+            <input
+              className="input"
+              placeholder={activeTab === "monthly" ? "Search month, payout…" : "Search caller, campaign…"}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Search payouts"
+            />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput("")}
+                aria-label="Clear search"
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--muted)",
+                  fontSize: 16,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
-        <span className="text-mono-sm" style={{ marginLeft: "auto", color: "var(--muted)" }}>
+        <span className="filter-bar__meta">
           {activeTab === "monthly" ? `${filteredMonthly.length} month(s)` : `${filteredCalls.length} call(s)`}
           {debouncedQ ? " (filtered)" : ""}
           {activeTab === "monthly" && filteredMonthly.length > PAGE_SIZE ? ` — page ${safeMonthlyPage}/${monthlyTotalPages}` : ""}
@@ -345,7 +348,7 @@ function PublisherPayoutsInner() {
       </div>
 
       {activeTab === "monthly" ? (
-        <section className="card" style={{ padding: "var(--space-6)" }}>
+        <section className="card card--spacious">
           <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)" }}>Monthly History</h2>
           {!data || monthlyWithId.length === 0 ? (
             <div className="empty-state">
@@ -353,7 +356,7 @@ function PublisherPayoutsInner() {
                 <strong>No payout history yet</strong>
               </p>
               <p className="text-muted" style={{ fontSize: 12 }}>Qualified calls will appear here once payouts are recorded.</p>
-              <div style={{ display: "flex", gap: 8, marginTop: "var(--space-3)", justifyContent: "center", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, marginTop: "var(--space-4)", justifyContent: "center", flexWrap: "wrap" }}>
                 <Link href="/dashboard/publisher/calls" className="btn btn-primary btn-sm">
                   View Calls
                 </Link>
@@ -365,12 +368,11 @@ function PublisherPayoutsInner() {
           ) : filteredMonthly.length === 0 ? (
             <div className="empty-state">
               <p>No months match &quot;{debouncedQ}&quot;.</p>
-              <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-3)" }} onClick={() => setSearchInput("")}>
+              <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-4)" }} onClick={() => setSearchInput("")}>
                 Clear search
               </button>
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
               <DataTable
                 columns={monthlyColumns}
                 data={pagedMonthly}
@@ -384,11 +386,10 @@ function PublisherPayoutsInner() {
                 order={monthlyOrder}
                 onSort={handleMonthlySort}
               />
-            </div>
           )}
         </section>
       ) : (
-        <section className="card" style={{ padding: "var(--space-6)" }}>
+        <section className="card card--spacious">
           <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)" }}>Recent Qualified Calls</h2>
           {!data || data.recent_qualified.length === 0 ? (
             <div className="empty-state">
@@ -396,7 +397,7 @@ function PublisherPayoutsInner() {
                 <strong>No qualified calls yet</strong>
               </p>
               <p className="text-muted" style={{ fontSize: 12 }}>Qualified calls earn payout once they meet the campaign&apos;s duration and quality rules.</p>
-              <div style={{ display: "flex", gap: 8, marginTop: "var(--space-3)", justifyContent: "center", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, marginTop: "var(--space-4)", justifyContent: "center", flexWrap: "wrap" }}>
                 <Link href="/dashboard/publisher/calls" className="btn btn-primary btn-sm">
                   View Calls
                 </Link>
@@ -408,12 +409,11 @@ function PublisherPayoutsInner() {
           ) : filteredCalls.length === 0 ? (
             <div className="empty-state">
               <p>No qualified calls match &quot;{debouncedQ}&quot;.</p>
-              <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-3)" }} onClick={() => setSearchInput("")}>
+              <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-4)" }} onClick={() => setSearchInput("")}>
                 Clear search
               </button>
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
               <DataTable
                 columns={callsColumns}
                 data={pagedCalls}
@@ -427,7 +427,6 @@ function PublisherPayoutsInner() {
                 order={callsOrder}
                 onSort={handleCallsSort}
               />
-            </div>
           )}
         </section>
       )}

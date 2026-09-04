@@ -102,13 +102,17 @@ function TopInner() {
           <h1>Top Performers</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search agent..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 160 }} />
-          <select className="select" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ maxWidth: 100 }}>
+          <input className="input" type="search" placeholder="Search agent..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 160 }} />
+        </div>
+      </div>
+      <div className="filter-bar">
+        <select className="select" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ maxWidth: 140 }}>
             <option value={7}>7 days</option>
             <option value={30}>30 days</option>
             <option value={90}>90 days</option>
           </select>
-        </div>
+        <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11 }}>Ranked by revenue</span>
+        <span className="text-mono-sm" style={{ marginLeft: "auto", color: "var(--muted)", fontSize: 11 }}>{filtered.length} agents</span>
       </div>
       {loading ? (
         <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
@@ -117,8 +121,7 @@ function TopInner() {
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>No agents match &quot;{debouncedQ}&quot;.</p></div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <DataTable
+        <DataTable
             columns={cols}
             data={paginated}
             emptyMessage="No performers"
@@ -130,7 +133,6 @@ function TopInner() {
             order="desc"
             onSort={() => {}}
           />
-        </div>
       )}
     </div>
   );

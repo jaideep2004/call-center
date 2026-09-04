@@ -191,8 +191,8 @@ function PublisherCampaignsInner() {
       </div>
 
       {sparklineData && sparklineData.length >= 2 && (
-        <section className="card" style={{ padding: "var(--space-5)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <section className="card card--spacious">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             <div>
               <h2 style={{ font: "500 16px var(--serif)", margin: 0 }}>Payout by Campaign</h2>
               <p className="text-muted" style={{ fontSize: 11, margin: "4px 0 0" }}>Distribution of earned payout across campaigns (high → low)</p>
@@ -201,15 +201,15 @@ function PublisherCampaignsInner() {
               {formatCents(sparklineData.reduce((a, b) => a + b, 0))} total
             </span>
           </div>
-          <div style={{ width: "100%", overflow: "hidden", marginTop: "var(--space-3)" }}>
+          <div style={{ width: "100%", overflow: "hidden", marginTop: "var(--space-4)" }}>
             <Sparkline data={sparklineData} width={720} height={48} responsive />
           </div>
         </section>
       )}
 
-      <section className="card" style={{ padding: "var(--space-6)" }}>
-        <div className="filter-bar" style={{ marginBottom: "var(--space-4)" }}>
-          <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 360 }}>
+      <div className="filter-bar">
+        <div className="filter-bar__primary">
+          <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 380 }}>
             <input
               className="input"
               placeholder="Search campaign, price, payout…"
@@ -223,7 +223,7 @@ function PublisherCampaignsInner() {
                 aria-label="Clear search"
                 style={{
                   position: "absolute",
-                  right: 8,
+                  right: 10,
                   top: "50%",
                   transform: "translateY(-50%)",
                   background: "none",
@@ -231,16 +231,20 @@ function PublisherCampaignsInner() {
                   cursor: "pointer",
                   color: "var(--muted)",
                   fontSize: 16,
+                  lineHeight: 1,
                 }}
               >
                 ×
               </button>
             )}
           </div>
-          <span className="text-mono-sm" style={{ marginLeft: "auto", color: "var(--muted)" }}>
-            {filtered.length > PAGE_SIZE ? `Page ${safePage} of ${totalPages}` : ""}
-          </span>
         </div>
+        <span className="filter-bar__meta">
+          {filtered.length > PAGE_SIZE ? `Page ${safePage} of ${totalPages}` : `${filtered.length} campaign(s)`}{debouncedQ ? " (filtered)" : ""}
+        </span>
+      </div>
+
+      <section className="card card--spacious">
 
         {campaigns.length === 0 ? (
           <div className="empty-state">
@@ -248,7 +252,7 @@ function PublisherCampaignsInner() {
               <strong>No campaign data yet</strong>
             </p>
             <p className="text-muted">Once calls are attributed to you, they&apos;ll appear here per campaign.</p>
-            <div style={{ display: "flex", gap: 8, marginTop: "var(--space-3)", justifyContent: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, marginTop: "var(--space-4)", justifyContent: "center", flexWrap: "wrap" }}>
               <Link href="/dashboard/publisher" className="btn btn-primary btn-sm">
                 Back to Overview
               </Link>
@@ -260,13 +264,12 @@ function PublisherCampaignsInner() {
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <p>No campaigns match &quot;{debouncedQ}&quot;.</p>
-            <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-3)" }} onClick={() => setSearchInput("")}>
+            <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-4)" }} onClick={() => setSearchInput("")}>
               Clear search
             </button>
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <DataTable
+          <DataTable
               columns={columns}
               data={paged}
               loading={false}
@@ -279,7 +282,6 @@ function PublisherCampaignsInner() {
               order={order}
               onSort={handleSort}
             />
-          </div>
         )}
       </section>
     </div>

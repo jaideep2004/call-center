@@ -443,43 +443,45 @@ export default function AdminPublishersPage() {
 
       <section className="card" style={{ padding: "var(--space-6)", marginBottom: "var(--space-5)" }}>
         <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Add Publisher</h2>
-        <form onSubmit={handleCreate} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr auto", gap: "var(--space-3)", alignItems: "flex-end", flexWrap: "wrap" }}>
+        <form onSubmit={handleCreate} className="admin-add-grid">
           <div className="form-group">
-            <label className="form-label">Name</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Acme Media" required maxLength={255} />
+            <label className="form-label" htmlFor="pub-name">Name</label>
+            <input id="pub-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Acme Media" required maxLength={255} />
           </div>
           <div className="form-group">
-            <label className="form-label">Email</label>
-            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="optional" />
+            <label className="form-label" htmlFor="pub-email">Email</label>
+            <input id="pub-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="optional" />
           </div>
           <div className="form-group">
-            <label className="form-label">Retreaver afid</label>
-            <input className="input" value={afid} onChange={(e) => setAfid(e.target.value)} placeholder="auto on provision" />
+            <label className="form-label" htmlFor="pub-afid">Retreaver afid</label>
+            <input id="pub-afid" className="input" value={afid} onChange={(e) => setAfid(e.target.value)} placeholder="auto on provision" />
           </div>
           <div className="form-group">
-            <label className="form-label">Commission %</label>
-            <input className="input" type="number" min="0" max="100" value={commission} onChange={(e) => setCommission(e.target.value)} />
+            <label className="form-label" htmlFor="pub-commission">Commission %</label>
+            <input id="pub-commission" className="input" type="number" min="0" max="100" value={commission} onChange={(e) => setCommission(e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">Fixed price / call ($)</label>
-            <input className="input" type="number" min="0" step="0.01" value={fixedPriceDollars} onChange={(e) => setFixedPriceDollars(e.target.value)} placeholder="e.g. 2.50" />
+            <label className="form-label" htmlFor="pub-price">Fixed price / call ($)</label>
+            <input id="pub-price" className="input" type="number" min="0" step="0.01" value={fixedPriceDollars} onChange={(e) => setFixedPriceDollars(e.target.value)} placeholder="e.g. 2.50" />
           </div>
-          <button className="btn btn-primary" type="submit" disabled={saving || !name.trim()}>
-            {saving ? <span className="spinner" /> : "Add"}
-          </button>
+          <div className="admin-add-action">
+            <button className="btn btn-primary" type="submit" disabled={saving || !name.trim()} style={{ height: 42, minWidth: 92 }}>
+              {saving ? <span className="spinner" /> : "Add"}
+            </button>
+          </div>
         </form>
-        {error && <p className="form-error" style={{ marginTop: 8 }}>{error}</p>}
-        <p className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>Fixed price in dollars — stored as cents (×100). Leave empty for commission-only payout.</p>
+        {error && <p className="form-error" style={{ marginTop: 12 }}>{error}</p>}
+        <p className="text-muted" style={{ fontSize: 11, marginTop: 12 }}>Fixed price in dollars — stored as cents (×100). Leave empty for commission-only payout.</p>
       </section>
 
-      <div className="filter-bar" style={{ marginBottom: "var(--space-4)" }}>
-        <input className="input" type="search" placeholder="Search name, email, afid…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 300 }} />
-        <select className="input" value={activeFilter} onChange={(e) => setActiveFilter(e.target.value as any)} style={{ maxWidth: 160 }}>
+      <div className="filter-bar">
+        <input className="input" type="search" placeholder="Search name, email, afid…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 320 }} />
+        <select className="input" value={activeFilter} onChange={(e) => setActiveFilter(e.target.value as any)} style={{ maxWidth: 180 }}>
           <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="disabled">Disabled</option>
         </select>
-        <span className="text-mono-sm">{filtered.length} publishers</span>
+        <span className="text-mono-sm" style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>{filtered.length} publishers</span>
       </div>
 
       {loading ? (
@@ -489,8 +491,7 @@ export default function AdminPublishersPage() {
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>No publishers match &quot;{search}&quot;.</p></div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <DataTable
+        <DataTable
             columns={columns}
             data={paged}
             loading={false}
@@ -503,7 +504,6 @@ export default function AdminPublishersPage() {
             order={order}
             onSort={handleSort}
           />
-        </div>
       )}
 
       <section className="card" style={{ padding: "var(--space-6)", marginTop: "var(--space-5)" }}>
@@ -515,7 +515,7 @@ export default function AdminPublishersPage() {
           <p className="text-muted">No synced calls yet. Run &quot;Sync Retreaver calls&quot; or wait for the scheduled sync.</p>
         ) : (
           <>
-            <div style={{ overflowX: "auto" }}>
+            <div className="data-table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>

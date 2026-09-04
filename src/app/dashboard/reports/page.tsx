@@ -69,18 +69,23 @@ function ReportsInner() {
           <p className="eyebrow"><i /> ANALYTICS / REPORTS</p>
           <h1>Reports</h1>
         </div>
-        <div className="search-bar">
-          <select className="select" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ maxWidth: 120 }}>
-            <option value={7}>7 days</option>
-            <option value={30}>30 days</option>
-            <option value={90}>90 days</option>
-          </select>
-          <a className="btn btn-ghost" href="/api/v1/reports/export/calls" download>CSV</a>
-          <a className="btn btn-ghost" href="/api/v1/reports/export/calls?format=xlsx" download>Excel</a>
+        <div className="filter-bar filter-bar--plain" style={{ flex: "0 1 auto", padding: 0, background: "transparent", border: 0, gap: 12 }}>
+          <div className="filter-bar__group">
+            <label className="text-mono-sm" style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>Range</label>
+            <select className="select" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ minWidth: 140 }}>
+              <option value={7}>7 days</option>
+              <option value={30}>30 days</option>
+              <option value={90}>90 days</option>
+            </select>
+          </div>
+          <div className="filter-bar__segment">
+            <a className="btn btn-ghost btn-sm" href="/api/v1/reports/export/calls" download>CSV</a>
+            <a className="btn btn-ghost btn-sm" href="/api/v1/reports/export/calls?format=xlsx" download>Excel</a>
+          </div>
         </div>
       </div>
 
-      <div className="grid-4" style={{ marginBottom: "var(--space-6)" }}>
+      <div className="grid-4" style={{ marginBottom: 4 }}>
         <div className="card stat-card" style={{ borderLeft: "3px solid var(--accent)" }}>
           <p className="text-mono-sm">CALLS</p>
           <p className="stat-value">{summary?.total_calls ?? 0}</p>
@@ -99,8 +104,10 @@ function ReportsInner() {
         </div>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <Charts volume={volume} revenue={revenue} conversion={conversion} duration={duration} />
+      <div className="card card--spacious" style={{ overflow: "hidden" }}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          <Charts volume={volume} revenue={revenue} conversion={conversion} duration={duration} />
+        </div>
       </div>
 
       {volume.length === 0 && revenue.length === 0 && (

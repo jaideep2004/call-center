@@ -258,11 +258,11 @@ export default function AdminUsersPage() {
         </div>
         <div className="search-bar" style={{ flexWrap: "wrap", gap: 8 }}>
           <input className="input" type="search" placeholder="Search name, email, role…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ minWidth: 220 }} />
-          <span className="text-mono-sm">{filtered.length} of {members.length} users</span>
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{filtered.length} of {members.length} users</span>
         </div>
       </div>
 
-      <div className="filter-bar" style={{ marginBottom: "var(--space-4)" }}>
+      <div className="filter-bar">
         <select className="input" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ maxWidth: 180 }}>
           <option value="">All roles</option>
           {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -274,15 +274,14 @@ export default function AdminUsersPage() {
           <option value="pending">Pending</option>
         </select>
         {(roleFilter || statusFilter || search) && (
-          <button className="btn btn-sm btn-ghost" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); }}>Clear filters</button>
+          <button className="btn btn-sm btn-ghost" onClick={() => { setSearch(""); setRoleFilter(""); setStatusFilter(""); }} style={{ marginLeft: "auto" }}>Clear filters</button>
         )}
       </div>
 
       {filtered.length === 0 ? (
         <div className="empty-state"><p>No users found.</p><p className="text-muted" style={{ fontSize: 12 }}>Try adjusting search or filters.</p></div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <DataTable
+        <DataTable
             columns={columns}
             data={paged}
             loading={false}
@@ -295,7 +294,6 @@ export default function AdminUsersPage() {
             order={order}
             onSort={handleSort}
           />
-        </div>
       )}
     </div>
   );

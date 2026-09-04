@@ -120,20 +120,18 @@ function OnboardingInner() {
           <h1>Book your onboarding call</h1>
           <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 6, maxWidth: 640 }}>After signup, pick an available slot below. Your onboarding call with the Coverage Calls team will be confirmed by admin — you&apos;ll get a confirmation and a reminder 1h before. <span style={{ color: "var(--accent)" }}>Slots are configured in Admin → Calendar.</span></p>
         </div>
-        <div className="search-bar">
-          <input className="input" type="search" placeholder="Search slot..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 160 }} />
-        </div>
       </div>
 
       {bookings.length > 0 && (
-        <div className="card" style={{ padding: 16 }}>
-          <h3 style={{ font: "600 13px var(--mono)", margin: 0 }}>Your bookings</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+        <div className="card card--spacious">
+          <h3 style={{ font: "600 13px var(--mono)", margin: 0, letterSpacing: "0.5px" }}>Your bookings</h3>
+          <p className="text-muted" style={{ fontSize: 11, margin: "6px 0 0" }}>Grouped below — cancel anytime before confirmation.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
             {bookings.map((b) => (
-              <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(168,85,247,0.06)", border: "1px solid var(--line)", borderRadius: 8, padding: "10px 12px" }}>
+              <div key={b.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(168,85,247,0.06)", border: "1px solid var(--line)", borderRadius: 10, padding: "12px 14px", gap: 12, flexWrap: "wrap" }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{b.date} · {b.start_time.slice(0,5)} — {b.end_time.slice(0,5)}</div>
-                  <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", marginTop: 2 }}>Status: <span className={`badge ${b.status === "confirmed" ? "badge-success" : b.status === "cancelled" ? "badge-danger" : "badge-warning"}`}>{b.status}</span> · booked {new Date(b.created_at).toLocaleString()}</div>
+                  <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", marginTop: 4 }}>Status: <span className={`badge ${b.status === "confirmed" ? "badge-success" : b.status === "cancelled" ? "badge-danger" : "badge-warning"}`}>{b.status}</span> · booked {new Date(b.created_at).toLocaleString()}</div>
                 </div>
                 {b.status !== "cancelled" && <button className="btn btn-sm btn-ghost" onClick={() => cancelBooking(b.id)}>Cancel</button>}
               </div>
@@ -142,21 +140,24 @@ function OnboardingInner() {
         </div>
       )}
 
-      <div className="card" style={{ padding: 16, marginTop: 16 }}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <label className="form-label" style={{ margin: 0 }}>Filter by date</label>
-          <select className="input" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ maxWidth: 200 }}>
+      <div className="filter-bar">
+        <div className="filter-bar__group">
+          <label className="form-label" style={{ margin: 0, whiteSpace: "nowrap" }}>Filter by date</label>
+          <select className="select" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ minWidth: 180 }}>
             <option value="">All dates ({slots.length} slots)</option>
             {dates.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
-          <span className="text-muted" style={{ fontSize: 11 }}>{filtered.length} slot(s) available</span>
         </div>
+        <div className="filter-bar__primary">
+          <input className="input" type="search" placeholder="Search date or time…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
+        </div>
+        <span className="filter-bar__meta">{filtered.length} slot(s) · {totalPages > 1 ? `page ${page}/${totalPages}` : "available"}</span>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="card" style={{ padding: 24, textAlign: "center", marginTop: 16 }}><p className="text-muted">{slots.length === 0 ? "No slots available yet. Check back soon — admin adds new weekly slots in Calendar." : `No slots match "${debouncedQ}".`}</p></div>
+        <div className="card card--spacious" style={{ textAlign: "center" }}><p className="text-muted">{slots.length === 0 ? "No slots available yet. Check back soon — admin adds new weekly slots in Calendar." : `No slots match "${debouncedQ}".`}</p></div>
       ) : (
-        <div style={{ overflowX: "auto", marginTop: 16 }}>
+        <div className="card card--spacious">
           <DataTable
             columns={slotColumns}
             data={paginated}

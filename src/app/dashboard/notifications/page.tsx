@@ -115,10 +115,10 @@ function NotificationsInner() {
 
   const columns: Column<Notification>[] = [
     { key: "topic", header: "Topic", render: (n) => <span className={`badge ${TOPIC_COLORS[n.topic] ?? TOPIC_COLORS.default}`}>{n.topic}</span> },
-    { key: "payload", header: "Payload", render: (n) => <span className="text-mono-sm" style={{ fontSize: 11, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", display: "inline-block" }}>{JSON.stringify(n.payload)}</span> },
-    { key: "occurred_at", header: "When", render: (n) => <time className="text-mono-sm" style={{ fontSize: 10, color: "var(--muted)" }}>{new Date(n.occurred_at).toLocaleString()}</time> },
+    { key: "payload", header: "Payload", render: (n) => <span className="text-mono-sm" style={{ fontSize: 11, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", display: "inline-block", whiteSpace: "nowrap" }} title={JSON.stringify(n.payload)}>{JSON.stringify(n.payload)}</span> },
+    { key: "occurred_at", header: "When", render: (n) => <time className="text-mono-sm" style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>{new Date(n.occurred_at).toLocaleString()}</time> },
     { key: "dispatched_at", header: "Status", render: (n) => !n.dispatched_at ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--cyan)", display: "inline-block" }} title="Unread" /> : <span className="badge">read</span> },
-    { key: "actions", header: "", render: (n) => !n.dispatched_at ? <button className="btn btn-sm btn-secondary" style={{ fontSize: 11 }} onClick={() => markRead(n.id)}>Mark read</button> : null },
+    { key: "actions", header: "", className: "actions-cell", render: (n) => !n.dispatched_at ? <button className="btn btn-sm btn-secondary" style={{ whiteSpace: "nowrap" }} onClick={() => markRead(n.id)}>Mark read</button> : null },
   ];
 
   if (loading) return <div className="dashboard-page"><div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div></div>;
@@ -131,9 +131,9 @@ function NotificationsInner() {
           <h1>Notifications</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search topic or payload..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 200 }} />
-          <span className="text-mono-sm">{unread} unread · {filtered.length} total</span>
-          {unread > 0 && <button className="btn btn-secondary" style={{ fontSize: 11 }} onClick={markAllRead}>Mark all read</button>}
+          <input className="input" type="search" placeholder="Search topic or payload..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 200 }} />
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{unread} unread · {filtered.length} total</span>
+          {unread > 0 && <button className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }} onClick={markAllRead}>Mark all read</button>}
         </div>
       </div>
       {notifications.length === 0 ? (
@@ -141,8 +141,7 @@ function NotificationsInner() {
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>No notifications match &quot;{debouncedQ}&quot;.</p></div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <DataTable
+        <DataTable
             columns={columns}
             data={paginated}
             emptyMessage="No notifications"
@@ -154,7 +153,6 @@ function NotificationsInner() {
             order="desc"
             onSort={() => {}}
           />
-        </div>
       )}
     </div>
   );

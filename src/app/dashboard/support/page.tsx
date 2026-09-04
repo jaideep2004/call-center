@@ -141,8 +141,8 @@ function SupportInner() {
     { key: "subject", header: "Subject", render: (t) => <span className="clickable" style={{ fontWeight: 500, cursor: "pointer" }} onClick={() => openTicket(t.id)}>{t.subject}</span> },
     { key: "status", header: "Status", render: (t) => <span className={`badge ${STATUS_COLORS[t.status] ?? ""}`}>{t.status}</span> },
     { key: "priority", header: "Priority", render: (t) => <span className={`badge ${PRIORITY_COLORS[t.priority] ?? ""}`}>{t.priority}</span> },
-    { key: "created_at", header: "Opened", render: (t) => <span className="text-mono-sm">{new Date(t.created_at).toLocaleDateString()}</span> },
-    { key: "actions", header: "", render: (t) => <button className="btn btn-sm btn-secondary" onClick={() => openTicket(t.id)}>Open</button> },
+    { key: "created_at", header: "Opened", render: (t) => <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{new Date(t.created_at).toLocaleDateString()}</span> },
+    { key: "actions", header: "", className: "actions-cell", render: (t) => <button className="btn btn-sm btn-secondary" style={{ whiteSpace: "nowrap" }} onClick={() => openTicket(t.id)}>Open</button> },
   ];
 
   if (loading) return <div className="dashboard-page"><div className="stack" style={{ gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div></div>;
@@ -155,8 +155,8 @@ function SupportInner() {
           <h1>Support</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search tickets..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 180 }} />
-          <select className="input" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 130 }}>
+          <input className="input" type="search" placeholder="Search tickets..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 180 }} />
+          <select className="select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 150 }}>
             <option value="">All statuses</option>
             <option value="open">Open</option>
             <option value="in_progress">In progress</option>
@@ -166,24 +166,25 @@ function SupportInner() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+      <div className="card card--form">
         <h2>New Ticket</h2>
-        <div className="filter-bar" style={{ marginTop: "var(--space-3)" }}>
+        <p className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>Describe your issue and set priority — our team will respond in the ticket thread.</p>
+        <div className="filter-bar filter-bar--plain" style={{ marginTop: "var(--space-3)", padding: 0, gap: "var(--space-3)" }}>
           <input className="input" placeholder="What do you need help with?" value={subject} onChange={(e) => setSubject(e.target.value)} style={{ flex: 1 }} />
-          <select className="input" value={priority} onChange={(e) => setPriority(e.target.value)} style={{ maxWidth: 130 }}>
+          <select className="select" value={priority} onChange={(e) => setPriority(e.target.value)} style={{ maxWidth: 140 }}>
             <option value="low">Low</option>
             <option value="normal">Normal</option>
             <option value="high">High</option>
             <option value="urgent">Urgent</option>
           </select>
-          <button className="btn btn-primary" onClick={createTicket} disabled={creating || !subject.trim()}>
+          <button className="btn btn-primary btn-sm" onClick={createTicket} disabled={creating || !subject.trim()} style={{ height: 38, whiteSpace: "nowrap" }}>
             {creating ? "Creating..." : "Submit"}
           </button>
         </div>
       </div>
 
       <div className="split" style={{ gap: "1.5rem", alignItems: "flex-start", flexWrap: "wrap" } as React.CSSProperties}>
-        <div className="card" style={{ flex: 1, minWidth: 320, overflowX: "auto" }}>
+        <div className="card" style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           <h2>My Tickets ({filtered.length})</h2>
           {filtered.length === 0 ? (
             <div className="empty-state"><p>{tickets.length === 0 ? "No tickets yet. Create one above and our team will respond." : `No tickets match "${debouncedQ}".`}</p></div>
@@ -203,10 +204,10 @@ function SupportInner() {
           )}
         </div>
         {active && (
-          <div className="card" style={{ flex: 1, minWidth: 320 }}>
+          <div className="card card--form" style={{ flex: 1, minWidth: 320 }}>
             <h2>{active.subject}</h2>
             <p className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11 }}>{active.status} · {active.priority} · {new Date(active.created_at).toLocaleString()}</p>
-            <div style={{ marginTop: "var(--space-4)", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ marginTop: "var(--space-1)", display: "flex", flexDirection: "column", gap: 8, maxHeight: 360, overflowY: "auto", paddingRight: 4 }}>
               {(active.replies ?? []).map((r) => (
                 <div key={r.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px" }}>
                   <p style={{ fontSize: 12 }}>{r.body}</p>
@@ -215,10 +216,10 @@ function SupportInner() {
               ))}
               {(active.replies ?? []).length === 0 && <p className="text-muted" style={{ fontSize: 11 }}>No replies yet.</p>}
             </div>
-            <div style={{ display: "flex", gap: 8, marginTop: "var(--space-4)" }}>
+            <div style={{ display: "flex", gap: 8, marginTop: "var(--space-2)" }}>
               <input className="input" placeholder="Write a reply..." value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ flex: 1 }} />
-              <button className="btn btn-primary btn-sm" onClick={sendReply} disabled={replying || !replyText.trim()}>{replying ? "..." : "Reply"}</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setActive(null)}>Close</button>
+              <button className="btn btn-primary btn-sm" onClick={sendReply} disabled={replying || !replyText.trim()} style={{ whiteSpace: "nowrap", height: 38 }}>{replying ? "..." : "Reply"}</button>
+              <button className="btn btn-ghost btn-sm" style={{ whiteSpace: "nowrap", height: 38 }} onClick={() => setActive(null)}>Close</button>
             </div>
           </div>
         )}

@@ -91,8 +91,8 @@ export default function PublisherSettingsPage() {
         </span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 640px) 1fr", gap: "var(--space-6)", alignItems: "start" }}>
-        <section className="card" style={{ padding: "var(--space-6)" }}>
+      <div className="publisher-settings-grid">
+        <section className="card card--spacious">
           <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)" }}>Profile</h2>
           <div style={{ overflowX: "auto" }}>
             <dl className="data-list">
@@ -110,7 +110,7 @@ export default function PublisherSettingsPage() {
               </dd>
               <dt>Email</dt>
               <dd>
-                <div className="stack-h" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <div className="filter-bar filter-bar--plain" style={{ gap: 10, padding: 0 }}>
                   <input
                     className="input"
                     type="email"
@@ -123,20 +123,20 @@ export default function PublisherSettingsPage() {
                       }
                     }}
                     placeholder="you@company.com"
-                    style={{ maxWidth: 320, flex: "1 1 200px" }}
+                    style={{ maxWidth: 320, flex: "1 1 220px" }}
                     aria-label="Email address"
                   />
-                  <button className="btn btn-sm btn-primary" onClick={save} disabled={saving || !email.trim()}>
+                  <button className="btn btn-sm btn-primary" onClick={save} disabled={saving || !email.trim()} style={{ height: 40, minWidth: 86 }}>
                     {saving ? "Saving..." : "Save"}
                   </button>
                 </div>
-                <p className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>
+                <p className="text-muted" style={{ fontSize: 11, marginTop: 10 }}>
                   This email is used for payout notifications and account recovery. Press Enter or click Save to update.
                 </p>
               </dd>
             </dl>
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: "var(--space-4)", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, marginTop: "var(--space-5)", flexWrap: "wrap" }}>
             <Link href="/dashboard/publisher" className="btn btn-secondary btn-sm">
               Back to Overview
             </Link>
@@ -146,28 +146,28 @@ export default function PublisherSettingsPage() {
           </div>
         </section>
 
-        <section className="card" style={{ padding: "var(--space-6)" }}>
-          <h2 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-3)" }}>Help & Actions</h2>
-          <div className="stack" style={{ gap: 12 }}>
-            <div style={{ padding: "var(--space-3)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.02)" }}>
+        <section className="card card--spacious">
+          <h2 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-4)" }}>Help & Actions</h2>
+          <div className="stack" style={{ gap: 14 }}>
+            <div style={{ padding: "var(--space-4)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.02)" }}>
               <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>Need to update name or pricing?</p>
               <p className="text-muted" style={{ fontSize: 11, margin: "6px 0 0" }}>
                 These fields are managed by the platform. Reach out to your account manager or use the support channel.
               </p>
               <button
                 className="btn btn-secondary btn-sm"
-                style={{ marginTop: 10 }}
+                style={{ marginTop: 12 }}
                 onClick={() => showToast("Contact support at support@gds.local — include your affiliate ID.", "info")}
               >
                 Contact Support
               </button>
             </div>
-            <div style={{ padding: "var(--space-3)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)" }}>
+            <div style={{ padding: "var(--space-4)", border: "1px solid var(--line)", borderRadius: "var(--radius-sm)" }}>
               <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>Tracking & Integration</p>
               <p className="text-muted" style={{ fontSize: 11, margin: "6px 0 0" }}>
                 Your call tracking links are tied to your Affiliate ID. Share them in your campaigns to attribute calls correctly.
               </p>
-              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                 <Link href="/dashboard/publisher/campaigns" className="btn btn-secondary btn-sm">
                   View Campaigns
                 </Link>

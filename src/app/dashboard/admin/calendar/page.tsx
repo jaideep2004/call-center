@@ -200,7 +200,7 @@ export default function AdminCalendarPage() {
     {
       key: "actions", header: "Actions", className: "actions-cell",
       render: (b) => (
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "nowrap" }}>
           {b.status === "pending" && <><button className="btn btn-sm btn-success" onClick={() => setBookingStatus(b.id, "confirmed")}>Confirm</button><button className="btn btn-sm btn-danger" onClick={() => setBookingStatus(b.id, "cancelled")}>Cancel</button></>}
           {b.status === "confirmed" && <button className="btn btn-sm btn-ghost" onClick={() => setBookingStatus(b.id, "cancelled")}>Cancel</button>}
           {b.status === "cancelled" && <button className="btn btn-sm btn-ghost" onClick={() => setBookingStatus(b.id, "pending")}>Reopen</button>}
@@ -217,11 +217,11 @@ export default function AdminCalendarPage() {
         <div>
           <p className="eyebrow"><i /> ADMIN / CALENDAR</p>
           <h1>Onboarding Calendar</h1>
-          <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>Configure available dates/times for post-signup onboarding calls. Agents see these in <b>Dashboard → Onboarding → Book Call</b>.</p>
+          <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 6, maxWidth: 640 }}>Configure available dates/times for post-signup onboarding calls. Agents see these in <b>Dashboard → Onboarding → Book Call</b>.</p>
         </div>
       </div>
 
-      <div className="card" style={{ padding: 16, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
+      <div className="card" style={{ padding: "var(--space-5)", display: "flex", gap: "var(--space-4)", flexWrap: "wrap", alignItems: "end" }}>
         <div style={{ flex: 1, minWidth: 140 }}><label className="form-label">Date</label><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         <div><label className="form-label">Start</label><input className="input" type="time" value={start} onChange={(e) => setStart(e.target.value)} /></div>
         <div><label className="form-label">End</label><input className="input" type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
@@ -229,8 +229,8 @@ export default function AdminCalendarPage() {
         <button className="btn btn-primary" disabled={creating} onClick={handleCreate}>{creating ? "Creating..." : "+ Add Slot"}</button>
       </div>
 
-      <div className="card" style={{ marginTop: 16, padding: 0, overflow: "hidden" }}>
-        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 16px" }}>
+      <div className="card card--table" style={{ marginTop: "var(--space-5)" }}>
+        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h2 className="card-title">Slots ({filteredSlots.length} of {slots.length})</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input className="input" type="search" placeholder="Search…" value={slotSearch} onChange={(e) => setSlotSearch(e.target.value)} style={{ maxWidth: 160, fontSize: 12 }} />
@@ -244,7 +244,6 @@ export default function AdminCalendarPage() {
           </div>
         </div>
         {slots.length === 0 ? <p className="text-muted" style={{ padding: 16 }}>No slots yet — add one above.</p> : filteredSlots.length === 0 ? <p className="text-muted" style={{ padding: 16 }}>No slots match filters.</p> : (
-          <div style={{ overflowX: "auto" }}>
             <DataTable
               columns={slotColumns}
               data={slotsPaged}
@@ -258,12 +257,11 @@ export default function AdminCalendarPage() {
               order={slotOrder}
               onSort={handleSlotSort}
             />
-          </div>
         )}
       </div>
 
-      <div className="card" style={{ marginTop: 16, padding: 0, overflow: "hidden" }}>
-        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 16px" }}>
+      <div className="card card--table" style={{ marginTop: "var(--space-5)" }}>
+        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h2 className="card-title">Bookings ({filteredBookings.length} of {bookings.length})</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input className="input" type="search" placeholder="Search agent, status…" value={bookingSearch} onChange={(e) => setBookingSearch(e.target.value)} style={{ maxWidth: 180, fontSize: 12 }} />
@@ -278,7 +276,6 @@ export default function AdminCalendarPage() {
           </div>
         </div>
         {bookings.length === 0 ? <p className="text-muted" style={{ padding: 16 }}>No bookings yet.</p> : filteredBookings.length === 0 ? <p className="text-muted" style={{ padding: 16 }}>No bookings match filters.</p> : (
-          <div style={{ overflowX: "auto" }}>
             <DataTable
               columns={bookingColumns}
               data={bookingsPaged}
@@ -292,7 +289,6 @@ export default function AdminCalendarPage() {
               order={bookingOrder}
               onSort={handleBookingSort}
             />
-          </div>
         )}
       </div>
     </div>

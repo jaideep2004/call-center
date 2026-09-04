@@ -311,7 +311,7 @@ function PublisherOverviewInner() {
         </div>
       </div>
 
-      <div className="grid-4" style={{ marginBottom: "var(--space-6)" }}>
+      <div className="grid-4" style={{ marginBottom: 4 }}>
         <div className="card stat-card">
           <p className="text-mono-sm">CALLS</p>
           <p className="stat-value">{overview?.stats.total_calls ?? 0}</p>
@@ -331,7 +331,7 @@ function PublisherOverviewInner() {
       </div>
 
       {sparklineData && sparklineData.length >= 2 && (
-        <section className="card" style={{ padding: "var(--space-6)", marginBottom: "var(--space-6)" }}>
+        <section className="card card--spacious">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             <div>
               <h2 style={{ font: "500 18px var(--serif)", margin: 0 }}>Revenue Trend</h2>
@@ -349,43 +349,46 @@ function PublisherOverviewInner() {
         </section>
       )}
 
-      <div className="filter-bar" style={{ marginBottom: "var(--space-3)" }}>
-        <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 360 }}>
-          <input
-            className="input"
-            placeholder="Search campaigns, callers, status…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            aria-label="Search overview"
-          />
-          {searchInput && (
-            <button
-              onClick={() => setSearchInput("")}
-              aria-label="Clear search"
-              style={{
-                position: "absolute",
-                right: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--muted)",
-                fontSize: 16,
-              }}
-            >
-              ×
-            </button>
-          )}
+      <div className="filter-bar">
+        <div className="filter-bar__primary">
+          <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 380 }}>
+            <input
+              className="input"
+              placeholder="Search campaigns, callers, status…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Search overview"
+            />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput("")}
+                aria-label="Clear search"
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--muted)",
+                  fontSize: 16,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
-        <span className="text-mono-sm" style={{ marginLeft: "auto" }}>
+        <span className="filter-bar__meta">
           {filteredCampaigns.length} campaign(s) · {filteredRecent.length} call(s)
-          {(debouncedQ ? " (filtered)" : "")}
+          {debouncedQ ? " (filtered)" : ""}
         </span>
       </div>
 
-      <section className="card" style={{ padding: "var(--space-6)", marginBottom: "var(--space-6)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: "var(--space-4)" }}>
+      <section className="card card--spacious">
+        <div className="card-header" style={{ marginBottom: 0, padding: 0, border: 0 }}>
           <h2 style={{ font: "500 18px var(--serif)", margin: 0 }}>Campaigns</h2>
           <Link href="/dashboard/publisher/campaigns" className="btn btn-ghost btn-sm">
             View all
@@ -397,20 +400,19 @@ function PublisherOverviewInner() {
               <strong>No campaign data yet</strong>
             </p>
             <p className="text-muted">Once calls are attributed to you, they&apos;ll appear here per campaign.</p>
-            <Link href="/dashboard/publisher/campaigns" className="btn btn-primary btn-sm" style={{ marginTop: "var(--space-3)" }}>
+            <Link href="/dashboard/publisher/campaigns" className="btn btn-primary btn-sm" style={{ marginTop: "var(--space-4)" }}>
               Browse Campaigns
             </Link>
           </div>
         ) : filteredCampaigns.length === 0 ? (
           <div className="empty-state">
             <p>No campaigns match &quot;{debouncedQ}&quot;.</p>
-            <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-3)" }} onClick={() => setSearchInput("")}>
+            <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-4)" }} onClick={() => setSearchInput("")}>
               Clear search
             </button>
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <DataTable
+          <DataTable
               columns={campaignColumns}
               data={sortedPagedCampaigns}
               loading={false}
@@ -423,12 +425,11 @@ function PublisherOverviewInner() {
               order={campaignOrder}
               onSort={handleCampaignSort}
             />
-          </div>
         )}
       </section>
 
-      <section className="card" style={{ padding: "var(--space-6)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: "var(--space-4)" }}>
+      <section className="card card--spacious">
+        <div className="card-header" style={{ marginBottom: 0, padding: 0, border: 0 }}>
           <h2 style={{ font: "500 18px var(--serif)", margin: 0 }}>Recent calls</h2>
           <Link href="/dashboard/publisher/calls" className="btn btn-ghost btn-sm">
             View all
@@ -440,7 +441,7 @@ function PublisherOverviewInner() {
               <strong>No calls yet</strong>
             </p>
             <p className="text-muted">Calls routed through your campaign will appear here.</p>
-            <div style={{ display: "flex", gap: 8, marginTop: "var(--space-3)" }}>
+            <div style={{ display: "flex", gap: 8, marginTop: "var(--space-4)" }}>
               <Link href="/dashboard/publisher/campaigns" className="btn btn-primary btn-sm">
                 View Campaigns
               </Link>
@@ -452,13 +453,12 @@ function PublisherOverviewInner() {
         ) : filteredRecent.length === 0 ? (
           <div className="empty-state">
             <p>No calls match &quot;{debouncedQ}&quot;.</p>
-            <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-3)" }} onClick={() => setSearchInput("")}>
+            <button className="btn btn-secondary btn-sm" style={{ marginTop: "var(--space-4)" }} onClick={() => setSearchInput("")}>
               Clear search
             </button>
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <DataTable
+          <DataTable
               columns={callColumns}
               data={sortedPagedRecent}
               loading={false}
@@ -471,7 +471,6 @@ function PublisherOverviewInner() {
               order={callOrder}
               onSort={handleCallSort}
             />
-          </div>
         )}
       </section>
     </div>

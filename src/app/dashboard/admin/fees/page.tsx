@@ -242,7 +242,7 @@ function AdminFeesInner() {
       key: "actions",
       header: "Actions",
       render: (f) => (
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "nowrap" }}>
           <button className="btn btn-sm btn-primary" disabled={busy === f.id} onClick={() => act(f.id, "charge")}>
             Charge
           </button>
@@ -290,13 +290,13 @@ function AdminFeesInner() {
         invoices are generated every Monday and must be sent to the agency manually.
       </p>
 
-      <div className="filter-bar" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", marginTop: "var(--space-4)" }}>
+      <div className="filter-bar">
         <select className="input" value={kindFilter} onChange={(e) => handleKindChange(e.target.value)} style={{ maxWidth: 180 }}>
           <option value="">All types</option>
           <option value="dialer">Dialer Fee</option>
           <option value="software">Software Access</option>
         </select>
-        <div style={{ position: "relative", flex: "1 1 200px", maxWidth: 320 }}>
+        <div style={{ position: "relative", flex: "1 1 220px", maxWidth: 340 }}>
           <input
             className="input"
             placeholder="Search agent, type, invoice…"
@@ -314,12 +314,12 @@ function AdminFeesInner() {
             </button>
           )}
         </div>
-        <span className="text-mono-sm" style={{ marginLeft: "auto" }}>
+        <span className="text-mono-sm" style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>
           {filtered.length} fee(s){debouncedQ || kindFilter ? " (filtered)" : ""} {filtered.length > PAGE_SIZE ? `— page ${safePage}/${totalPages}` : ""}
         </span>
       </div>
 
-      <div className="card" style={{ marginTop: "var(--space-4)" }}>
+      <div className="card" style={{ padding: "var(--space-5)" }}>
         <h2>Pending Fees</h2>
         {filtered.length === 0 ? (
           <p className="text-muted" style={{ fontSize: 12, padding: "var(--space-4) 0" }}>

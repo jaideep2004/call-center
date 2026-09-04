@@ -47,13 +47,14 @@ function RoleShortcuts() {
   if (!links || links.length === 0) return null;
 
   return (
-    <section className="card" style={{ marginBottom: "var(--space-5)", maxWidth: 640 }}>
-      <h2>{role === "finance" ? "Finance Settings" : role === "manager" ? "Manager Tools" : "Quick Links"}</h2>
-      <div className="stack" style={{ gap: 8 }}>
+    <section className="card card--spacious" style={{ maxWidth: 640 }}>
+      <h2 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-3)" }}>{role === "finance" ? "Finance Settings" : role === "manager" ? "Manager Tools" : "Quick Links"}</h2>
+      <p className="text-muted" style={{ fontSize: 11, margin: "0 0 var(--space-4)" }}>Shortcuts for your role — grouped for quick access.</p>
+      <div className="stack" style={{ gap: 10 }}>
         {links.map((l) => (
-          <Link key={l.href} href={l.href} className="clickable" style={{ display: "block", padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 8 }}>
+          <Link key={l.href} href={l.href} className="clickable" style={{ display: "block", padding: "12px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
             <strong style={{ fontSize: 13 }}>{l.label}</strong>
-            <p className="text-muted" style={{ fontSize: 11, margin: "2px 0 0" }}>{l.note}</p>
+            <p className="text-muted" style={{ fontSize: 11, margin: "4px 0 0" }}>{l.note}</p>
           </Link>
         ))}
       </div>
@@ -160,51 +161,51 @@ export default function SettingsPage() {
           <h1>Settings</h1>
         </div>
       </div>
-      <nav className="tabs" style={{ marginBottom: "var(--space-5)" }}>
+      <nav className="tabs" style={{ marginBottom: "var(--space-6)" }}>
         <Link className="tab active" href="/dashboard/settings">Agency</Link>
         <Link className="tab" href="/dashboard/settings/members">Members</Link>
         <Link className="tab" href="/dashboard/settings/phone-numbers">Phone Numbers</Link>
       </nav>
       <RoleShortcuts />
       {agency ? (
-        <div className="card" style={{ maxWidth: 560 }}>
-          <h2>Agency Profile</h2>
+        <div className="card card--spacious" style={{ maxWidth: 580 }}>
+          <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)" }}>Agency Profile</h2>
           <dl className="data-list">
             <dt>Agency ID</dt><dd className="text-mono-sm">{agency?.id ?? "—"}</dd>
             <dt>Slug</dt><dd className="text-mono-sm">{agency?.slug ?? "—"}</dd>
-            <dt>Status</dt><dd><span className="badge">{agency?.status ?? "—"}</span></dd>
+            <dt>Status</dt><dd><span className="badge badge-success">{agency?.status ?? "—"}</span></dd>
             <dt>Created</dt><dd className="text-mono-sm">{agency?.created_at ? new Date(agency.created_at).toLocaleDateString() : "—"}</dd>
           </dl>
-          <div className="stack" style={{ gap: "var(--space-3)", marginTop: "var(--space-5)" }}>
+          <div className="stack" style={{ gap: "var(--space-4)", marginTop: "var(--space-6)" }}>
             <label className="text-mono-sm" style={{ fontSize: 10, letterSpacing: 1, color: "var(--muted)" }}>AGENCY NAME</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Northside Agency" style={{ minHeight: 42 }} />
             <label className="text-mono-sm" style={{ fontSize: 10, letterSpacing: 1, color: "var(--muted)" }}>RECORDING RETENTION (DAYS)</label>
-            <input className="input" type="number" min={1} max={3650} value={retention} onChange={(e) => setRetention(parseInt(e.target.value) || 90)} />
-            <button className="btn btn-primary" disabled={saving} onClick={handleSave}>{saving ? "Saving..." : "Save Changes"}</button>
+            <input className="input" type="number" min={1} max={3650} value={retention} onChange={(e) => setRetention(parseInt(e.target.value) || 90)} style={{ minHeight: 42 }} />
+            <button className="btn btn-primary" disabled={saving} onClick={handleSave} style={{ height: 42, marginTop: "var(--space-2)" }}>{saving ? "Saving..." : "Save Changes"}</button>
           </div>
         </div>
       ) : creationAllowed === null ? (
-        <div className="card" style={{ maxWidth: 560, padding: "var(--space-6)" }}>
+        <div className="card card--spacious" style={{ maxWidth: 580 }}>
           <div className="skeleton skeleton-text" />
         </div>
       ) : creationAllowed ? (
-        <div className="card" style={{ maxWidth: 560 }}>
-          <h2>Create Your Agency</h2>
-          <p className="text-muted" style={{ fontSize: 12 }}>
+        <div className="card card--spacious" style={{ maxWidth: 580 }}>
+          <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-3)" }}>Create Your Agency</h2>
+          <p className="text-muted" style={{ fontSize: 12, margin: "0 0 var(--space-4)" }}>
             You don&apos;t belong to an agency yet. Create your own to become the agency head and manage members.
           </p>
-          <form onSubmit={handleCreateAgency} className="stack" style={{ gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
+          <form onSubmit={handleCreateAgency} className="stack" style={{ gap: "var(--space-4)", marginTop: "var(--space-2)" }}>
             <label className="text-mono-sm" style={{ fontSize: 10, letterSpacing: 1, color: "var(--muted)" }}>AGENCY NAME</label>
-            <input className="input" value={newAgencyName} onChange={(e) => setNewAgencyName(e.target.value)} placeholder="e.g. Northside Insurance" required maxLength={255} />
+            <input className="input" value={newAgencyName} onChange={(e) => setNewAgencyName(e.target.value)} placeholder="e.g. Northside Insurance" required maxLength={255} style={{ minHeight: 42 }} />
             <label className="text-mono-sm" style={{ fontSize: 10, letterSpacing: 1, color: "var(--muted)" }}>SLUG (OPTIONAL)</label>
-            <input className="input" value={newAgencySlug} onChange={(e) => setNewAgencySlug(e.target.value)} placeholder="auto-generated from name" maxLength={100} />
-            <button className="btn btn-primary" type="submit" disabled={creating || !newAgencyName.trim()}>
+            <input className="input" value={newAgencySlug} onChange={(e) => setNewAgencySlug(e.target.value)} placeholder="auto-generated from name" maxLength={100} style={{ minHeight: 42 }} />
+            <button className="btn btn-primary" type="submit" disabled={creating || !newAgencyName.trim()} style={{ height: 42 }}>
               {creating ? <span className="spinner" /> : "Create Agency"}
             </button>
           </form>
         </div>
       ) : (
-        <div className="card" style={{ maxWidth: 560 }}>
+        <div className="card card--spacious" style={{ maxWidth: 580 }}>
           <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
             You don&apos;t belong to an agency yet. Agency creation is currently disabled — contact the platform admin.
           </p>

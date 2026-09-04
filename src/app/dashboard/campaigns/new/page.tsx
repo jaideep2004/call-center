@@ -83,12 +83,12 @@ export default function NewCampaignPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="split" style={{ "--gap": "var(--space-6)" } as React.CSSProperties}>
+        <div className="split" style={{ gap: "var(--space-6)" } as React.CSSProperties}>
 
           <div className="stack" style={{ flex: 2, gap: "var(--space-5)" }}>
 
-            <section className="card" style={{ padding: "var(--space-6)" }}>
-              <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Basic Info</h2>
+            <section className="card card--form">
+              <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em" }}>Basic Info</h2>
               <div className="form-group">
                 <label className="form-label" htmlFor="name">Campaign name</label>
                 <input id="name" className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Illinois Auto Leads" required autoFocus />
@@ -114,8 +114,8 @@ export default function NewCampaignPage() {
               </div>
             </section>
 
-            <section className="card" style={{ padding: "var(--space-6)" }}>
-              <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Pricing</h2>
+            <section className="card card--form">
+              <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em" }}>Pricing</h2>
               <div className="form-group">
                 <label className="form-label" htmlFor="price">Price per qualified call</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -140,10 +140,10 @@ export default function NewCampaignPage() {
 
           </div>
 
-          <div className="stack" style={{ flex: 1, gap: "var(--space-5)" }}>
+          <div className="stack" style={{ flex: 1, gap: "var(--space-4)" }}>
 
-            <section className="card" style={{ padding: "var(--space-6)" }}>
-              <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Summary</h2>
+            <section className="card card--form">
+              <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em" }}>Summary</h2>
               {loadingAgency ? (
                 <div className="skeleton skeleton-text" style={{ width: "100%" }} />
               ) : (

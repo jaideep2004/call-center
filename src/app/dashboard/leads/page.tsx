@@ -162,18 +162,18 @@ function LeadsInner() {
     { key: "disposition_outcome", header: "Disposition", render: (l) => l.disposition_outcome ? <span className={statusBadge(l.disposition_outcome)}>{l.disposition_outcome}</span> : <span className="text-muted">\u2014</span> },
     { key: "annual_premium_cents", header: "Premium", render: (l) => <span className="text-mono-sm" style={{ color: "var(--accent)" }}>{formatPremium(l.annual_premium_cents)}</span> },
     {
-      key: "assigned_agent_id", header: "Assigned",
+      key: "assigned_agent_id", header: "Assigned", className: "actions-cell",
       render: (l) => (
-        <select className="input" style={{ width: 140, padding: "4px 8px", fontSize: 11 }} value={l.assigned_agent_id ?? ""} onChange={(e) => handleAssign(l.id, e.target.value)}>
+        <select className="select" style={{ width: 148, minWidth: 0 }} value={l.assigned_agent_id ?? ""} onChange={(e) => handleAssign(l.id, e.target.value)}>
           <option value="">Unassigned</option>
           {agents.map((a) => <option key={a.id} value={a.id}>{agentMap[a.id] ?? a.membership_id.slice(0, 8)}</option>)}
         </select>
       ),
     },
     {
-      key: "delete", header: "",
+      key: "delete", header: "", className: "actions-cell",
       render: (l) => (
-        <button className="btn btn-ghost btn-sm" onClick={async () => {
+        <button className="btn btn-ghost btn-sm" aria-label="Delete lead" title="Delete lead" style={{ padding: "6px 8px", lineHeight: 1 }} onClick={async () => {
           if (!confirm("Delete this lead?")) return;
           try {
             const res = await fetch(`/api/v1/leads/${l.id}`, { method: "DELETE" });
@@ -200,30 +200,32 @@ function LeadsInner() {
           <h1>Leads</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search leads..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
-          <a className="btn btn-ghost" href={`/api/v1/leads/export?search=${debouncedQ}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>CSV</a>
-          <a className="btn btn-ghost" href={`/api/v1/leads/export?format=xlsx&search=${debouncedQ}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>Excel</a>
-          <span className="text-mono-sm">{total} total</span>
+          <input className="input" type="search" placeholder="Search leads..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{total} total</span>
         </div>
       </div>
       <div className="filter-bar">
-        <select className="input" style={{ width: 130 }} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+        <select className="select" style={{ maxWidth: 140 }} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="">All statuses</option>
           {STATUS_OPTIONS.filter(Boolean).map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="input" style={{ width: 130 }} value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}>
+        <select className="select" style={{ maxWidth: 140 }} value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}>
           <option value="">All sources</option>
           {sources.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="input" style={{ width: 140 }} value={agentFilter} onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}>
+        <select className="select" style={{ maxWidth: 160 }} value={agentFilter} onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}>
           <option value="">All agents</option>
           {agents.map((a) => <option key={a.id} value={a.id}>{agentMap[a.id] ?? a.membership_id.slice(0, 8)}</option>)}
         </select>
-        <input className="input" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} style={{ width: 140 }} />
-        <input className="input" type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} style={{ width: 140 }} />
+        <input className="input" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} style={{ maxWidth: 150 }} />
+        <input className="input" type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} style={{ maxWidth: 150 }} />
+        <div className="stack-h" style={{ gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
+          <a className="btn btn-ghost btn-sm" href={`/api/v1/leads/export?search=${debouncedQ}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>CSV</a>
+          <a className="btn btn-ghost btn-sm" href={`/api/v1/leads/export?format=xlsx&search=${debouncedQ}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>Excel</a>
+          {(statusFilter || sourceFilter || agentFilter || startDate || endDate) && <button className="btn btn-ghost btn-sm" onClick={() => { setStatusFilter(""); setSourceFilter(""); setAgentFilter(""); setStartDate(""); setEndDate(""); setPage(1); }}>Clear</button>}
+        </div>
       </div>
-      <div style={{ overflowX: "auto" }}>
-        <DataTable
+      <DataTable
           columns={columns}
           data={leads}
           loading={loading}
@@ -236,7 +238,6 @@ function LeadsInner() {
           order={order}
           onSort={toggleSort}
         />
-      </div>
     </div>
   );
 }
