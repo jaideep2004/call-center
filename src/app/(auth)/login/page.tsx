@@ -48,8 +48,8 @@ function LoginForm() {
       fetch(`/api/v1/invites/${pendingInvite}/accept`, { method: "POST" });
     }
     showToast("Signed in successfully", "success");
-    router.push(redirect);
-    router.refresh();
+    // hard reload so proxy sees the fresh __Secure- cookie (router.push keeps stale cache)
+    window.location.href = redirect;
   }
 
   return (
