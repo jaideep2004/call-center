@@ -44,43 +44,88 @@ function fmtMoney(cents: number | string | null) {
 }
 
 function Kebab({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useState(() => ({ current: null as HTMLButtonElement | null }))[0];
+
+  function toggle(e: React.MouseEvent<HTMLButtonElement>) {
+    if (!open) {
+      const r = e.currentTarget.getBoundingClientRect();
+      // clamp inside viewport, prefer right-aligned to button
+      const w = 172;
+      const left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+      setPos({ top: r.bottom + 6, left });
+    }
+    setOpen((v) => !v);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      const t = e.target as HTMLElement;
+      if (btnRef.current && btnRef.current.contains(t)) return;
+      // allow clicks inside the fixed menu
+      if (t.closest("[data-kebab-menu]")) return;
+      setOpen(false);
+    }
+    function onEsc(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    function onScroll() { setOpen(false); }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onEsc);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onEsc);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [open]);
+
   return (
-    <details style={{ position: "relative", display: "inline-block" }}>
-      <summary
+    <>
+      <button
+        ref={(el) => { (btnRef as any).current = el; }}
+        onClick={toggle}
+        aria-label="Actions"
+        aria-expanded={open}
         style={{
-          listStyle: "none",
           cursor: "pointer",
-          padding: "4px 8px",
-          borderRadius: 6,
+          padding: "6px 10px",
+          borderRadius: 8,
           border: "1px solid var(--line)",
-          fontSize: 14,
+          background: open ? "var(--hover)" : "transparent",
+          fontSize: 16,
           lineHeight: 1,
           userSelect: "none",
         }}
-        aria-label="Actions"
       >
         ⋮
-      </summary>
-      <div
-        style={{
-          position: "absolute",
-          right: 0,
-          top: "calc(100% + 6px)",
-          minWidth: 160,
-          background: "var(--surface, #1a1a2e)",
-          border: "1px solid var(--line)",
-          borderRadius: 8,
-          padding: 6,
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          zIndex: 20,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-        }}
-      >
-        {children}
-      </div>
-    </details>
+      </button>
+      {open && pos && (
+        <div
+          data-kebab-menu
+          onClick={() => setOpen(false)}
+          style={{
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+            minWidth: 172,
+            background: "var(--surface, #171033)",
+            border: "1px solid var(--line)",
+            borderRadius: 10,
+            padding: 6,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            zIndex: 9999,
+            boxShadow: "0 12px 32px rgba(0,0,0,0.45)",
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </>
   );
 }
 
