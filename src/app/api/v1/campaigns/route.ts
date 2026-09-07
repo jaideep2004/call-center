@@ -13,14 +13,16 @@ export const GET = apiHandler(async (req, context) => {
   const { sortBy, order } = validate(sortSchema, params);
   const status = url.searchParams.get("status") ?? undefined;
 
-  const { rows, pagination } = await campaigns.findMany({
-    pagination: { page, limit: 100 },
+  const { rows, total } = await campaigns.findManyWithBid({
+    agencyId: context.agencyId ?? undefined,
+    status,
     search,
     sortBy,
     order,
-    agencyId: context.agencyId ?? undefined,
-    status,
+    limit: 100,
+    offset: (page - 1) * 100,
   });
+  const pagination = { page, limit: 100, total, totalPages: Math.ceil(total / 100) };
 
   const role = context.user?.role ?? "agent";
   let visible = rows;
