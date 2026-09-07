@@ -21,7 +21,10 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
     agent_id: agent.id,
     type: "top_up",
     amount_cents: body.amount_cents,
-    idempotency_key: `agent_topup_${agent.id}_${Date.now()}`,
+    // crypto.randomUUID() avoids the 1ms Date.now() collision risk on
+    // double-click (two requests landing in the same millisecond would
+    // otherwise race on the UNIQUE idempotency_key).
+    idempotency_key: `agent_topup_${agent.id}_${crypto.randomUUID()}`,
   });
   return ok(entry, "Wallet topped up");
 }, { resource: "wallet", action: "manage" });

@@ -39,12 +39,27 @@ export class AgentSubscriptionRepository extends BaseRepository<AgentSubscriptio
   }
 
   /**
-   * Increments calls_used by one. NOT safe to call twice for the same call:
-   * finalizeCall serializes every charge behind the per-call invoice insert
-   * (idempotency anchor), so this only runs for the single finalize winner.
-   * callId is kept for tracing/audit and for future call-level guards.
+   * Increments calls_used by one for the given call. Idempotent at the SQL
+   * level via app.subscription_call_charges (UNIQUE on subscription_id+call_id).
+   * If a row already exists for this (subscription, call) pair, the calls_used
+   * counter is NOT incremented again. Safe to call twice for the same call.
+   *
+   * callId is required and must reference a real call.
    */
   async incrementCallsUsed(id: string, callId: string, client?: PoolClient): Promise<void> {
+    // 1) Attempt to record the per-call usage. ON CONFLICT DO NOTHING means
+    //    a duplicate (subscription_id, call_id) is a silent no-op.
+    // 2) Only if the row was actually inserted do we bump the counter, so
+    //    concurrent finalize+redeliver cannot double-decrement calls_used.
+    const inserted = await query<{ id: string }>(
+      `INSERT INTO app.subscription_call_charges (subscription_id, call_id)
+       VALUES ($1, $2)
+       ON CONFLICT (subscription_id, call_id) DO NOTHING
+       RETURNING id`,
+      [id, callId],
+      client,
+    );
+    if (inserted.length === 0) return; // already counted for this call
     await query(
       "UPDATE app.agent_subscriptions SET calls_used = calls_used + 1, updated_at = now() WHERE id = $1",
       [id],

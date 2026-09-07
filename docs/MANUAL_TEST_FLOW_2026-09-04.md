@@ -104,7 +104,7 @@
 | 4.31 | Tutorials New | `/dashboard/tutorials/new` | Create tutorial → appears in 4.29 | Created |
 | 4.32 | Feature Requests (shared) already | — | — | — |
 
-> Total: 5 (auth) + 16 (admin) + 5 (publisher) + 7 (agent) + 32 (shared) = **65 incl. public**; **61 dashboard `page.tsx`** exactly as `find src/app/dashboard -name page.tsx | wc -l` — all covered, none missed.
+Source: `find src/app/dashboard -name page.tsx` on 2026-09-04 → 59 files (`+ layout.tsx` = 60). Every URL in the docs is covered by an existing `page.tsx`.
 
 ---
 

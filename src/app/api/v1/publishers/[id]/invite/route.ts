@@ -15,7 +15,13 @@ export const POST = apiHandler(async (req, { params }) => {
       html: publisherInviteEmail(result.link, result.name),
     });
   } catch (err) {
-    console.error("Failed to send publisher invite email:", err);
+    // Log the SMTP error code only — the full error may include the SMTP
+    // connection URL (e.g. smtp://user:pass@host) and we never want creds
+    // leaking to logs. err.code is the stable transport-level identifier.
+    console.error(
+      "[invite] publisher invite email send failed",
+      { email: result.email, code: (err as { code?: string })?.code ?? "unknown" },
+    );
   }
 
   return ok({ link: result.link, emailed: true }, "Publisher portal invite emailed");

@@ -51,8 +51,29 @@ function RegisterForm() {
   return (
     <>
       <h1>{inviteToken ? "Join agency" : "Create account"}</h1>
-      {inviteToken && <p className="auth-subtitle">You were invited to join an agency. Register below to accept.</p>}
+      {inviteToken && (
+        <p className="auth-subtitle">You were invited to join an agency. Register below to accept.</p>
+      )}
       {!inviteToken && <p className="auth-subtitle">Register for a new operations account.</p>}
+      {inviteToken && (
+        <div
+          className="auth-warning"
+          role="status"
+          style={{
+            background: "rgba(245, 158, 11, 0.12)",
+            border: "1px solid rgba(245, 158, 11, 0.4)",
+            color: "#92400e",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 13,
+            marginBottom: 16,
+          }}
+        >
+          <strong>Heads up:</strong> accepting this invite will set your account role to match the
+          inviting organization. If you already have an agent or publisher account, your role will be
+          upgraded — you may lose access to your current console.
+        </div>
+      )}
       <form className="auth-form" onSubmit={handleSubmit}>
         {error && <div className="auth-error">{error}</div>}
         <div className="form-group">

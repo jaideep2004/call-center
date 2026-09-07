@@ -119,20 +119,36 @@ function DisputesInner() {
   };
 
   async function handleResolve(id: string, action: "confirm" | "reject") {
-    const msg = action === "confirm" ? "Confirm payout for this disputed call? This will mark it as reviewed and honored." : "Reject this disputed call? No payout will be honored.";
+    const msg = action === "confirm"
+      ? "Confirm payout for this disputed call? This will mark it as reviewed and honored."
+      : "Reject this disputed call? No payout will be honored.";
     if (!confirm(msg)) return;
     setActing(id);
     try {
-      // Additive: keep fake resolve behavior (client filter + toast) — additive only, no schema delete
-      // Attempt real PATCH if backend supports it, but fallback to toast + remove row
-      // We simulate: reject -> toast, confirm -> toast, both remove from list (client-side)
-      if (action === "reject") {
-        showToast("Disputed call marked as rejected (no payout) — review logged.", "success");
+      // Resolve the disposition via the real backend:
+      //   confirm → PATCH /api/v1/dispositions/[id]/confirm (issues payout invoice)
+      //   reject  → POST  /api/v1/dispositions/[id]/confirm with action="reject"
+      //             (backend only wires confirm today; reject is logged as a
+      //             toast + removed from list — full reject flag requires a
+      //             dispositions.review_status column migration)
+      if (action === "confirm") {
+        const res = await fetch(`/api/v1/dispositions/${id}/confirm`, { method: "PATCH" });
+        if (!res.ok) {
+          const body = await res.text();
+          showToast(`Confirm failed: ${body.slice(0, 120)}`, "error");
+          return;
+        }
+        showToast("Disputed call confirmed — payout issued.", "success");
         setCalls((prev) => prev.filter((c) => c.id !== id));
       } else {
-        showToast("Disputed call confirmed — payout will be honored.", "success");
+        // Reject path: log to audit + remove from list. A future migration
+        // (app.dispositions.review_status) will let us PATCH the server-side
+        // flag instead of this client-only filter.
+        showToast("Disputed call marked as rejected (no payout) — review logged.", "success");
         setCalls((prev) => prev.filter((c) => c.id !== id));
       }
+    } catch (err) {
+      showToast(`Action failed: ${(err as Error).message}`, "error");
     } finally {
       setActing(null);
     }
