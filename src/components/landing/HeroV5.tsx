@@ -164,9 +164,9 @@ export default function HeroV5() {
         <nav className="glass-pill rounded-full px-6 pt-[0.55rem] pb-[0.55rem] flex items-center justify-between border border-white/10 shadow-2xl">
           <a href="/" className="flex items-center gap-2.5 nav-item-v5 cursor-pointer" aria-label="Coverage Calls home">
             <img
-              src="/images/coveragec1.png"
+              src="/images/coveragecallsfinal.png"
               alt="Coverage Calls"
-              className="h-[2.7rem] w-auto object-contain"
+              className="h-[2.2rem] w-auto object-contain"
             />
           </a>
 

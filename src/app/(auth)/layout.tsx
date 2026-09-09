@@ -94,8 +94,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Editorial — left */}
         <div className="auth-editorial" aria-label="Coverage Calls editorial">
           <div className="auth-editorial__top">
-            <Link className="wordmark" href="/" aria-label="Coverage Calls home">
-              COVERAGE CALLS<span aria-hidden="true">▲</span>
+            <Link href="/" aria-label="Coverage Calls home" style={{ display: "inline-flex", alignItems: "center" }}>
+              <img src="/images/coveragecallsfinal.png" alt="Coverage Calls" style={{ height: 28, width: "auto", objectFit: "contain", display: "block" }} />
             </Link>
             <span
               style={{

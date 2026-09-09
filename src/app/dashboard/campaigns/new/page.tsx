@@ -13,6 +13,7 @@ export default function NewCampaignPage() {
   const [minSeconds, setMinSeconds] = useState("60");
   const [bufferSeconds, setBufferSeconds] = useState("30");
   const [routingStrategy, setRoutingStrategy] = useState("priority");
+  const [recordCalls, setRecordCalls] = useState(true);
   const [publisherIds, setPublisherIds] = useState<string[]>([]);
   const [agencyId, setAgencyId] = useState("");
   const [saving, setSaving] = useState(false);
@@ -61,6 +62,7 @@ export default function NewCampaignPage() {
           agency_id: agencyId,
           name,
           routing_strategy: routingStrategy,
+          record_calls: recordCalls,
           price_cents: Math.round(parseFloat(price) * 100),
           min_connected_seconds: parseInt(minSeconds) || 60,
           buffer_seconds: parseInt(bufferSeconds) || 30,
@@ -150,6 +152,13 @@ export default function NewCampaignPage() {
                     <option value="round_robin">Round robin</option>
                   </select>
                   <span className="text-muted text-mono-sm" style={{ fontSize: 10, marginTop: 4, display: "block" }}>{strategyHelp[routingStrategy]}</span>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
+                    <input type="checkbox" checked={recordCalls} onChange={(e) => setRecordCalls(e.target.checked)} style={{ accentColor: "var(--acid)", width: 16, height: 16 }} />
+                    Record calls
+                  </label>
+                  <span className="text-muted text-mono-sm" style={{ fontSize: 10, marginTop: 4, display: "block" }}>When enabled, qualified calls are recorded for QA and dispute review. Can be changed later in General tab.</span>
                 </div>
                 {error && (
                   <div className="card" style={{ padding: "var(--space-3) var(--space-4)", border: "1px solid #704536", background: "#1a0e0a" }}>
@@ -253,6 +262,8 @@ export default function NewCampaignPage() {
                   <dd className="text-mono-sm">{agencyId ? agencyId.slice(0, 8) + "…" : "—"}</dd>
                   <dt>Strategy</dt>
                   <dd className="text-mono-sm" style={{ textTransform: "capitalize" }}>{routingStrategy.replace("_", " ")}</dd>
+                  <dt>Record</dt>
+                  <dd className="text-mono-sm">{recordCalls ? "Yes" : "No"}</dd>
                   <dt>Price</dt>
                   <dd className="text-mono-sm">{price ? `$${parseFloat(price).toFixed(2)}` : "—"}</dd>
                   <dt>Min connect</dt>

@@ -189,24 +189,26 @@ export default function AgentDetailPage() {
             <dl className="data-list">
               <dt>Name</dt><dd>{agent.user_name || "—"}</dd>
               <dt>Email</dt><dd className="text-mono-sm">{agent.user_email || "—"}</dd>
-              <dt>Membership</dt><dd className="text-mono-sm">{agent.membership_id}</dd>
+              {/* Membership — internal, hidden from admin view (use DB for debugging) */}
               <dt>Priority</dt><dd className="text-mono-sm">{agent.priority}</dd>
-              <dt>NPN</dt>
+              <dt style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>NPN <span title="National Producer Number — 8-10 digit insurance license ID, used to verify agent licensing. Leave blank if not licensed yet." aria-label="What is NPN?" style={{ display: "inline-grid", placeItems: "center", width: 16, height: 16, borderRadius: "50%", border: "1px solid var(--line)", color: "var(--muted)", fontSize: 10, lineHeight: 1, cursor: "help" }}>?</span></dt>
               <dd>
-                <div className="stack-h" style={{ gap: 6 }}>
+                <div className="stack-h" style={{ gap: 8, alignItems: "center" }}>
                   <input
                     className="input"
                     value={npn}
                     onChange={(e) => setNpn(e.target.value)}
-                    placeholder="Not set"
-                    style={{ maxWidth: 170, fontSize: 12, padding: "4px 8px" }}
+                    placeholder="e.g. 12345678"
+                    title="National Producer Number"
+                    style={{ maxWidth: 200, fontSize: 13, padding: "8px 12px", minHeight: 38 }}
                   />
                   <button className="btn btn-sm btn-secondary" onClick={saveNpn}>Save</button>
                 </div>
+                <span className="text-muted" style={{ fontSize: 10, marginTop: 4, display: "block" }}>National Producer Number — leave blank if not licensed yet.</span>
               </dd>
               <dt>Software Access</dt>
               <dd>
-                <div className="stack-h" style={{ gap: 6 }}>
+                <div className="stack-h" style={{ gap: 8, alignItems: "center" }}>
                   <span className="text-mono-sm">$</span>
                   <input
                     className="input"
@@ -216,7 +218,7 @@ export default function AgentDetailPage() {
                     value={softwareFee}
                     onChange={(e) => setSoftwareFee(e.target.value)}
                     placeholder="50.00"
-                    style={{ maxWidth: 110, fontSize: 12, padding: "4px 8px" }}
+                    style={{ maxWidth: 140, fontSize: 13, padding: "8px 12px", minHeight: 38 }}
                   />
                   <span className="text-muted" style={{ fontSize: 10 }}>/month (prepaid)</span>
                   <button className="btn btn-sm btn-secondary" onClick={saveSoftwareFee}>Save</button>
@@ -294,15 +296,15 @@ export default function AgentDetailPage() {
             </div>
             {editingStates ? (
               <div className="stack" style={{ gap: "var(--space-3)" }}>
-                <p className="text-muted" style={{ fontSize: 11, margin: 0 }}>Select licensed states (50 + DC). Used for state-wise routing; leave empty for “any”.</p>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 220, overflowY: "auto", padding: 6, border: "1px solid var(--line)", borderRadius: 10 }}>
+                <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>Select licensed states (50 + DC). Used for state-wise routing — only calls from these states will route to this agent. Leave empty for “any”.</p>
+                <div style={{ display: "flex", gap: 7, flexWrap: "wrap", maxHeight: 240, overflowY: "auto", padding: 8, border: "1px solid var(--line)", borderRadius: 10 }}>
                   {US_STATES.map((s) => (
                     <button
                       key={s.code}
                       type="button"
                       className={statesDraft.includes(s.code) ? "badge badge-success" : "badge"}
                       onClick={() => toggleState(s.code)}
-                      style={{ cursor: "pointer", border: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                      style={{ cursor: "pointer", border: 0, fontFamily: "var(--mono)", fontSize: 12, padding: "6px 10px" }}
                       title={s.name}
                     >
                       {s.code}
@@ -316,8 +318,8 @@ export default function AgentDetailPage() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {agent.states?.length ? agent.states.map((c) => <span key={c} className="badge badge-info">{c}</span>) : <span className="text-mono-sm">Any state (no restriction)</span>}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {agent.states?.length ? agent.states.map((c) => <span key={c} className="badge badge-info" style={{ fontSize: 12, padding: "6px 10px" }}>{c}</span>) : <span className="text-mono-sm" style={{ fontSize: 13 }}>Any state (no restriction)</span>}
               </div>
             )}
           </section>

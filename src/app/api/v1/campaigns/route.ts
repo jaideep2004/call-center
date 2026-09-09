@@ -19,10 +19,10 @@ export const GET = apiHandler(async (req, context) => {
     search,
     sortBy,
     order,
-    limit: 100,
-    offset: (page - 1) * 100,
+    limit,
+    offset: (page - 1) * limit,
   });
-  const pagination = { page, limit: 100, total, totalPages: Math.ceil(total / 100) };
+  const pagination = { page, limit, total, totalPages: Math.ceil(total / limit) };
 
   const role = context.user?.role ?? "agent";
   let visible = rows;

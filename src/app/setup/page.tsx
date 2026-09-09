@@ -51,7 +51,9 @@ export default function SetupPage() {
       <div className="auth-shell">
         <div className="card auth-card">
           <div className="auth-header">
-            <a className="wordmark" href="/">COVERAGE CALLS<span>&#9650;</span></a>
+            <a href="/" aria-label="Coverage Calls home" style={{ display: "inline-flex", alignItems: "center" }}>
+              <img src="/images/coveragecallsfinal.png" alt="Coverage Calls" style={{ height: 28, width: "auto", objectFit: "contain", display: "block" }} />
+            </a>
           </div>
           <h1>Setup</h1>
           <p className="auth-subtitle">You need to sign in first.</p>
@@ -67,7 +69,9 @@ export default function SetupPage() {
     <div className="auth-shell">
       <div className="card auth-card">
         <div className="auth-header">
-          <a className="wordmark" href="/">COVERAGE CALLS<span>&#9650;</span></a>
+          <a href="/" aria-label="Coverage Calls home" style={{ display: "inline-flex", alignItems: "center" }}>
+            <img src="/images/coveragecallsfinal.png" alt="Coverage Calls" style={{ height: 28, width: "auto", objectFit: "contain", display: "block" }} />
+          </a>
         </div>
         <h1>Welcome, {user.name?.split(" ")[0] ?? "there"}.</h1>
         <p className="auth-subtitle">One more step — promote yourself to admin.</p>

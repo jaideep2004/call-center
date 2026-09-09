@@ -22,7 +22,7 @@ const LICENSE_OPTIONS = ["P&C", "Health", "Life", "Auto"];
 
 export default function AdminNewAgentPage() {
   const router = useRouter();
-  const { names: SKILL_OPTIONS } = useSkills();
+  const { names: SKILL_OPTIONS, refresh: refreshSkills } = useSkills();
   const [agencyId, setAgencyId] = useState("");
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [userId, setUserId] = useState("");
@@ -34,6 +34,35 @@ export default function AdminNewAgentPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showNewVertical, setShowNewVertical] = useState(false);
+  const [newVerticalName, setNewVerticalName] = useState("");
+  const [creatingVertical, setCreatingVertical] = useState(false);
+
+  async function handleCreateVertical(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newVerticalName.trim()) return;
+    setCreatingVertical(true);
+    try {
+      const res = await fetch("/api/v1/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newVerticalName.trim(), sort: 0 }),
+      });
+      const body = await res.json();
+      if (res.ok) {
+        showToast("Vertical created", "success");
+        setNewVerticalName("");
+        setShowNewVertical(false);
+        await refreshSkills();
+        setSkills((prev) => [...prev, body.data.name]);
+      } else {
+        showToast(body.message ?? "Failed to create vertical", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    }
+    setCreatingVertical(false);
+  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -164,13 +193,17 @@ export default function AdminNewAgentPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Skills</label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Skills (Vertical)</label>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowNewVertical(true)}>+ New vertical</button>
+                </div>
                 <div className="toggle-group">
                   {SKILL_OPTIONS.map((s) => (
                     <button key={s} type="button" className={skills.includes(s) ? "toggle-btn active" : "toggle-btn"} onClick={() => toggleList(skills, s, setSkills)}>
                       {s}
                     </button>
                   ))}
+                  {SKILL_OPTIONS.length === 0 && <span className="text-muted text-mono-sm" style={{ fontSize: 11 }}>No verticals yet — add one.</span>}
                 </div>
               </div>
             </section>
@@ -230,6 +263,22 @@ export default function AdminNewAgentPage() {
           </div>
         </div>
       </form>
+      {showNewVertical && (
+        <div role="dialog" aria-modal="true" aria-label="New vertical" onClick={() => setShowNewVertical(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
+          <form onSubmit={handleCreateVertical} onClick={(e) => e.stopPropagation()} className="card" style={{ width: "100%", maxWidth: 420, padding: "var(--space-6)" }}>
+            <h3 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-3)", letterSpacing: "-0.02em" }}>New vertical</h3>
+            <p className="text-muted" style={{ fontSize: 12, margin: "0 0 var(--space-4)" }}>Add a vertical that will appear for agents and campaigns.</p>
+            <div className="form-group">
+              <label className="form-label" htmlFor="admin-new-vertical-name">Name</label>
+              <input id="admin-new-vertical-name" className="input" value={newVerticalName} onChange={(e) => setNewVerticalName(e.target.value)} placeholder="e.g. final_expense" required maxLength={100} autoFocus />
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: "var(--space-4)" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowNewVertical(false)} style={{ flex: 1 }}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={creatingVertical || !newVerticalName.trim()} style={{ flex: 1 }}>{creatingVertical ? "Creating..." : "Create"}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

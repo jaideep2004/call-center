@@ -14,19 +14,21 @@ export function useSkills() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchSkills = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/skills?active=true");
+      if (res.ok) {
+        const body = await res.json();
+        setSkills(body.data ?? []);
+      }
+    } catch {}
+    setLoading(false);
+  };
+
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/v1/skills?active=true")
-      .then(async (res) => {
-        if (res.ok) {
-          const body = await res.json();
-          if (!cancelled) setSkills(body.data ?? []);
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    fetchSkills();
   }, []);
 
-  return { skills, loading, names: skills.map((s) => s.name) };
+  return { skills, loading, names: skills.map((s) => s.name), refresh: fetchSkills };
 }

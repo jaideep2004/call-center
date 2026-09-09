@@ -67,7 +67,6 @@ const adminNavGroups = [
       { label: "Disputes", href: "/dashboard/admin/disputes", icon: "06c" },
       { label: "Recordings", href: "/dashboard/recordings", icon: "06b" },
       { label: "Scripts", href: "/dashboard/scripts", icon: "05c" },
-      { label: "Skills", href: "/dashboard/admin/skills", icon: "05d" },
     ]
   },
   {
@@ -75,7 +74,7 @@ const adminNavGroups = [
       { label: "Plans", href: "/dashboard/admin/plans", icon: "05f" },
       { label: "Fees", href: "/dashboard/admin/fees", icon: "05g" },
       { label: "Revenue", href: "/dashboard/admin/revenue", icon: "08b" },
-      { label: "Wallet", href: "/dashboard/wallet", icon: "07" },
+      { label: "Ledger", href: "/dashboard/wallet", icon: "07" },
     ]
   },
   {
@@ -105,10 +104,13 @@ const publisherNav = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending: sessionPending } = authClient.useSession();
   const user = session?.user;
   const [serverRole, setServerRole] = useState<string | null>(null);
-  const role = serverRole ?? (user as { role?: string } | undefined)?.role;
+  const [roleReady, setRoleReady] = useState(false);
+  const clientRole = (user as { role?: string } | undefined)?.role;
+  // Prefer server truth (DB) once loaded; while loading, keep client role to avoid flash but don't enforce redirects yet
+  const role = serverRole ?? clientRole;
   const isAdmin = role === "admin" || role === "super_admin";
   const isPublisher = role === "publisher";
   const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() ?? "??";
@@ -141,7 +143,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fetch("/api/v1/me").then(async (res) => {
       if (res.ok) {
         const body = await res.json();
-        if (body.data.user?.role) setServerRole(body.data.user.role);
+        // Prefer explicit publisher linkage over stale role string
+        if (body.data.publisherId) setServerRole("publisher");
+        else if (body.data.publisher?.id) setServerRole("publisher");
+        else if (body.data.user?.role) setServerRole(body.data.user.role);
         setMembershipId(body.data.membership?.id ?? null);
         setAgentId(body.data.agentId ?? null);
         if (body.data.agentId) {
@@ -152,11 +157,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }
         }
       }
-    });
+      setRoleReady(true);
+    }).catch(() => setRoleReady(true));
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || sessionPending || !roleReady) return;
     if (isAdmin && pathname === "/dashboard") {
       router.replace("/dashboard/admin");
     } else if (isPublisher && pathname === "/dashboard") {
@@ -166,7 +172,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } else if (!isPublisher && pathname.startsWith("/dashboard/publisher")) {
       router.replace("/dashboard");
     }
-  }, [user, isAdmin, isPublisher, pathname, router]);
+  }, [user, sessionPending, roleReady, isAdmin, isPublisher, pathname, router]);
 
   async function handleSignOut() {
     setDropdownOpen(false);
@@ -267,7 +273,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="console" data-role={isAdmin ? "admin" : isPublisher ? "publisher" : "agent"} style={{position:"relative"}}>
       <div aria-hidden style={{position:"absolute", inset:"0 0 auto 0", height:1, background:"linear-gradient(90deg, transparent, rgba(168,85,247,.22), transparent)", pointerEvents:"none"}} />
       <aside className="sidebar">
-        <Link className="wordmark" href="/" style={{letterSpacing:"3px"}}>COVERAGE CALLS<span>&#9650;</span></Link>
+        <Link href="/" aria-label="Coverage Calls home" style={{ display: "inline-flex", alignItems: "center", padding: "0 10px" }}>
+          <img src="/images/coveragecallsfinal.png" alt="Coverage Calls" style={{ height: 28, width: "auto", objectFit: "contain", display: "block" }} />
+        </Link>
         <p className="agency">{isAdmin ? "ADMIN CONSOLE" : isPublisher ? "PUBLISHER PORTAL" : "OPERATIONS CONSOLE"}</p>
         {renderNav()}
         <div className="operator" ref={dropdownRef}>
@@ -328,7 +336,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <section className="console-main">
         {children}
       </section>
-      <Softphone membershipId={membershipId} agentId={agentId} />
+      {!isAdmin && !isPublisher && <Softphone membershipId={membershipId} agentId={agentId} />}
       {toasts.length > 0 && (
         <div style={{ position: "fixed", bottom: "var(--space-6)", right: "var(--space-6)", display: "flex", flexDirection: "column", gap: 8, zIndex: 9999 }}>
           {toasts.map((t) => (

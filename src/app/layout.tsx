@@ -8,6 +8,14 @@ import "../styles/components.css";
 export const metadata: Metadata = {
   title: "Coverage Calls — Call Operations",
   description: "Verified inbound calls for agents and agencies. Answer in your browser. Close more deals.",
+  icons: {
+    icon: [
+      { url: "/images/coveragefavicon.png", sizes: "32x32", type: "image/png" },
+      { url: "/images/coveragefavicon.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [{ url: "/images/coveragefavicon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: "/images/coveragefavicon.png",
+  },
 };
 
 export const viewport: Viewport = {

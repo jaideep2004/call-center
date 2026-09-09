@@ -118,7 +118,7 @@ function OnboardingInner() {
         <div>
           <p className="eyebrow"><i /> ONBOARDING</p>
           <h1>Book your onboarding call</h1>
-          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 6, maxWidth: 640 }}>After signup, pick an available slot below. Your onboarding call with the Coverage Calls team will be confirmed by admin — you&apos;ll get a confirmation and a reminder 1h before. <span style={{ color: "var(--accent)" }}>Slots are configured in Admin → Calendar.</span></p>
+          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 6, maxWidth: 640 }}>After signup, pick an available slot below. Your onboarding call with the Coverage Calls team will be confirmed by admin — you&apos;ll get a confirmation and a reminder 1h before.</p>
         </div>
       </div>
 
@@ -156,16 +156,14 @@ function OnboardingInner() {
 
       {filtered.length === 0 ? (
         <div className="card card--spacious" style={{ textAlign: "center", padding: "var(--space-8) var(--space-6)" }}>
-          <p className="text-muted" style={{ margin: 0 }}>{slots.length === 0 ? "No slots available yet. Check back soon — admin adds new weekly slots in Calendar." : `No slots match "${debouncedQ}".`}</p>
+          <p className="text-muted" style={{ margin: 0 }}>{slots.length === 0 ? "No slots available yet. Check back soon — new slots are added weekly." : `No slots match "${debouncedQ}".`}</p>
           {slots.length === 0 ? (
             <div style={{ marginTop: 14, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
               <a className="btn btn-primary btn-sm" href="/dashboard/support">Contact Support</a>
-              <a className="btn btn-sm" href="/dashboard/admin/calendar" title="Admin → Calendar to create slots">Admin → Calendar</a>
             </div>
           ) : (
             <button className="btn btn-sm" onClick={() => { setSearchInput(""); setSelectedDate(""); }} style={{ marginTop: 12 }}>Clear filters</button>
           )}
-          <p className="text-mono-sm" style={{ marginTop: 10, color: "var(--muted)", fontSize: 10 }}>Tip: Admin creates weekly slots in <strong>Admin → Calendar</strong> with date, start/end, and capacity.</p>
         </div>
       ) : (
         <div className="card card--spacious">

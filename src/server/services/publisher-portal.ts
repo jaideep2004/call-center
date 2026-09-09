@@ -238,6 +238,10 @@ export async function acceptPortalInvite(token: string, userId: string) {
   await query(`UPDATE "user" SET role = 'publisher' WHERE id = $1`, [userId]);
   const linked = await publishers.linkUser(publisher.id, userId);
   await publisherInvites.accept(token);
+  try {
+    const { clearAuthCache } = await import("@/server/api-utils");
+    clearAuthCache();
+  } catch {}
 
   return {
     publisher: {

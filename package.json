@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "tsx src/scripts/seed.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts",
+    "seed:reset": "node scripts/reset-keep-publishers-campaigns.cjs",
     "migrate": "node scripts/run-migrations.cjs",
     "migrate:dry-run": "node scripts/run-migrations.cjs --dry-run",
     "migrate:backfill": "node scripts/run-migrations.cjs --backfill",

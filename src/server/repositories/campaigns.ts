@@ -58,8 +58,13 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
     routing_strategy: string;
     price_cents?: number | null;
     min_connected_seconds?: number;
+    buffer_seconds?: number;
+    record_calls?: boolean;
+    allowed_endpoints?: string[];
+    required_skills?: string[];
     publisher_id?: string | null;
     publisher_ids?: string[] | null;
+    retreaver_cid?: string | null;
     status?: string;
   }): Promise<CampaignRow> {
     const publisherIds = data.publisher_ids ?? (data.publisher_id ? [data.publisher_id] : []);
@@ -69,7 +74,12 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
       name: data.name,
       routing_strategy: data.routing_strategy,
       price_cents: data.price_cents ?? null,
-      min_connected_seconds: data.min_connected_seconds ?? 0,
+      min_connected_seconds: data.min_connected_seconds ?? 60,
+      buffer_seconds: data.buffer_seconds ?? 30,
+      record_calls: data.record_calls ?? true,
+      allowed_endpoints: data.allowed_endpoints ?? ["webrtc", "pstn"],
+      required_skills: data.required_skills ?? [],
+      retreaver_cid: data.retreaver_cid ?? null,
       publisher_id: legacy,
       ...(data.status ? { status: data.status } : {}),
     });

@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { AppError, AuthError, ForbiddenError } from "./errors";
 import type { Role, Resource, Action } from "./services/permission-data";
 import { hasPermission } from "./services/permission-data";
-import { queryOne } from "./db";
+import { query, queryOne } from "./db";
 
 // Simple in-memory auth cache with TTL
 const authCache = new Map<string, { ctx: AuthContext; expiry: number }>();
 // 60s: each hit avoids 3 DB round-trips (session lookup, membership, role).
 // Sessions are validated every 60s max, so deactivation lands within a minute.
 const AUTH_CACHE_TTL_MS = 60_000;
+
+export function clearAuthCache() {
+  authCache.clear();
+}
 
 export interface ApiSuccess<T = unknown> {
   success: true;
@@ -145,7 +149,34 @@ async function resolveAuth(headers: Headers): Promise<AuthContext | null> {
       `SELECT role FROM "user" WHERE id = $1`,
       [session.user.id],
     );
-    const role = userRow?.role ?? membership?.role ?? "agent";
+    let role = userRow?.role ?? membership?.role ?? "agent";
+    // Publisher linkage is source of truth: if a publisher row is linked via user_id,
+    // treat the user as publisher regardless of stale user.role (handles invite accept race).
+    // Also auto-claim unlinked publisher that matches email (admin created publisher before user registered).
+    if (role !== "super_admin" && role !== "admin") {
+      const pubLink = await queryOne<{ id: string }>(
+        `SELECT id FROM app.publishers WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1`,
+        [session.user.id],
+      );
+      if (pubLink) {
+        role = "publisher";
+      } else if (session.user.email && !membership) {
+        const byEmail = await queryOne<{ id: string }>(
+          `SELECT id FROM app.publishers WHERE lower(email) = lower($1) AND user_id IS NULL AND deleted_at IS NULL LIMIT 1`,
+          [session.user.email],
+        );
+        if (byEmail) {
+          // Lazily claim the publisher for this user (email-verified account)
+          try {
+            await query(`UPDATE app.publishers SET user_id = $1, updated_at = now() WHERE id = $2 AND user_id IS NULL`, [session.user.id, byEmail.id]);
+            await query(`UPDATE "user" SET role = 'publisher' WHERE id = $1 AND role = 'agent'`, [session.user.id]);
+            role = "publisher";
+          } catch {
+            role = "publisher";
+          }
+        }
+      }
+    }
     const ctx: AuthContext = {
       user: { id: session.user.id, email: session.user.email, name: session.user.name, role },
       session: session.session,

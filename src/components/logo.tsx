@@ -40,14 +40,18 @@ export function LogoMark({ size = 26 }: { size?: number }) {
   );
 }
 
-/** Full lockup: mark + "COVERAGE CALLS" wordmark. */
-export function Logo({ size = 26, className = "" }: { size?: number; className?: string }) {
+/** Full lockup: uses final brand image coveragecallsfinal.png */
+export function Logo({ size = 26, className = "", height }: { size?: number; className?: string; height?: number }) {
+  const h = height ?? size;
   return (
-    <Link className={`logo ${className}`} href="/" aria-label="Coverage Calls home">
-      <LogoMark size={size} />
-      <span className="logo-word" translate="no">
-        COVERAGE&nbsp;CALLS
-      </span>
+    <Link className={`logo ${className}`} href="/" aria-label="Coverage Calls home" style={{ display: "inline-flex", alignItems: "center" }}>
+      <img
+        src="/images/coveragecallsfinal.png"
+        alt="Coverage Calls"
+        width={Math.round(h * 3.2)}
+        height={h}
+        style={{ height: h, width: "auto", objectFit: "contain", display: "block" }}
+      />
     </Link>
   );
 }

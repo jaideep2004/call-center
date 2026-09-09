@@ -232,8 +232,9 @@ function WalletInner() {
     <div className="dashboard-page">
       <div className="filter-bar">
         <div>
-          <p className="eyebrow" style={{ margin: 0 }}><i /> FINANCE / WALLET</p>
-          <h1 style={{ margin: "4px 0 0" }}>Wallet</h1>
+          <p className="eyebrow" style={{ margin: 0 }}><i /> FINANCE / LEDGER</p>
+          <h1 style={{ margin: "4px 0 0" }}>Ledger</h1>
+          <p className="text-muted" style={{ fontSize: 11, margin: "4px 0 0", maxWidth: 560, lineHeight: 1.5 }}>Central ledger for top-ups, charges and agent transfers — Plans/Fees set what to charge, Ledger shows the money movement and lets you fund agents.</p>
         </div>
         <div className="filter-bar__group" style={{ marginLeft: "auto" }}>
           <input className="input" type="search" placeholder="Search entries…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />

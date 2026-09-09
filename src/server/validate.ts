@@ -109,6 +109,8 @@ export const createCampaignSchema = z.object({
   publisher_id: z.string().min(1).nullable().optional(),
   publisher_ids: z.array(z.string().min(1)).optional(),
   retreaver_cid: z.string().min(1).max(64).nullable().optional(),
+  record_calls: z.boolean().default(true),
+  allowed_endpoints: z.array(z.enum(["webrtc", "pstn"])).optional(),
 });
 
 export const updateCampaignSchema = z.object({
@@ -117,12 +119,15 @@ export const updateCampaignSchema = z.object({
   routing_strategy: z.enum(["round_robin", "priority"]).optional(),
   price_cents: z.number().int().min(0).optional(),
   buffer_seconds: z.number().int().min(0).optional(),
+  min_connected_seconds: z.number().int().min(0).optional(),
   required_skills: z.array(z.string()).optional(),
   publisher_id: z.string().min(1).nullable().optional(),
   publisher_ids: z.array(z.string().min(1)).nullable().optional(),
   rtb_enabled: z.boolean().optional(),
   rtb_postback_key: z.string().min(1).max(512).optional(),
   retreaver_cid: z.string().min(1).max(64).nullable().optional(),
+  record_calls: z.boolean().optional(),
+  allowed_endpoints: z.array(z.enum(["webrtc", "pstn"])).optional(),
 });
 
 export const provisionPublisherSchema = z.object({

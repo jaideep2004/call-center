@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
 import { showToast } from "@/lib/use-toast";
@@ -43,18 +44,21 @@ function fmtMoney(cents: number | string | null) {
   return `$${(n / 100).toFixed(2)}`;
 }
 
-function Kebab({ children }: { children: React.ReactNode }) {
+function Kebab({ children, isLoading }: { children: React.ReactNode; isLoading?: boolean }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const btnRef = useState(() => ({ current: null as HTMLButtonElement | null }))[0];
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   function toggle(e: React.MouseEvent<HTMLButtonElement>) {
     if (!open) {
       const r = e.currentTarget.getBoundingClientRect();
-      // clamp inside viewport, prefer right-aligned to button
       const w = 172;
       const left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
-      setPos({ top: r.bottom + 6, left });
+      // keep menu inside viewport vertically as well (flip above if near bottom)
+      let top = r.bottom + 6;
+      const estH = 220;
+      if (top + estH > window.innerHeight - 8) top = Math.max(8, r.top - estH - 6);
+      setPos({ top, left });
     }
     setOpen((v) => !v);
   }
@@ -64,7 +68,6 @@ function Kebab({ children }: { children: React.ReactNode }) {
     function onDoc(e: MouseEvent) {
       const t = e.target as HTMLElement;
       if (btnRef.current && btnRef.current.contains(t)) return;
-      // allow clicks inside the fixed menu
       if (t.closest("[data-kebab-menu]")) return;
       setOpen(false);
     }
@@ -82,49 +85,54 @@ function Kebab({ children }: { children: React.ReactNode }) {
     };
   }, [open]);
 
+  const menu =
+    open && pos ? (
+      <div
+        data-kebab-menu
+        style={{
+          position: "fixed",
+          top: pos.top,
+          left: pos.left,
+          minWidth: 172,
+          maxWidth: 220,
+          background: "var(--surface, #171033)",
+          border: "1px solid var(--line)",
+          borderRadius: 10,
+          padding: 6,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          zIndex: 9999,
+          boxShadow: "0 12px 32px rgba(0,0,0,0.45)",
+        }}
+      >
+        {children}
+      </div>
+    ) : null;
+
   return (
     <>
       <button
-        ref={(el) => { (btnRef as any).current = el; }}
+        ref={btnRef}
         onClick={toggle}
         aria-label="Actions"
         aria-expanded={open}
+        disabled={isLoading}
         style={{
-          cursor: "pointer",
+          cursor: isLoading ? "wait" : "pointer",
           padding: "6px 10px",
           borderRadius: 8,
           border: "1px solid var(--line)",
-          background: open ? "var(--hover)" : "transparent",
+          background: open ? "var(--hover, rgba(255,255,255,.06))" : "transparent",
           fontSize: 16,
           lineHeight: 1,
           userSelect: "none",
+          opacity: isLoading ? 0.6 : 1,
         }}
       >
-        ⋮
+        {isLoading ? <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2, display: "inline-block", verticalAlign: "middle" }} /> : "⋮"}
       </button>
-      {open && pos && (
-        <div
-          data-kebab-menu
-          onClick={() => setOpen(false)}
-          style={{
-            position: "fixed",
-            top: pos.top,
-            left: pos.left,
-            minWidth: 172,
-            background: "var(--surface, #171033)",
-            border: "1px solid var(--line)",
-            borderRadius: 10,
-            padding: 6,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            zIndex: 9999,
-            boxShadow: "0 12px 32px rgba(0,0,0,0.45)",
-          }}
-        >
-          {children}
-        </div>
-      )}
+      {typeof document !== "undefined" && menu ? createPortal(menu, document.body) : menu}
     </>
   );
 }
@@ -150,6 +158,7 @@ export default function AdminPublishersPage() {
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<"" | "active" | "disabled">("");
+  const [rowAction, setRowAction] = useState<{ id: string; type: string } | null>(null);
 
   const fetchPublishers = useCallback(async () => {
     const res = await fetch("/api/v1/publishers");
@@ -222,32 +231,42 @@ export default function AdminPublishersPage() {
   }
 
   async function provision(p: Publisher) {
-    const res = await fetch("/api/v1/retreaver/provision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ publisher_id: p.id }),
-    });
-    const body = await res.json();
-    if (res.ok) {
-      setPublishers((prev) => prev.map((x) => (x.id === p.id ? body.data : x)));
-      showToast(`Provisioned "${p.name}" on Retreaver`, "success");
-    } else {
-      showToast(body.message ?? "Provisioning failed", "error");
+    setRowAction({ id: p.id, type: "provision" });
+    try {
+      const res = await fetch("/api/v1/retreaver/provision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publisher_id: p.id }),
+      });
+      const body = await res.json();
+      if (res.ok) {
+        setPublishers((prev) => prev.map((x) => (x.id === p.id ? body.data : x)));
+        showToast(`Provisioned "${p.name}" on Retreaver`, "success");
+      } else {
+        showToast(body.message ?? "Provisioning failed", "error");
+      }
+    } finally {
+      setRowAction(null);
     }
   }
 
   async function setStatus(p: Publisher, status: "active" | "paused") {
-    const res = await fetch(`/api/v1/publishers/${p.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ retreaver_status: status }),
-    });
-    const body = await res.json();
-    if (res.ok) {
-      setPublishers((prev) => prev.map((x) => (x.id === p.id ? body.data : x)));
-      showToast(status === "paused" ? "Publisher paused" : "Publisher resumed", "success");
-    } else {
-      showToast(body.message ?? "Failed to update status", "error");
+    setRowAction({ id: p.id, type: status });
+    try {
+      const res = await fetch(`/api/v1/publishers/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retreaver_status: status }),
+      });
+      const body = await res.json();
+      if (res.ok) {
+        setPublishers((prev) => prev.map((x) => (x.id === p.id ? body.data : x)));
+        showToast(status === "paused" ? "Publisher paused" : "Publisher resumed", "success");
+      } else {
+        showToast(body.message ?? "Failed to update status", "error");
+      }
+    } finally {
+      setRowAction(null);
     }
   }
 
@@ -291,47 +310,62 @@ export default function AdminPublishersPage() {
   }
 
   async function toggleActive(p: Publisher) {
-    const res = await fetch(`/api/v1/publishers/${p.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: !p.active }),
-    });
-    if (res.ok) {
-      const body = await res.json();
-      setPublishers((prev) => prev.map((x) => (x.id === p.id ? body.data : x)));
-      showToast(p.active ? "Publisher disabled" : "Publisher enabled", "success");
-    } else {
-      showToast("Failed to update publisher", "error");
+    setRowAction({ id: p.id, type: "toggleActive" });
+    try {
+      const res = await fetch(`/api/v1/publishers/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !p.active }),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setPublishers((prev) => prev.map((x) => (x.id === p.id ? body.data : x)));
+        showToast(p.active ? "Publisher disabled" : "Publisher enabled", "success");
+      } else {
+        showToast("Failed to update publisher", "error");
+      }
+    } finally {
+      setRowAction(null);
     }
   }
 
   async function handleDelete(p: Publisher) {
     if (!confirm(`Delete publisher "${p.name}"? Campaigns referencing it will be unlinked.`)) return;
-    const res = await fetch(`/api/v1/publishers/${p.id}`, { method: "DELETE" });
-    if (res.ok) {
-      setPublishers((prev) => prev.filter((x) => x.id !== p.id));
-      showToast("Publisher deleted", "success");
-    } else {
-      showToast("Failed to delete publisher", "error");
+    setRowAction({ id: p.id, type: "delete" });
+    try {
+      const res = await fetch(`/api/v1/publishers/${p.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setPublishers((prev) => prev.filter((x) => x.id !== p.id));
+        showToast("Publisher deleted", "success");
+      } else {
+        showToast("Failed to delete publisher", "error");
+      }
+    } finally {
+      setRowAction(null);
     }
   }
 
   async function sendInvite(p: Publisher) {
-    const res = await fetch(`/api/v1/publishers/${p.id}/invite`, { method: "POST" });
-    const body = await res.json();
-    if (res.ok) {
-      showToast(`Invite emailed to ${p.email ?? "publisher"}`, "success");
-      const link = body.data?.link;
-      if (link) {
-        try {
-          await navigator.clipboard.writeText(link);
-          showToast("Invite link copied to clipboard as backup", "success");
-        } catch {
-          showToast(`Invite link: ${link}`, "info");
+    setRowAction({ id: p.id, type: "invite" });
+    try {
+      const res = await fetch(`/api/v1/publishers/${p.id}/invite`, { method: "POST" });
+      const body = await res.json();
+      if (res.ok) {
+        showToast(`Invite emailed to ${p.email ?? "publisher"}`, "success");
+        const link = body.data?.link;
+        if (link) {
+          try {
+            await navigator.clipboard.writeText(link);
+            showToast("Invite link copied to clipboard as backup", "success");
+          } catch {
+            showToast(`Invite link: ${link}`, "info");
+          }
         }
+      } else {
+        showToast(body.message ?? "Failed to create invite", "error");
       }
-    } else {
-      showToast(body.message ?? "Failed to create invite", "error");
+    } finally {
+      setRowAction(null);
     }
   }
 
@@ -387,29 +421,47 @@ export default function AdminPublishersPage() {
     { key: "created_at", header: "Created", sortable: true, render: (p) => <span className="text-mono-sm">{new Date(p.created_at).toLocaleDateString()}</span> },
     {
       key: "actions", header: "Actions", className: "actions-cell",
-      render: (p) => (
-        <Kebab>
-          {p.user_id ? (
-            <span className="badge badge-success" style={{ textAlign: "center" }}>Portal linked</span>
-          ) : (
-            <button className="btn btn-sm btn-secondary" onClick={() => sendInvite(p)} style={{ width: "100%" }}>Invite</button>
-          )}
-          {p.retreaver_status === "unprovisioned" && (
-            <button className="btn btn-sm btn-secondary" onClick={() => provision(p)} style={{ width: "100%" }}>Provision</button>
-          )}
-          {p.retreaver_status === "active" && (
-            <button className="btn btn-sm btn-secondary" onClick={() => setStatus(p, "paused")} style={{ width: "100%" }}>Pause</button>
-          )}
-          {p.retreaver_status === "paused" && (
-            <button className="btn btn-sm btn-secondary" onClick={() => setStatus(p, "active")} style={{ width: "100%" }}>Resume</button>
-          )}
-          {p.retreaver_status === "error" && (
-            <button className="btn btn-sm btn-secondary" onClick={() => provision(p)} style={{ width: "100%" }}>Retry</button>
-          )}
-          <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(p)} style={{ width: "100%" }}>{p.active ? "Disable" : "Enable"}</button>
-          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(p)} style={{ width: "100%" }}>Delete</button>
-        </Kebab>
-      ),
+      render: (p) => {
+        const isRowLoading = rowAction?.id === p.id;
+        const loadingType = rowAction?.type;
+        return (
+          <Kebab isLoading={isRowLoading}>
+            {p.user_id ? (
+              <span className="badge badge-success" style={{ textAlign: "center" }}>Portal linked</span>
+            ) : (
+              <button className="btn btn-sm btn-secondary" onClick={() => sendInvite(p)} disabled={isRowLoading} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {loadingType === "invite" && isRowLoading ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> Sending...</> : "Invite"}
+              </button>
+            )}
+            {p.retreaver_status === "unprovisioned" && (
+              <button className="btn btn-sm btn-secondary" onClick={() => provision(p)} disabled={isRowLoading} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {loadingType === "provision" && isRowLoading ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> Provisioning...</> : "Provision"}
+              </button>
+            )}
+            {p.retreaver_status === "active" && (
+              <button className="btn btn-sm btn-secondary" onClick={() => setStatus(p, "paused")} disabled={isRowLoading} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {loadingType === "paused" && isRowLoading ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> Pausing...</> : "Pause"}
+              </button>
+            )}
+            {p.retreaver_status === "paused" && (
+              <button className="btn btn-sm btn-secondary" onClick={() => setStatus(p, "active")} disabled={isRowLoading} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {loadingType === "active" && isRowLoading ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> Resuming...</> : "Resume"}
+              </button>
+            )}
+            {p.retreaver_status === "error" && (
+              <button className="btn btn-sm btn-secondary" onClick={() => provision(p)} disabled={isRowLoading} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {loadingType === "provision" && isRowLoading ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> Retrying...</> : "Retry"}
+              </button>
+            )}
+            <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(p)} disabled={isRowLoading} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              {loadingType === "toggleActive" && isRowLoading ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> Updating...</> : p.active ? "Disable" : "Enable"}
+            </button>
+            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(p)} disabled={isRowLoading} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              {loadingType === "delete" && isRowLoading ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> Deleting...</> : "Delete"}
+            </button>
+          </Kebab>
+        );
+      },
     },
   ];
 

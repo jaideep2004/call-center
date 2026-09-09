@@ -141,9 +141,10 @@ export default function CoverageFooterCTA() {
           <div className={styles.brandCol}>
             <div className={styles.logoRow}>
               <img
-                src="/images/coveragec1.png"
+                src="/images/coveragecallsfinal.png"
                 alt="Coverage Calls"
                 className={styles.logoImage}
+                style={{ height: 28, width: "auto", objectFit: "contain" }}
               />
             </div>
             <p className={styles.brandDesc}>
