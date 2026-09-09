@@ -2,11 +2,11 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 
 const navLinks = [
-  { label: "Product", href: "/#features" },
-  { label: "Solutions", href: "/how-it-works" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Resources", href: "/faq" },
-  { label: "Company", href: "/about" },
+  { label: "How it Works", href: "/#how-it-works" },
+  { label: "Features", href: "/#features" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "Testimonials", href: "/#testimonials" },
+  { label: "About", href: "/about" },
 ];
 
 export function SiteHeader() {

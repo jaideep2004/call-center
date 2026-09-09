@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, FormEvent, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, FormEvent, Suspense, useRef, useId } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { showToast } from "@/lib/use-toast";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/dashboard";
   const [email, setEmail] = useState("");
@@ -15,13 +14,15 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const errorId = useId();
+  const emailRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const { error: signInError } = await authClient.signIn.email({ email, password });
+      const { error: signInError } = await authClient.signIn.email({ email: email.trim(), password });
       if (signInError) {
         setLoading(false);
         if (signInError.message?.toLowerCase().includes("verify")) {
@@ -35,7 +36,7 @@ function LoginForm() {
         }
         return;
       }
-    } catch (err) {
+    } catch {
       setLoading(false);
       const msg = "Unable to connect. Please check your connection and try again.";
       setError(msg);
@@ -45,39 +46,110 @@ function LoginForm() {
     const pendingInvite = localStorage.getItem("pending_invite");
     if (pendingInvite) {
       localStorage.removeItem("pending_invite");
-      fetch(`/api/v1/invites/${pendingInvite}/accept`, { method: "POST" });
+      fetch(`/api/v1/invites/${pendingInvite}/accept`, { method: "POST" }).catch(() => {});
     }
     showToast("Signed in successfully", "success");
-    // hard reload so proxy sees the fresh __Secure- cookie (router.push keeps stale cache)
     window.location.href = redirect;
   }
 
+  const hasError = Boolean(error);
+
   return (
     <>
-      <h1>Sign in</h1>
-      <p className="auth-subtitle">Access your operations console.</p>
-      <form className="auth-form" onSubmit={handleSubmit}>
-        {error && <div className="auth-error">{error}</div>}
+      <div className="auth-card__head">
+        <p className="auth-card__eyebrow">Sign in — 01</p>
+        <h1 className="auth-card__title">Sign in</h1>
+        <p className="auth-card__subtitle">Access your operations console.</p>
+      </div>
+
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        {hasError && (
+          <div id={errorId} className="auth-error" role="alert" aria-live="polite">
+            {error}
+          </div>
+        )}
+
         <div className="form-group">
-          <label className="form-label" htmlFor="email">Email</label>
-          <input id="email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@agency.com" required autoComplete="email" />
+          <label className="form-label" htmlFor="email">
+            Email
+          </label>
+          <input
+            ref={emailRef}
+            id="email"
+            name="email"
+            className="input"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="you@agency.com…"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            aria-required="true"
+            aria-invalid={hasError || undefined}
+            aria-describedby={hasError ? errorId : undefined}
+            autoFocus
+          />
         </div>
+
         <div className="form-group">
-          <label className="form-label" htmlFor="password">Password</label>
+          <label className="form-label" htmlFor="password">
+            Password
+          </label>
           <div className="password-wrapper">
-            <input id="password" className="input" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password" />
-            <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
+            <input
+              id="password"
+              name="password"
+              className="input"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              aria-required="true"
+              aria-invalid={hasError || undefined}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              tabIndex={0}
+            >
               {showPassword ? "Hide" : "Show"}
             </button>
           </div>
         </div>
-        <div className="stack-h" style={{ justifyContent: "flex-end" }}>
-          <Link className="text-link" href="/forgot-password">Forgot password?</Link>
+
+        <div className="auth-actions-row">
+          <span className="auth-hint" aria-hidden="true">
+            Paste allowed · 1Password supported
+          </span>
+          <Link className="text-link" href="/forgot-password">
+            Forgot password?
+          </Link>
         </div>
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? <span className="spinner" /> : "Sign in"}
+
+        <button className="btn btn-primary" type="submit" disabled={loading} aria-busy={loading}>
+          {loading ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              <span>Signing in…</span>
+            </>
+          ) : (
+            "Sign in"
+          )}
         </button>
+
+        <p className="auth-hint" style={{ textAlign: "center", marginTop: 2 }}>
+          Protected by rate limiting · Encrypted in transit
+        </p>
       </form>
+
       <div className="auth-footer">
         Don&apos;t have an account? <Link href="/register">Create one</Link>
       </div>
@@ -87,7 +159,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="spinner" style={{ margin: "40px auto" }} />}>
+    <Suspense fallback={<div className="spinner" style={{ margin: "40px auto" }} aria-label="Loading sign in form" />}>
       <LoginForm />
     </Suspense>
   );

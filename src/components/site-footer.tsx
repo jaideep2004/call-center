@@ -6,7 +6,7 @@ export function SiteFooter() {
     <footer className="site-footer public-footer">
       <div className="footer-inner">
         <div className="footer-brand">
-          <Logo size={28} />
+          <Logo size={32} />
           <p>
             The inbound call platform for agents and agencies who want better
             conversations and better results.

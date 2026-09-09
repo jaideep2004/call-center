@@ -413,36 +413,51 @@ export default function AdminPublishersPage() {
     },
   ];
 
+  function scrollToInvite() {
+    const el = document.getElementById("pub-name");
+    if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); (el as HTMLInputElement).focus(); }
+  }
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-page-header">
-        <div>
-          <p className="eyebrow"><i /> ADMIN / PUBLISHERS</p>
+        <div style={{ minWidth: 0 }}>
+          <p className="eyebrow"><i /> ADMIN / PUBLISHERS <span style={{ color: "var(--muted)", marginLeft: 8 }}>• {filtered.length} TOTAL</span></p>
           <h1>Publishers</h1>
-          {lastSync && <p className="text-mono-sm" style={{ marginTop: 4, color: "var(--muted)" }}>Last sync: {new Date(lastSync).toLocaleString()}</p>}
-        </div>
-        <div className="stack-h" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <button className="btn btn-secondary" onClick={checkConnection} disabled={checking}>
-            {checking ? <span className="spinner" /> : "Check Retreaver status"}
-          </button>
+          <p className="text-muted" style={{ fontSize: 12, marginTop: 6, maxWidth: 560 }}>Invite traffic partners, set fixed price or commission, and sync with Retreaver. Use the publisher multi-select on campaign pages.</p>
+          {lastSync && <p className="text-mono-sm" style={{ marginTop: 6, color: "var(--muted)", fontSize: 11 }}>Last sync: {new Date(lastSync).toLocaleString()}</p>}
           {connection && (
-            <span className={`badge ${connection.ok ? "badge-success" : "badge-danger"}`}>
+            <span className={`badge ${connection.ok ? "badge-success" : "badge-danger"}`} style={{ marginTop: 8, display: "inline-flex" }}>
               {connection.ok
                 ? `Connected · ${connection.latency_ms ?? "?"}ms`
                 : connection.message}
             </span>
           )}
+        </div>
+        <div className="stack-h" style={{ gap: 8, alignItems: "center", flexWrap: "wrap", alignSelf: "flex-start" }}>
+          <button className="btn btn-primary" onClick={scrollToInvite} style={{ whiteSpace: "nowrap" }}>
+            + Invite publisher
+          </button>
+          <button className="btn btn-secondary" onClick={checkConnection} disabled={checking}>
+            {checking ? <span className="spinner" /> : "Check status"}
+          </button>
           <button className="btn btn-secondary" onClick={syncCalls} disabled={syncing}>
-            {syncing ? <span className="spinner" /> : "Sync Retreaver calls"}
+            {syncing ? <span className="spinner" /> : "Sync calls"}
           </button>
           <button className="btn btn-secondary" onClick={syncCampaigns} disabled={syncingCampaigns}>
-            {syncingCampaigns ? <span className="spinner" /> : "Sync Retreaver campaigns"}
+            {syncingCampaigns ? <span className="spinner" /> : "Sync campaigns"}
           </button>
         </div>
       </div>
 
       <section className="card" style={{ padding: "var(--space-6)", marginBottom: "var(--space-5)" }}>
-        <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Add Publisher</h2>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
+          <div>
+            <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em", display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 6, height: 18, borderRadius: 9999, background: "var(--acid)" }} aria-hidden /> Invite publisher</h2>
+            <p className="text-muted" style={{ fontSize: 11, margin: "4px 0 0", lineHeight: 1.5 }}>Add to directory, then provision on Retreaver. Fixed price is per qualified call.</p>
+          </div>
+          <span className="badge" style={{ fontSize: 9, letterSpacing: "0.7px" }}>DIRECTORY</span>
+        </div>
         <form onSubmit={handleCreate} className="admin-add-grid">
           <div className="form-group">
             <label className="form-label" htmlFor="pub-name">Name</label>
@@ -481,15 +496,23 @@ export default function AdminPublishersPage() {
           <option value="active">Active</option>
           <option value="disabled">Disabled</option>
         </select>
-        <span className="text-mono-sm" style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>{filtered.length} publishers</span>
+        <span className="text-mono-sm" style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>{filtered.length} publishers • {publishers.filter((p) => p.active).length} active</span>
       </div>
 
+      <section className="card card--table" style={{ overflow: "visible" }}>
+        <div className="card-header">
+          <div>
+            <h3 style={{ font: "500 15px var(--serif)", letterSpacing: "-0.02em", margin: 0 }}>All publishers</h3>
+            <p className="text-muted text-mono-sm" style={{ fontSize: 10, margin: "2px 0 0" }}>{filtered.length} shown • fixed price inline • Retreaver badge</p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={scrollToInvite} style={{ whiteSpace: "nowrap" }}>+ Invite publisher</button>
+        </div>
       {loading ? (
-        <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
+        <div className="stack" style={{ gap: 12, padding: "16px 18px" }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
       ) : publishers.length === 0 ? (
-        <p className="text-muted">No publishers yet. Add your first publisher above.</p>
+        <p className="text-muted" style={{ padding: "18px" }}>No publishers yet. Add your first publisher above — then provision on Retreaver.</p>
       ) : filtered.length === 0 ? (
-        <div className="empty-state"><p>No publishers match &quot;{search}&quot;.</p></div>
+        <div className="empty-state" style={{ padding: "18px" }}><p>No publishers match &quot;{search}&quot;.</p></div>
       ) : (
         <DataTable
             columns={columns}
@@ -505,6 +528,7 @@ export default function AdminPublishersPage() {
             onSort={handleSort}
           />
       )}
+      </section>
 
       <section className="card" style={{ padding: "var(--space-6)", marginTop: "var(--space-5)" }}>
         <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-2)", letterSpacing: "-0.03em" }}>Retreaver Performance</h2>

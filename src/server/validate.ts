@@ -92,8 +92,10 @@ export const updateAgentSchema = z.object({
   software_fee_cents: z.number().int().min(0).optional(),
 });
 
+export const US_STATE_CODES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"] as const;
 export const updateOwnAgentSchema = z.object({
   availability: z.enum(["offline", "available", "busy", "away"]).optional(),
+  states: z.array(z.string()).max(60).optional(),
 });
 
 export const createCampaignSchema = z.object({
@@ -105,6 +107,7 @@ export const createCampaignSchema = z.object({
   min_connected_seconds: z.number().int().min(0).default(0),
   required_skills: z.array(z.string()).default([]),
   publisher_id: z.string().min(1).nullable().optional(),
+  publisher_ids: z.array(z.string().min(1)).optional(),
   retreaver_cid: z.string().min(1).max(64).nullable().optional(),
 });
 
@@ -116,6 +119,7 @@ export const updateCampaignSchema = z.object({
   buffer_seconds: z.number().int().min(0).optional(),
   required_skills: z.array(z.string()).optional(),
   publisher_id: z.string().min(1).nullable().optional(),
+  publisher_ids: z.array(z.string().min(1)).nullable().optional(),
   rtb_enabled: z.boolean().optional(),
   rtb_postback_key: z.string().min(1).max(512).optional(),
   retreaver_cid: z.string().min(1).max(64).nullable().optional(),

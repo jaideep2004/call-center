@@ -173,7 +173,7 @@ export default function AgentCallSection() {
   }, []);
 
   return (
-    <section className={styles.section} ref={containerRef}>
+    <section id="agent-calls" className={styles.section} ref={containerRef}>
       <div className={styles.ambientGlowTopRight} />
       <div className={styles.ambientGlowBottomLeft} />
 

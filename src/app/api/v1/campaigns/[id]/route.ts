@@ -35,6 +35,28 @@ export const PATCH = apiHandler(async (req, { params, agencyId, user }) => {
   if (body.retreaver_cid !== undefined) {
     data.retreaver_cid = body.retreaver_cid || null;
   }
+  // Multi-publisher: if publisher_ids supplied, use join table (keep legacy column in sync)
+  if (body.publisher_ids !== undefined) {
+    const ids = (body.publisher_ids ?? []) as string[];
+    await campaigns.setPublisherIds(id, ids);
+    delete data.publisher_ids;
+    delete data.publisher_id;
+  } else if (body.publisher_id !== undefined) {
+    // Single publisher update -> also sync join table for consistency
+    const single = body.publisher_id as string | null;
+    await campaigns.setPublisherIds(id, single ? [single] : []);
+    delete data.publisher_id;
+  }
+  // If no campaign fields remain after publisher handling, just return with updated publishers
+  const hasOtherFields = Object.keys(data).some((k) => k !== "publisher_ids" && k !== "publisher_id");
+  if (!hasOtherFields && (body.publisher_ids !== undefined || body.publisher_id !== undefined)) {
+    const campaign = await campaigns.findById(id, scopeFor({ agencyId, user }));
+    return ok(campaign, "Campaign publishers updated");
+  }
+  if (Object.keys(data).length === 0) {
+    const campaign = await campaigns.findById(id, scopeFor({ agencyId, user }));
+    return ok(campaign, "Campaign updated");
+  }
   const campaign = await campaigns.update(id, data, scopeFor({ agencyId, user }));
   return ok(campaign, "Campaign updated");
 }, { resource: "settings", action: "update" });

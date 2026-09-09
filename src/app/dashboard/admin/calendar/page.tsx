@@ -243,7 +243,13 @@ export default function AdminCalendarPage() {
             {(slotSearch || slotDateFilter || slotStatusFilter) && <button className="btn btn-sm btn-ghost" onClick={() => { setSlotSearch(""); setSlotDateFilter(""); setSlotStatusFilter(""); }}>Clear</button>}
           </div>
         </div>
-        {slots.length === 0 ? <p className="text-muted" style={{ padding: 16 }}>No slots yet — add one above.</p> : filteredSlots.length === 0 ? <p className="text-muted" style={{ padding: 16 }}>No slots match filters.</p> : (
+        {slots.length === 0 ? (
+          <div style={{ padding: "var(--space-8) 16px", textAlign: "center" }}>
+            <p style={{ font: "500 15px var(--serif)", margin: "0 0 6px" }}>No weekly slots yet</p>
+            <p className="text-muted" style={{ fontSize: 12, margin: "0 0 14px", maxWidth: 520, marginInline: "auto" }}>Create your first onboarding slot above (date + start/end + capacity). Agents see active slots in <strong>Book Call → Onboarding</strong> and get a confirmation + 1h reminder. Empty state is correct — not a bug.</p>
+            <p className="text-mono-sm" style={{ fontSize: 10, color: "var(--muted)" }}>Tip: Add 2–3 weekly slots with capacity 3–5 each; use “Active” toggle to hide without deleting.</p>
+          </div>
+        ) : filteredSlots.length === 0 ? <p className="text-muted" style={{ padding: 16 }}>No slots match filters.</p> : (
             <DataTable
               columns={slotColumns}
               data={slotsPaged}

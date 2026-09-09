@@ -176,6 +176,11 @@ function AgentWalletInner() {
         </div>
       </div>
 
+      <nav className="tabs" style={{ marginBottom: "var(--space-4)" }}>
+        <span className="tab active">Balance</span>
+        <a className="tab" href="/dashboard/agents/subscription">Subscriptions</a>
+      </nav>
+
       <div className="agent-wallet-grid">
         <div className="card" style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <div>
@@ -183,8 +188,8 @@ function AgentWalletInner() {
             <p style={{ font: "500 48px/1 var(--serif)", margin: "4px 0", letterSpacing: "-0.05em" }}>{formatCents(balance)}</p>
             <p className="text-mono-sm" style={{ marginTop: 4 }}>+{formatCents(thisPeriod)} this week</p>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-primary btn-lg" onClick={() => showToast("Payout requested", "success")}>Request Payout</button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <a className="btn btn-sm" href="/dashboard/agents/subscription" style={{ whiteSpace: "nowrap" }}>View Subscriptions →</a>
           </div>
         </div>
 

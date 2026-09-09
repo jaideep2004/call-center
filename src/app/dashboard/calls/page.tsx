@@ -92,6 +92,36 @@ function CallsInner() {
     setSimulating(false);
   }
 
+  async function handleExport(format: "csv" | "xlsx") {
+    try {
+      const params = new URLSearchParams();
+      params.set("format", format);
+      if (stateFilter) params.set("state", stateFilter);
+      if (debouncedQ) params.set("search", debouncedQ);
+      const res = await fetch(`/api/v1/calls/export?${params.toString()}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showToast(body.message ?? `Export failed (${res.status})`, "error");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const m = disposition.match(/filename="([^"]+)"/);
+      const filename = m?.[1] ?? `calls-export-${Date.now()}.${format}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast(`${format.toUpperCase()} downloaded`, "success");
+    } catch {
+      showToast("Export failed - network error", "error");
+    }
+  }
+
   const fetchCalls = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE), sortBy, order });
@@ -174,8 +204,8 @@ function CallsInner() {
           <option value="disputed">Disputed</option>
         </select>
         <div className="stack-h" style={{ gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
-          <a className="btn btn-ghost btn-sm" href={`/api/v1/calls/export?state=${stateFilter}&search=${debouncedQ}`} download>CSV</a>
-          <a className="btn btn-ghost btn-sm" href={`/api/v1/calls/export?format=xlsx&state=${stateFilter}&search=${debouncedQ}`} download>Excel</a>
+          <button className="btn btn-ghost btn-sm" onClick={() => handleExport("csv")} disabled={loading}>CSV</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => handleExport("xlsx")} disabled={loading}>Excel</button>
           <button className="btn btn-secondary btn-sm" onClick={simulateCall} disabled={simulating} style={{ whiteSpace: "nowrap" }}>{simulating ? "Simulating..." : "Simulate Call"}</button>
         </div>
       </div>

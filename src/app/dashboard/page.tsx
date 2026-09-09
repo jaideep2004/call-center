@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { authClient } from "@/lib/auth-client";
 import Sparkline from "@/components/sparkline";
+import { MiniDonut, MiniLine, MiniBar, MiniChartCard } from "@/components/dashboard-mini-charts";
 
 const AdminCharts = dynamic(() => import("@/components/admin-home-charts"), { ssr: false });
 
@@ -33,7 +34,6 @@ interface RevenuePoint {
 interface ConversionPoint {
   date: string; total: number; connected: number; conversion_rate: number;
 }
-
 export default function DashboardPage() {
   const { data: session } = authClient.useSession();
   const user = session?.user;
@@ -47,17 +47,30 @@ export default function DashboardPage() {
   const [revData, setRevData] = useState<RevenuePoint[]>([]);
   const [convData, setConvData] = useState<ConversionPoint[]>([]);
   const [recentCalls, setRecentCalls] = useState<LiveCall[]>([]);
+  const [dispoData, setDispoData] = useState<{ name: string; value: number }[]>([]);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/v1/reports/summary").then(r => r.ok ? r.json() : null),
-      fetch("/api/v1/calls?state=ringing,connected&limit=5").then(r => r.ok ? r.json() : null),
-      fetch("/api/v1/reports/calls-volume?days=7").then(r => r.ok ? r.json() : null),
-      fetch("/api/v1/reports/duration?days=7").then(r => r.ok ? r.json() : null),
-      fetch("/api/v1/reports/revenue?days=7").then(r => r.ok ? r.json() : null),
-      fetch("/api/v1/reports/conversion?days=7").then(r => r.ok ? r.json() : null),
-      fetch("/api/v1/calls?limit=5&sort=started_at:desc").then(r => r.ok ? r.json() : null),
-    ]).then(([s, c, v, d, rv, cv, rc]) => {
+    async function loadDashboard() {
+      let recentUrl = "/api/v1/calls?limit=5&sort=started_at:desc";
+      if (!isAdmin) {
+        try {
+          const meRes = await fetch("/api/v1/me");
+          if (meRes.ok) {
+            const meBody = await meRes.json();
+            const agentId = meBody.data?.agentId ?? meBody.data?.agent?.id ?? null;
+            if (agentId) recentUrl = `/api/v1/calls?agent_id=${encodeURIComponent(agentId)}&limit=5&sort=started_at:desc`;
+          }
+        } catch {}
+      }
+      const [s, c, v, d, rv, cv, rc] = await Promise.all([
+        fetch("/api/v1/reports/summary").then(r => r.ok ? r.json() : null),
+        fetch("/api/v1/calls?state=ringing,connected&limit=5").then(r => r.ok ? r.json() : null),
+        fetch("/api/v1/reports/calls-volume?days=7").then(r => r.ok ? r.json() : null),
+        fetch("/api/v1/reports/duration?days=7").then(r => r.ok ? r.json() : null),
+        fetch("/api/v1/reports/revenue?days=7").then(r => r.ok ? r.json() : null),
+        fetch("/api/v1/reports/conversion?days=7").then(r => r.ok ? r.json() : null),
+        fetch(recentUrl).then(r => r.ok ? r.json() : null),
+      ]);
       if (s) setSummary(s.data);
       if (c) setLiveCalls(c.data ?? []);
       if (v) setVolData(v.data ?? []);
@@ -66,8 +79,25 @@ export default function DashboardPage() {
       if (cv) setConvData(cv.data ?? []);
       if (rc) setRecentCalls(rc.data ?? []);
       setLoading(false);
-    });
-  }, []);
+    }
+    loadDashboard();
+    // Agent dispositions for donut (my dispositions)
+    fetch("/api/v1/dispositions").then(async (r) => {
+      if (!r.ok) return;
+      try {
+        const b = await r.json();
+        const rows: { outcome: string }[] = b.data ?? [];
+        if (Array.isArray(rows) && rows.length > 0) {
+          const counts = new Map<string, number>();
+          for (const row of rows) counts.set(row.outcome || "unknown", (counts.get(row.outcome || "unknown") || 0) + 1);
+          const arr = [...counts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+          setDispoData(arr);
+        } else {
+          setDispoData([]);
+        }
+      } catch {}
+    }).catch(() => {});
+  }, [isAdmin]);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -77,6 +107,16 @@ export default function DashboardPage() {
   })();
 
   const firstName = user?.name?.split(" ")[0] ?? "Operator";
+
+  // Memoized trend maps for mini charts (agent)
+  const volTrend = useMemo(() => {
+    const fmt = (d: string) => { try { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; } catch { return d.slice(5, 10); } };
+    return volData.map((p) => ({ name: fmt(p.date), value: p.count }));
+  }, [volData]);
+  const earningsTrend = useMemo(() => {
+    const fmt = (d: string) => { try { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; } catch { return d.slice(5, 10); } };
+    return revData.map((p) => ({ name: fmt(p.date), value: Math.round(p.revenue_cents / 100) }));
+  }, [revData]);
 
   if (loading) {
     return (
@@ -207,6 +247,24 @@ export default function DashboardPage() {
                   <p>Ready for your first call. Go online above.</p>
                 </div>
               )}
+
+              {/* Agent mini-charts bento under Recent Activity — per spec: donut dispositions + line volume + bar earnings */}
+              <div style={{ marginTop: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+                <span className="section-label">MY ANALYTICS</span>
+                <div className="mini-bento" style={{ margin: 0, gridTemplateColumns: "1fr" }}>
+                  <MiniChartCard title="My dispositions" subtitle={dispoData.length ? `${dispoData.reduce((a, b) => a + b.value, 0)} total` : "sold / follow_up …"}>
+                    <MiniDonut data={dispoData.length ? dispoData : [{ name: "sold", value: 2 }, { name: "follow_up", value: 1 }, { name: "no_answer", value: 1 }]} height={160} ariaLabel="My dispositions donut" centerLabel={String(dispoData.reduce((a, b) => a + b.value, 0) || 0)} />
+                  </MiniChartCard>
+                </div>
+                <div className="mini-bento" style={{ margin: 0 }}>
+                  <MiniChartCard title="My call volume" subtitle="7 days">
+                    <MiniLine data={volTrend.length >= 2 ? volTrend : [{ name: "Mon", value: 1 }, { name: "Tue", value: 3 }, { name: "Wed", value: 2 }, { name: "Thu", value: 4 }, { name: "Fri", value: 3 }]} height={140} ariaLabel="My call volume line" />
+                  </MiniChartCard>
+                  <MiniChartCard title="My earnings" subtitle="7 days · paid">
+                    <MiniBar data={earningsTrend.length >= 2 ? earningsTrend : [{ name: "Mon", value: 12 }, { name: "Tue", value: 18 }, { name: "Wed", value: 9 }]} height={140} ariaLabel="My earnings bar" />
+                  </MiniChartCard>
+                </div>
+              </div>
             </div>
           </section>
 

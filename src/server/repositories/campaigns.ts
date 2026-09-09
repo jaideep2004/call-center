@@ -59,17 +59,24 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
     price_cents?: number | null;
     min_connected_seconds?: number;
     publisher_id?: string | null;
+    publisher_ids?: string[] | null;
     status?: string;
   }): Promise<CampaignRow> {
-    return super.create({
+    const publisherIds = data.publisher_ids ?? (data.publisher_id ? [data.publisher_id] : []);
+    const legacy = publisherIds[0] ?? data.publisher_id ?? null;
+    const row = await super.create({
       agency_id: data.agency_id,
       name: data.name,
       routing_strategy: data.routing_strategy,
       price_cents: data.price_cents ?? null,
       min_connected_seconds: data.min_connected_seconds ?? 0,
-      publisher_id: data.publisher_id ?? null,
+      publisher_id: legacy,
       ...(data.status ? { status: data.status } : {}),
     });
+    if (publisherIds.length > 0) {
+      await this.setPublisherIds(row.id, publisherIds);
+    }
+    return this.findById(row.id);
   }
 
   async findByRetreaverCid(cid: string): Promise<CampaignRow | null> {
@@ -81,10 +88,37 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
   }
 
   async findByPublisher(publisherId: string): Promise<CampaignRow[]> {
+    // Use join table (multi-select) with fallback to legacy publisher_id for old rows not yet backfilled
     return query<CampaignRow>(
-      `SELECT * FROM app.campaigns WHERE publisher_id = $1 ORDER BY created_at ASC`,
+      `SELECT c.* FROM app.campaigns c
+       LEFT JOIN app.campaign_publishers cp ON cp.campaign_id = c.id
+       WHERE c.publisher_id = $1 OR cp.publisher_id = $1
+       GROUP BY c.id ORDER BY c.created_at ASC`,
       [publisherId],
     );
+  }
+
+  async getPublisherIds(campaignId: string): Promise<string[]> {
+    const rows = await query<{ publisher_id: string }>(
+      `SELECT publisher_id FROM app.campaign_publishers WHERE campaign_id = $1 ORDER BY created_at ASC`,
+      [campaignId],
+    );
+    return rows.map((r) => r.publisher_id);
+  }
+
+  async setPublisherIds(campaignId: string, publisherIds: string[], client?: import("pg").PoolClient): Promise<string[]> {
+    const uniq = [...new Set(publisherIds.filter(Boolean))];
+    // keep legacy column in sync (first publisher or null) for old code paths
+    const legacy = uniq[0] ?? null;
+    const q = (text: string, params: unknown[]) => (client ? query(text, params, client) : query(text, params));
+    // update legacy column
+    await q(`UPDATE app.campaigns SET publisher_id = $2 WHERE id = $1`, [campaignId, legacy]);
+    // replace join rows
+    await q(`DELETE FROM app.campaign_publishers WHERE campaign_id = $1`, [campaignId]);
+    for (const pid of uniq) {
+      await q(`INSERT INTO app.campaign_publishers (campaign_id, publisher_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [campaignId, pid]);
+    }
+    return uniq;
   }
 
   /**

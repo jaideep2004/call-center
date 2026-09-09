@@ -105,7 +105,16 @@ function ScriptsInner() {
       {loading ? (
         <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
       ) : filtered.length === 0 ? (
-        <div className="empty-state"><p>{scripts.length === 0 ? "No scripts yet. Create your first call script to guide agents." : `No scripts match "${debouncedQ}".`}</p></div>
+        scripts.length === 0 ? (
+          <div className="card card--spacious" style={{ textAlign: "center", padding: "var(--space-8) var(--space-6)" }}>
+            <p style={{ font: "500 16px var(--serif)", margin: "0 0 8px" }}>No scripts yet</p>
+            <p className="text-muted" style={{ fontSize: 12, margin: "0 0 var(--space-4)", maxWidth: 520, marginInline: "auto" }}>Create your first Final Expense script. Use chips like <code style={{ background: "rgba(168,85,247,0.12)", padding: "2px 6px", borderRadius: 6 }}>[Your Name]</code> <code style={{ background: "rgba(168,85,247,0.12)", padding: "2px 6px", borderRadius: 6 }}>[State]</code> <code style={{ background: "rgba(168,85,247,0.12)", padding: "2px 6px", borderRadius: 6 }}>[Beneficiary Name]</code> — they auto-fill during calls.</p>
+            <Link href="/dashboard/scripts/new" className="btn btn-primary">+ Create Final Expense script →</Link>
+            <p className="text-mono-sm" style={{ marginTop: 12, color: "var(--muted)", fontSize: 11 }}>Placeholders: [Your Name] · [Phone Number] · [NPN Number] · [State] · [Beneficiary Name]</p>
+          </div>
+        ) : (
+          <div className="empty-state"><p>{`No scripts match "${debouncedQ}".`}</p><button className="btn btn-sm" onClick={() => { setSearchInput(""); setCategory(""); }} style={{ marginTop: 8 }}>Clear filters</button></div>
+        )
       ) : (
         <DataTable
             columns={columns}

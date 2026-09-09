@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, Suspense } from "react";
+import { useState, FormEvent, Suspense, useId } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
@@ -14,28 +14,39 @@ function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const errorId = useId();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
+    if (password.length < 8) {
+      const msg = "Password must be at least 8 characters";
+      setError(msg);
+      showToast(msg, "error");
+      return;
+    }
     setLoading(true);
     try {
       const { error: signUpError } = await authClient.signUp.email({
-        name, email, password,
+        name: name.trim(),
+        email: email.trim(),
+        password,
         callbackURL: "/dashboard",
       });
       if (signUpError) {
-        setError(signUpError.message ?? signUpError.statusText ?? "Registration failed");
-        showToast(signUpError.message ?? "Registration failed", "error");
+        const msg = signUpError.message ?? signUpError.statusText ?? "Registration failed";
+        setError(msg);
+        showToast(msg, "error");
         setLoading(false);
         return;
       }
-    } catch (err) {
-      setError("Unable to connect. Please check your connection and try again.");
-      showToast("Unable to connect. Please check your connection and try again.", "error");
+    } catch {
+      const msg = "Unable to connect. Please check your connection and try again.";
+      setError(msg);
+      showToast(msg, "error");
       setLoading(false);
       return;
     }
@@ -48,50 +59,131 @@ function RegisterForm() {
     router.push("/verify");
   }
 
+  const hasError = Boolean(error);
+
   return (
     <>
-      <h1>{inviteToken ? "Join agency" : "Create account"}</h1>
+      <div className="auth-card__head">
+        <p className="auth-card__eyebrow">{inviteToken ? "Invite — 01" : "Create account — 01"}</p>
+        <h1 className="auth-card__title">{inviteToken ? "Join agency" : "Create account"}</h1>
+        <p className="auth-card__subtitle">
+          {inviteToken ? "You were invited to join an agency. Register below to accept." : "Register for a new operations account."}
+        </p>
+      </div>
+
       {inviteToken && (
-        <p className="auth-subtitle">You were invited to join an agency. Register below to accept.</p>
-      )}
-      {!inviteToken && <p className="auth-subtitle">Register for a new operations account.</p>}
-      {inviteToken && (
-        <div
-          className="auth-warning"
-          role="status"
-          style={{
-            background: "rgba(245, 158, 11, 0.12)",
-            border: "1px solid rgba(245, 158, 11, 0.4)",
-            color: "#92400e",
-            borderRadius: 8,
-            padding: "10px 14px",
-            fontSize: 13,
-            marginBottom: 16,
-          }}
-        >
-          <strong>Heads up:</strong> accepting this invite will set your account role to match the
-          inviting organization. If you already have an agent or publisher account, your role will be
-          upgraded — you may lose access to your current console.
+        <div className="auth-warning" role="status" aria-live="polite" style={{ marginBottom: 4 }}>
+          <strong>Heads up:</strong> accepting this invite will set your account role to match the inviting organization. If you already
+          have an agent or publisher account, your role will be upgraded — you may lose access to your current console.
         </div>
       )}
-      <form className="auth-form" onSubmit={handleSubmit}>
-        {error && <div className="auth-error">{error}</div>}
+
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        {hasError && (
+          <div id={errorId} className="auth-error" role="alert" aria-live="polite">
+            {error}
+          </div>
+        )}
+
         <div className="form-group">
-          <label className="form-label" htmlFor="name">Full name</label>
-          <input id="name" className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jenna Reyes" required autoComplete="name" />
+          <label className="form-label" htmlFor="name">
+            Full name
+          </label>
+          <input
+            id="name"
+            name="name"
+            className="input"
+            type="text"
+            autoComplete="name"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="Jenna Reyes…"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            aria-required="true"
+            autoFocus={!inviteToken}
+          />
         </div>
+
         <div className="form-group">
-          <label className="form-label" htmlFor="email">Email</label>
-          <input id="email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@agency.com" required autoComplete="email" />
+          <label className="form-label" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            className="input"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="you@agency.com…"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            aria-required="true"
+            aria-invalid={hasError || undefined}
+            aria-describedby={hasError ? errorId : undefined}
+          />
         </div>
+
         <div className="form-group">
-          <label className="form-label" htmlFor="password">Password</label>
-          <input id="password" className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" required autoComplete="new-password" minLength={8} />
+          <label className="form-label" htmlFor="password">
+            Password
+          </label>
+          <div className="password-wrapper">
+            <input
+              id="password"
+              name="password"
+              className="input"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              placeholder="At least 8 characters…"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              aria-required="true"
+              minLength={8}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+          <p className="auth-hint">At least 8 characters · Paste allowed</p>
         </div>
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? <span className="spinner" /> : "Create account"}
+
+        <button className="btn btn-primary" type="submit" disabled={loading} aria-busy={loading}>
+          {loading ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              <span>Creating…</span>
+            </>
+          ) : (
+            "Create account"
+          )}
         </button>
+
+        <p className="auth-hint" style={{ textAlign: "center" }}>
+          By continuing you agree to our{" "}
+          <Link href="/terms" className="text-link" style={{ display: "inline" }}>
+            Terms
+          </Link>{" "}
+          &amp;{" "}
+          <Link href="/privacy" className="text-link" style={{ display: "inline" }}>
+            Privacy
+          </Link>
+          .
+        </p>
       </form>
+
       <div className="auth-footer">
         Already have an account? <Link href="/login">Sign in</Link>
       </div>
@@ -101,7 +193,7 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="auth-form auth-loading">Loading registration form...</div>}>
+    <Suspense fallback={<div className="spinner" style={{ margin: "40px auto" }} aria-label="Loading registration form" />}>
       <RegisterForm />
     </Suspense>
   );

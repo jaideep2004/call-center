@@ -194,7 +194,7 @@ export default function ProcessSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className={styles.wrapper}>
+    <section ref={sectionRef} id="how-it-works" className={styles.wrapper}>
       {/* Background Neon Lights */}
       <div className={styles.topGlow} />
       <div className={styles.centerGlow} />

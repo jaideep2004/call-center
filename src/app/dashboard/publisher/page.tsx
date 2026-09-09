@@ -7,6 +7,7 @@ import { formatCents } from "@/lib/format";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
 import Sparkline from "@/components/sparkline";
+import { MiniPie, MiniLine, MiniBar, MiniChartCard } from "@/components/dashboard-mini-charts";
 import { showToast } from "@/lib/use-toast";
 
 interface Overview {
@@ -180,6 +181,43 @@ function PublisherOverviewInner() {
     fetchData().then(() => showToast("Overview refreshed", "success"));
   };
 
+  // Mini-chart derived data for publisher bento (pie by campaign + line payout + bar qualified vs total)
+  const pieByCampaign = useMemo(() => {
+    if (!campaignsWithId.length) return [] as { name: string; value: number }[];
+    return campaignsWithId
+      .filter((c) => c.payout_cents > 0)
+      .map((c) => ({ name: (c.campaign_name ?? "Unassigned").slice(0, 18), value: c.payout_cents }))
+      .slice(0, 6);
+  }, [campaignsWithId]);
+
+  const payoutLine = useMemo(() => {
+    if (payoutTrend && payoutTrend.length >= 2) {
+      // payoutTrend is monthly array already fetched: use it but label short
+      return payoutTrend.map((v, i) => ({ name: `M${i + 1}`, value: Math.round(v / 100) }));
+    }
+    if (campaignsWithId.length >= 2) {
+      return campaignsWithId.slice(0, 7).map((c) => ({ name: (c.campaign_name ?? "Unassigned").slice(0, 8), value: Math.round(c.payout_cents / 100) }));
+    }
+    if (recent.length >= 2) {
+      const byDay = new Map<string, number>();
+      const sorted = [...recent].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      for (const r of sorted) {
+        const key = r.created_at.slice(5, 10);
+        byDay.set(key, (byDay.get(key) ?? 0) + (r.payout_cents ?? 0));
+      }
+      const entries = Array.from(byDay.entries()).slice(-7);
+      return entries.map(([k, v]) => ({ name: k, value: Math.round(v / 100) }));
+    }
+    return [] as { name: string; value: number }[];
+  }, [payoutTrend, campaignsWithId, recent]);
+
+  const qualifiedBar = useMemo(() => {
+    if (!campaignsWithId.length) return [] as { name: string; value: number }[];
+    return campaignsWithId.slice(0, 6).map((c) => ({ name: (c.campaign_name ?? "Unassigned").slice(0, 14), value: c.qualified_calls }));
+  }, [campaignsWithId]);
+
+  const totalCallsForBarLabel = useMemo(() => campaignsWithId.reduce((a, b) => a + b.calls, 0), [campaignsWithId]);
+
   const campaignColumns: Column<CampaignRowForTable>[] = [
     {
       key: "campaign_name",
@@ -348,6 +386,19 @@ function PublisherOverviewInner() {
           </div>
         </section>
       )}
+
+      {/* Publisher mini-charts bento under overview — pie by campaign + line payout + bar qualified vs total */}
+      <div className="mini-bento" aria-label="Publisher analytics bento">
+        <MiniChartCard title="Payout by campaign" subtitle={pieByCampaign.length ? `${pieByCampaign.length} campaigns` : "no payouts yet"}>
+          <MiniPie data={pieByCampaign.length ? pieByCampaign : [{ name: "No data", value: 0 }]} height={160} ariaLabel="Payout by campaign pie" />
+        </MiniChartCard>
+        <MiniChartCard title="Payout trend" subtitle={payoutTrend ? "monthly" : "per campaign"}>
+          <MiniLine data={payoutLine.length >= 2 ? payoutLine : [{ name: "—", value: 0 }, { name: "—", value: 1 }]} height={160} ariaLabel="Payout trend line" />
+        </MiniChartCard>
+        <MiniChartCard title="Qualified vs total" subtitle={`${overview?.stats.qualified_calls ?? 0} / ${totalCallsForBarLabel} qualified`}>
+          <MiniBar data={qualifiedBar.length ? qualifiedBar : [{ name: "No data", value: 0 }]} height={160} ariaLabel="Qualified vs total bar" />
+        </MiniChartCard>
+      </div>
 
       <div className="filter-bar">
         <div className="filter-bar__primary">

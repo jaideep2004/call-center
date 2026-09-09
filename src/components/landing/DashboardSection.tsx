@@ -189,7 +189,7 @@ export default function DashboardSection() {
   }, []);
 
   return (
-    <section className={styles.section} ref={sectionRef}>
+    <section id="dashboard-preview" className={styles.section} ref={sectionRef}>
       {/* Background Floating Ambient Glows */}
       <div className={styles.ambientGlowLeft} ref={glowOrbLeftRef} />
       <div className={styles.ambientGlowRight} ref={glowOrbRightRef} />

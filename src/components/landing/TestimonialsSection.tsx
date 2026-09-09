@@ -205,7 +205,7 @@ export default function TestimonialsSection() {
   );
 
   return (
-    <section className={styles.testimonialsWrapper} ref={sectionRef}>
+    <section id="testimonials" className={styles.testimonialsWrapper} ref={sectionRef}>
       <div className={styles.ambientLight} aria-hidden />
       <div className={styles.header}>
         <div className={styles.pillBadge}>

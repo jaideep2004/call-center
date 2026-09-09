@@ -1,4 +1,4 @@
-import { apiHandler } from "@/server/api-utils";
+import { apiHandler, fail } from "@/server/api-utils";
 import { query } from "@/server/db";
 import { NextResponse } from "next/server";
 import { toCsv } from "@/lib/csv";
@@ -6,9 +6,18 @@ import { toExcelBuffer } from "@/lib/excel";
 
 export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
-  const format = url.searchParams.get("format") ?? "csv";
+  const formatRaw = (url.searchParams.get("format") ?? "csv").toLowerCase();
+  // Only csv and xlsx supported; reject json etc. that caused Site wasn’t available
+  if (formatRaw !== "csv" && formatRaw !== "xlsx") {
+    return fail(`Unsupported export format "${formatRaw}". Use format=csv or format=xlsx`, 400) as unknown as NextResponse;
+  }
+  const format = formatRaw as "csv" | "xlsx";
   const state = url.searchParams.get("state");
   const search = url.searchParams.get("search");
+  // agency scoped - context.agencyId is enforced by apiHandler permissions; ensure missing agency fails early
+  if (!context.agencyId) {
+    return fail("Agency scope required", 403) as unknown as NextResponse;
+  }
   const params: unknown[] = [context.agencyId];
   const clauses: string[] = ["c.agency_id = $1"];
   if (state) { params.push(state); clauses.push(`c.state = $${params.length}`); }
@@ -46,6 +55,7 @@ export const GET = apiHandler(async (req, context) => {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="calls-export-${Date.now()}.xlsx"`,
+        "Cache-Control": "no-store",
       },
     });
   }
@@ -55,6 +65,7 @@ export const GET = apiHandler(async (req, context) => {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="calls-export-${Date.now()}.csv"`,
+      "Cache-Control": "no-store",
     },
   });
 }, { resource: "calls", action: "view" });

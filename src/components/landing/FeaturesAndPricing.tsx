@@ -219,11 +219,12 @@ export default function FeaturesAndPricing() {
   }, []);
 
   return (
-    <section className={styles.wrapper} ref={containerRef}>
+    <section className={styles.wrapper} ref={containerRef} id="features-pricing">
       {/* Background radial glow */}
       <div className={styles.ambientGlow} />
 
       <div className={styles.container}>
+        <div id="features" />
         {/* --- Top Section: Features --- */}
         <div className={styles.featuresSection}>
           <div className={styles.featureHeader}>
@@ -249,6 +250,7 @@ export default function FeaturesAndPricing() {
           </div>
         </div>
 
+        <div id="pricing" />
         {/* --- Bottom Section: Pricing --- */}
         <div className={styles.pricingSection}>
           <div className={styles.pricingHeader}>

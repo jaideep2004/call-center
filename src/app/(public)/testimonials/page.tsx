@@ -1,31 +1,22 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Testimonials — Coverage Calls",
-  description: "Hear from agencies and agents who use Coverage Calls for their call operations.",
 };
-
-const testimonials = [
-  { quote: "Coverage Calls cut our manual routing time to zero. The routing engine finds the right agent every time, and the wallet system means we never have to chase payments.", name: "Marcus Chen", role: "Agency Owner, Texas" },
-  { quote: "The immutable ledger is a game changer for compliance. Every charge is transparent and auditable. Our agents trust the numbers because they can see exactly what happened.", name: "Sarah Okonkwo", role: "Operations Director, Florida" },
-  { quote: "We switched from a legacy dialer to Coverage Calls and saw immediate improvements in call connect rates. The state and ZIP matching is precise.", name: "David Park", role: "Campaign Manager, Illinois" },
-  { quote: "Real-time dashboard means I can see exactly what's happening with my campaigns at any moment. No more waiting for end-of-day reports.", name: "Elena Vasquez", role: "Agency Admin, California" },
-  { quote: "Setting up a new campaign takes minutes instead of hours. The provider abstraction means I can test with mock data before going live.", name: "James Whitfield", role: "Technical Lead, Georgia" },
-  { quote: "The referral program actually pays well, and the commission tracking is transparent. Best platform we've used for pay-per-call.", name: "Aisha Patel", role: "Agent, New York" },
-];
 
 export default function TestimonialsPage() {
   return (
     <section className="page-section">
-      <div className="section-label">TESTIMONIALS / 05</div>
-      <h1>Trusted by agencies<br />nationwide.</h1>
-      <div className="testimonial-grid">
-        {testimonials.map((t) => (
-          <article key={t.name} className="testimonial-card">
-            <p>&ldquo;{t.quote}&rdquo;</p>
-            <div className="attribution">{t.name} — {t.role}</div>
-          </article>
-        ))}
+      <div className="content-page" style={{ maxWidth: 720, margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
+        <div className="section-label" style={{ marginBottom: 16 }}>TESTIMONIALS / 01</div>
+        <h1 style={{ font: "500 42px var(--serif)", letterSpacing: "-0.04em", margin: "0 0 16px" }}>Testimonials</h1>
+        <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
+          Content coming soon. This page is reserved — check back shortly or explore the homepage.
+        </p>
+        <Link href="/#how-it-works" className="btn btn-primary" style={{ textDecoration: "none" }}>
+          Back to homepage →
+        </Link>
       </div>
     </section>
   );

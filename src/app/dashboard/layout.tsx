@@ -39,8 +39,9 @@ const agentNav = [
   { label: "Take Calls", href: "/dashboard/take-calls", icon: "01b" },
   { label: "Book Call", href: "/dashboard/onboarding", icon: "01c" },
   { label: "Calls", href: "/dashboard/calls", icon: "06" },
-  { label: "Subscriptions", href: "/dashboard/agents/subscription", icon: "05f" },
+  // Finance group: Keep Subscriptions + Wallet consecutive + visually grouped (billing)
   { label: "My Wallet", href: "/dashboard/wallet/agent", icon: "07b" },
+  { label: "Subscriptions", href: "/dashboard/agents/subscription", icon: "05f" },
   { label: "Reports", href: "/dashboard/reports", icon: "08" },
   { label: "Scripts", href: "/dashboard/scripts", icon: "05c" },
   { label: "Tutorials", href: "/dashboard/tutorials", icon: "05h" },
@@ -233,9 +234,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
       );
     }
+    const financeGrouped = new Set(["/dashboard/wallet/agent", "/dashboard/agents/subscription"]);
+    const financeItems = agentNav.filter((i) => financeGrouped.has(i.href));
+    const mainItems = agentNav.filter((i) => !financeGrouped.has(i.href));
     return (
       <nav>
-        {agentNav.map((item) => (
+        {mainItems.slice(0, 4).map((item) => (
+          <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
+            <b>{item.icon}</b>{item.label}
+            {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
+          </Link>
+        ))}
+        <div style={{ margin: "8px 0", padding: "8px 6px", border: "1px solid var(--line)", borderRadius: 10, background: "rgba(168,85,247,0.06)" }}>
+          <span className="nav-section-label" style={{ marginBottom: 4, display: "block", fontSize: 9, letterSpacing: "0.12em" }}>BILLING</span>
+          {financeItems.map((item) => (
+            <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label} style={{ marginBottom: 2 }}>
+              <b>{item.icon}</b>{item.label}
+            </Link>
+          ))}
+        </div>
+        {mainItems.slice(4).map((item) => (
           <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
             <b>{item.icon}</b>{item.label}
             {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
@@ -246,9 +264,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="console" data-role={isAdmin ? "admin" : isPublisher ? "publisher" : "agent"}>
+    <div className="console" data-role={isAdmin ? "admin" : isPublisher ? "publisher" : "agent"} style={{position:"relative"}}>
+      <div aria-hidden style={{position:"absolute", inset:"0 0 auto 0", height:1, background:"linear-gradient(90deg, transparent, rgba(168,85,247,.22), transparent)", pointerEvents:"none"}} />
       <aside className="sidebar">
-        <Link className="wordmark" href="/">COVERAGE CALLS<span>&#9650;</span></Link>
+        <Link className="wordmark" href="/" style={{letterSpacing:"3px"}}>COVERAGE CALLS<span>&#9650;</span></Link>
         <p className="agency">{isAdmin ? "ADMIN CONSOLE" : isPublisher ? "PUBLISHER PORTAL" : "OPERATIONS CONSOLE"}</p>
         {renderNav()}
         <div className="operator" ref={dropdownRef}>

@@ -1,0 +1,119 @@
+
+
+FINAL EXPENSE SALES SCRIPT
+1. Introduction &amp; Qualification
+&quot;Hi, this is 
+[Your Name]
+, a licensed insurance agent. I'm the agent who will be assisting you today.&quot;
+&quot;To make sure you qualify for these final expense programs, may I ask, are you between the ages of 
+50 and 85
+?&quot;
+&quot;And for discount purposes, do you currently have an active checking or savings account?&quot;
+&quot;Perfect. I see you're in 
+[State]
+. Is that correct?&quot;
+2. Build Trust
+&quot;Do you happen to have a pen and paper handy? I'd like you to write down my information.&quot;
+Provide:
+Agent Name: 
+[Your Name]
+Phone Number: 
+[Phone Number]
+NPN Number: 
+[NPN Number]
+&quot;This way you'll always have my information since I'll be your agent moving forward.&quot;
+3. Find Their WHY (Pain Point)
+&quot;Were you mainly looking to cover funeral and final expenses, or were you also hoping to leave some extra money behind for your family?&quot;
+&quot;Have you thought about whether you prefer burial or cremation?&quot;
+4. Beneficiary Information
+&quot;If something were to happen to you, who would be responsible for everything?&quot;
+Beneficiary Name
+Relationship
+&quot;Perfect. So our goal today is to make sure 
+[Beneficiary Name]
+ isn't left with those expenses.&quot;
+5. Explain the Process
+&quot;I'm a broker, which means I work with over 50 insurance companies to help find the best rates and benefits available.&quot;
+&quot;Companies like Mutual of Omaha, Americo, Aetna, Royal Neighbors and others.&quot;
+&quot;My job is to make sure you don't get penalized for any health conditions and that we find the best option for you.&quot;
+6. Health Questions
+&quot;Are you currently a smoker or non-smoker?&quot;
+&quot;What's your date of birth?&quot;
+&quot;Are you currently taking any medications?&quot;
+&quot;I don't need the names of the medications, just what conditions they're for.&quot;
+Ask about:
+Diabetes (Metformin or Insulin)
+Heart Attack
+Stroke
+Cancer
+COPD
+Kidney Disease
+Organ Failure
+Blood Clots
+Hospitalizations in last 2–4 years
+7. Income Qualification
+&quot;I like to keep premiums comfortable so no food is taken off the table.&quot;
+&quot;Are you currently working, retired, or receiving disability?&quot;
+&quot;Approximately how much income do you receive each month?&quot;
+&quot;Based on that, I would recommend keeping your premium somewhere between 
+$X and $Y
+ monthly. Does that sound fair?&quot;
+8. Present Options (Gold / Silver / Bronze)
+&quot;Please write down Gold, Silver and Bronze.&quot;
+🥇 GOLD
+$25,000 Coverage – $89/month
+🥈 SILVER
+$20,000 Coverage – $72/month
+🥉 BRONZE
+$15,000 Coverage – $58/month
+(Example only. Adjust based on age and underwriting.)
+&quot;Out of these three options, which one feels the most comfortable for you?&quot;
+9. Build Additional Trust
+&quot;I'm going to send you my driver's license, insurance license and business card via text.&quot;
+&quot;Please save my information because I'll be your agent moving forward.&quot;
+10. Explain Policy Benefits
+&quot;The policy we're looking at today is a 
+Whole Life Insurance Policy
+, meaning:&quot;
+✅ Fixed premiums for life
+ ✅ Coverage never decreases
+ ✅ Builds cash value
+ ✅ Tax-free death benefit
+ ✅ Protected from creditors in most situations
+ ✅ Day 1 coverage available with no waiting period (if eligible)
+11. Application Information
+Collect:
+Full Name
+Address
+Email
+Phone
+Height &amp; Weight
+Citizenship Status
+Driver's License
+Social Security Number
+Banking Information
+Beneficiary Information
+12. Banking &amp; Effective Date
+&quot;What day of the month do you normally receive your benefits? The 1st, 3rd, or another date?&quot;
+&quot;What bank do you use?&quot;
+Collect:
+Bank Name
+Routing Number
+Account Number
+13. Close the Sale
+&quot;I'm submitting this application now.&quot;
+&quot;You'll receive a confirmation text shortly.&quot;
+After approval:
+&quot;Congratulations, you're approved.&quot;
+Review:
+Carrier Name
+Policy Number
+Coverage Amount
+Monthly Premium
+Draft Date
+Beneficiary
+Final Close
+&quot;Your policy packet should arrive within 7–10 business days.&quot;
+&quot;Please keep one copy for yourself and one for your beneficiary.&quot;
+&quot;If anything were ever to happen, your beneficiary simply contacts the insurance company with a death certificate and the benefit will be paid according to policy provisions.&quot;
+&quot;If you have any questions at all, please don't hesitate to call me.&quot;

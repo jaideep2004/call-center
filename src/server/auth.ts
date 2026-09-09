@@ -1,10 +1,8 @@
 import { betterAuth } from "better-auth";
 import { PostgresDialect } from "kysely";
-import { Pool } from "pg";
+import { pool } from "./db";
 import { sendEmail, smtpConfigured } from "./email";
 import { EMAIL_SUBJECTS, verificationEmail, resetPasswordEmail } from "./email-templates";
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const authConfigurationPresent = Boolean(process.env.BETTER_AUTH_SECRET && process.env.BETTER_AUTH_URL);
 
 // Never sign sessions with a fallback secret. A known public value would let

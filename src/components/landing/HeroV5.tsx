@@ -162,46 +162,32 @@ export default function HeroV5() {
 
       <header className="fixed top-0 left-0 right-0 z-50 max-w-[1300px] w-full mx-auto px-6 pt-5">
         <nav className="glass-pill rounded-full px-6 pt-[0.55rem] pb-[0.55rem] flex items-center justify-between border border-white/10 shadow-2xl">
-          <div className="flex items-center gap-2.5 nav-item-v5 cursor-pointer">
+          <a href="/" className="flex items-center gap-2.5 nav-item-v5 cursor-pointer" aria-label="Coverage Calls home">
             <img
               src="/images/coveragec1.png"
               alt="Coverage Calls"
               className="h-[2.7rem] w-auto object-contain"
             />
-          </div>
+          </a>
 
           <div className="hidden md:flex items-center gap-7 text-[0.9rem] text-gray-300 font-medium">
-            <div className="flex items-center gap-1 nav-item-v5 hover:text-white cursor-pointer transition">
-              <span>Product</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            </div>
-            <div className="flex items-center gap-1 nav-item-v5 hover:text-white cursor-pointer transition">
-              <span>Solutions</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            </div>
-            <a href="#pricing" className="nav-item-v5 hover:text-white transition">
-              Pricing
-            </a>
-            <div className="flex items-center gap-1 nav-item-v5 hover:text-white cursor-pointer transition">
-              <span>Resources</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            </div>
-            <div className="flex items-center gap-1 nav-item-v5 hover:text-white cursor-pointer transition">
-              <span>Company</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-            </div>
+            <a href="/#how-it-works" className="nav-item-v5 hover:text-white transition">How it Works</a>
+            <a href="/#features" className="nav-item-v5 hover:text-white transition">Features</a>
+            <a href="/#pricing" className="nav-item-v5 hover:text-white transition">Pricing</a>
+            <a href="/#testimonials" className="nav-item-v5 hover:text-white transition">Testimonials</a>
+            <a href="/about" className="nav-item-v5 hover:text-white transition">About</a>
           </div>
 
           <div className="flex items-center gap-4">
-            <a href="#login" className="hidden sm:block text-xs font-medium text-gray-300 hover:text-white nav-item-v5 transition">
+            <a href="/login" className="hidden sm:block text-xs font-medium text-gray-300 hover:text-white nav-item-v5 transition">
               Log in
             </a>
-            <button className="nav-item-v5 relative group px-4 py-2 rounded-full border-0 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-[length:200%_auto] text-xs font-semibold shadow-lg glow-purple hover:bg-[position:right_center] transition-all duration-500">
+            <a href="/register" className="nav-item-v5 relative group px-4 py-2 rounded-full border-0 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 bg-[length:200%_auto] text-xs font-semibold shadow-lg glow-purple hover:bg-[position:right_center] transition-all duration-500 no-underline text-white inline-flex items-center">
               <span className="flex items-center gap-1.5">
                 Start free trial
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </span>
-            </button>
+            </a>
           </div>
         </nav>
       </header>
@@ -225,16 +211,16 @@ export default function HeroV5() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mb-7">
-            <button className="px-6 py-3 rounded-xl border-0 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 font-semibold text-sm shadow-xl glow-purple flex items-center justify-center gap-2.5 group transition-all">
+            <a href="/register" className="px-6 py-3 rounded-xl border-0 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 font-semibold text-sm shadow-xl glow-purple flex items-center justify-center gap-2.5 group transition-all no-underline text-white">
               <span>Start 7-day free trial</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-            <button className="px-6 py-3 rounded-xl glass-pill hover:bg-white/10 font-semibold text-sm flex items-center justify-center gap-2.5 border border-white/10 transition-all group">
+            </a>
+            <a href="/how-it-works" className="px-6 py-3 rounded-xl glass-pill hover:bg-white/10 font-semibold text-sm flex items-center justify-center gap-2.5 border border-white/10 transition-all group no-underline text-white">
               <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Play className="w-3 h-3 fill-white text-white ml-0.5" />
               </div>
               <span>Watch demo</span>
-            </button>
+            </a>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-400 font-medium">

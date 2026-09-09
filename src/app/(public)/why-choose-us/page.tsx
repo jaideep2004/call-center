@@ -1,31 +1,22 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Why Choose Us — Coverage Calls",
-  description: "Coverage Calls offers real-time routing, immutable ledger, agency management, and enterprise-grade reliability.",
 };
-
-const features = [
-  { title: "Real-time routing engine", desc: "Match calls to the best available agent based on state, ZIP, license, skills, schedule, wallet balance, and priority rules — in milliseconds." },
-  { title: "Immutable financial ledger", desc: "Every wallet transaction is recorded in an append-only ledger. No deletions, no edits. Full audit trail for every charge, refund, and top-up." },
-  { title: "Multi-agency support", desc: "Manage multiple agencies, sub-agents, and teams from a single platform. Each agency gets isolated data with role-based access control." },
-  { title: "Pay-per-call billing", desc: "Agents are charged only for connected calls that meet your quality threshold. Automated wallet deduction with no manual invoicing." },
-  { title: "Call recording & storage", desc: "Every call is recorded and stored securely in cloud storage. Set retention policies per campaign. Play back or download recordings from the dashboard." },
-  { title: "Real-time dashboards", desc: "Monitor live call queues, agent availability, revenue metrics, and system health — all updated in real time through WebSocket events." },
-];
 
 export default function WhyChooseUsPage() {
   return (
-    <section className="page-section-light page-section">
-      <div className="section-label" style={{ color: "#c084fc" }}>WHY CHOOSE US / 03</div>
-      <h2>Built for agencies<br />that outgrow spreadsheets.</h2>
-      <div className="feature-grid">
-        {features.map((f) => (
-          <article key={f.title} className="feature-card">
-            <h3>{f.title}</h3>
-            <p>{f.desc}</p>
-          </article>
-        ))}
+    <section className="page-section">
+      <div className="content-page" style={{ maxWidth: 720, margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
+        <div className="section-label" style={{ marginBottom: 16 }}>WHY CHOOSE US / 01</div>
+        <h1 style={{ font: "500 42px var(--serif)", letterSpacing: "-0.04em", margin: "0 0 16px" }}>Why Choose Us</h1>
+        <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
+          Content coming soon. This page is reserved — check back shortly or explore the homepage.
+        </p>
+        <Link href="/#how-it-works" className="btn btn-primary" style={{ textDecoration: "none" }}>
+          Back to homepage →
+        </Link>
       </div>
     </section>
   );

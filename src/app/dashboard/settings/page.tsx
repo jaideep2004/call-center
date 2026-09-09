@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { showToast } from "@/lib/use-toast";
+import { US_STATES } from "@/lib/us-states";
 
 interface Agency {
   id: string;
@@ -58,6 +59,103 @@ function RoleShortcuts() {
           </Link>
         ))}
       </div>
+    </section>
+  );
+}
+
+function AgentStatesSection() {
+  const [agentId, setAgentId] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setRole(body.data?.user?.role ?? null);
+        setAgentId(body.data?.agentId ?? null);
+      }
+    }).catch(() => {});
+  }, []);
+  if (role !== "agent") return null;
+  return <AgentStatesCard agentId={agentId} />;
+}
+
+function AgentStatesCard({ agentId }: { agentId: string | null }) {
+  const [states, setStates] = useState<string[]>([]);
+  const [draft, setDraft] = useState<string[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!agentId) return;
+    setLoading(true);
+    fetch(`/api/v1/agents/${agentId}`).then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setStates(body.data.states ?? []);
+        setDraft(body.data.states ?? []);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [agentId]);
+
+  function toggle(code: string) {
+    setDraft((prev) => prev.includes(code) ? prev.filter((s) => s !== code) : [...prev, code]);
+  }
+
+  async function save() {
+    if (!agentId) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/v1/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ states: draft }),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setStates(body.data.states ?? draft);
+        setEditing(false);
+        showToast("States updated", "success");
+      } else {
+        const body = await res.json();
+        showToast(body.message ?? "Failed to update states", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!agentId) return null;
+  if (loading) return <div className="card card--spacious" style={{ maxWidth: 640 }}><div className="skeleton skeleton-text" /></div>;
+
+  return (
+    <section className="card card--spacious" style={{ maxWidth: 640 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
+        <h2 style={{ font: "500 16px var(--serif)", margin: 0 }}>Licensed States</h2>
+        {!editing && <button className="btn btn-sm btn-secondary" onClick={() => { setDraft([...states]); setEditing(true); }}>Edit states</button>}
+      </div>
+      <p className="text-muted" style={{ fontSize: 11, margin: "0 0 var(--space-3)" }}>Select the states you are licensed for. Used for state-wise call routing. Leave empty for “any”.</p>
+      {editing ? (
+        <div className="stack" style={{ gap: 12 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 220, overflowY: "auto", padding: 8, border: "1px solid var(--line)", borderRadius: 10 }}>
+            {US_STATES.map((s) => (
+              <button key={s.code} type="button" className={draft.includes(s.code) ? "badge badge-success" : "badge"} onClick={() => toggle(s.code)} style={{ cursor: "pointer", border: 0, fontFamily: "var(--mono)", fontSize: 10 }} title={s.name}>{s.code}</button>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+            {draft.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setDraft([])}>Clear all</button>}
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {states.length ? states.map((c) => <span key={c} className="badge badge-info">{c}</span>) : <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11 }}>Any state (no restriction)</span>}
+        </div>
+      )}
     </section>
   );
 }
@@ -167,6 +265,7 @@ export default function SettingsPage() {
         <Link className="tab" href="/dashboard/settings/phone-numbers">Phone Numbers</Link>
       </nav>
       <RoleShortcuts />
+      <AgentStatesSection />
       {agency ? (
         <div className="card card--spacious" style={{ maxWidth: 580 }}>
           <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)" }}>Agency Profile</h2>

@@ -18,3 +18,15 @@
 - Tests: `npx tsc --noEmit` not re-run (audit only) · no new code shipped · git not modified except this entry.
 
 ## 2026-09-07 - test-worker - FEATURE_TESTS - 73/85 on local+live (16 sections A-O) - saved to docs/FEATURE_TESTS_2026-09-07.md - HIGH regressions: (1) DELETE scripts/tutorials 500 (missing deleted_at — confirms 2026-09-04 audit finding) (2) POST /api/v1/public/leads always 500 (app.leads.agency_id NOT NULL but route inserts NULL — NEW outage) - next: triage + ship migrations 0039/0040
+
+## 2026-09-09 14:40 - Hermes (main) - PLAN_AUTH_NAV_MODERN + MULTI-PUBLISHER
+- Did: Phase1 Nav anchors (ids: how-it-works, features, pricing, testimonials + 9 public shells empty) + Phase2 Auth 2026 redesign delegated (auth.css split editorial/card, 5 pages, a11y, 16px mobile) + Phase3 login speed (share pool db.ts→auth.ts, proxy matcher skips api/auth/health) + Phase4 multi-publisher (0043_campaign_publishers migration + campaigns.get/setPublisherIds + validate publisher_ids + POST/PATCH/publishers PUT + UI multi-checkbox in new/[id]).
+- Decisions: Header now 4 anchors + About, footer Product anchors, company/Resources split; homepage sections use homepage violet tokens for auth story; keep single publisher_id legacy col synced to first join row for backward compat; proxy matcher excludes api/auth to cut middleware overhead.
+- Broke / TODO: None blocking. Next session playwright/chrome-devtools MCPs available (24+29 tools) for visual regression — test auth at 375/768/1280 + anchor scroll.
+- Tests: tsc --skipLibCheck 0 · vitest 409 pass | 5 skipped (35 files) · build 148 routes clean · graphify 1077 nodes 1045 edges.
+
+## 2026-09-09 15:45 - Hermes (delegated x3) - CLIENT_FEEDBACK_PLUS_2026-09-09
+- Did: Charts bento (admin/agent/publisher mini-pie/line/bar/donut via recharts, 140-180px, per-role accent, reduced-motion) + Campaign UX (new 2-step + [id] tabbed ?tab= + publishers multi-checkbox 0043) + Feedback #1 multi-pubs done, #2 remove Request Payout (wallet tabs), #3 calendar empty CTA, #4 Subscriptions grouped next to Wallet (nav BILLING box), #5 scripts chips [Your Name] etc + live preview + empty CTA, #6 50-state picker (validate updateOwnAgentSchema + take-calls/settings/[id]), #7 export csv/xlsx blob + 400 on json, #8 agent-scoped recentCalls via /me agentId.
+- Decisions: Keep 50 states + DC in lib/us-states.ts; keep legacy publisher_id synced to first join row; keep homepage shells empty; use 2026 bento glass 12px radius, hairline top highlight.
+- Broke / TODO: None. Next: visual regression via playwright/chrome-devtools at 375/768/1280 once you reload.
+- Tests: tsc --skipLibCheck 0 · vitest 409 pass | 5 skipped (35 files) · build 148 routes · graphify 1093 nodes 1064 edges.

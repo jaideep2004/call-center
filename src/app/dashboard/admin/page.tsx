@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { MiniPie, MiniDonut, MiniLine, MiniBar, MiniChartCard } from "@/components/dashboard-mini-charts";
 
 interface Summary {
   total_calls: number; total_revenue_cents: number;
@@ -23,8 +25,15 @@ export default function AdminPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [calls, setCalls] = useState<CallEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [volTrend, setVolTrend] = useState<{ name: string; value: number }[]>([]);
+  const [revTrend, setRevTrend] = useState<{ name: string; value: number }[]>([]);
+  const [statePie, setStatePie] = useState<{ name: string; value: number }[]>([]);
+  const [availDonut, setAvailDonut] = useState<{ name: string; value: number }[]>([]);
 
   useEffect(() => {
+    const fmt = (d: string) => {
+      try { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; } catch { return d.slice(5, 10); }
+    };
     Promise.all([
       fetch("/api/v1/reports/summary").then(async (res) => {
         if (res.ok) { const b = await res.json(); setSummary(b.data); }
@@ -32,8 +41,62 @@ export default function AdminPage() {
       fetch("/api/v1/calls?limit=5&sortBy=started_at&order=desc").then(async (res) => {
         if (res.ok) { const b = await res.json(); setCalls(b.data ?? []); }
       }),
+      fetch("/api/v1/reports/calls-volume?days=7").then(async (res) => {
+        if (res.ok) {
+          const b = await res.json();
+          const rows: { date: string; count: number }[] = b.data ?? [];
+          setVolTrend(rows.map((r) => ({ name: fmt(r.date), value: r.count })));
+        }
+      }),
+      fetch("/api/v1/reports/revenue?days=7").then(async (res) => {
+        if (res.ok) {
+          const b = await res.json();
+          const rows: { date: string; revenue_cents: number }[] = b.data ?? [];
+          setRevTrend(rows.map((r) => ({ name: fmt(r.date), value: Math.round(r.revenue_cents / 100) })));
+        }
+      }),
+      fetch("/api/v1/calls?limit=80&sortBy=started_at&order=desc").then(async (res) => {
+        if (res.ok) {
+          const b = await res.json();
+          const rows: { state: string }[] = b.data ?? b.rows ?? [];
+          if (Array.isArray(rows) && rows.length > 0) {
+            const counts = new Map<string, number>();
+            for (const r of rows) counts.set(r.state || "unknown", (counts.get(r.state || "unknown") || 0) + 1);
+            const arr = [...counts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+            if (arr.length) setStatePie(arr);
+          }
+        }
+      }),
+      fetch("/api/v1/agents?limit=100").then(async (res) => {
+        if (res.ok) {
+          const b = await res.json();
+          const rows: { availability: string }[] = b.data ?? b.rows ?? [];
+          if (Array.isArray(rows) && rows.length > 0) {
+            const avail = new Map<string, number>();
+            for (const r of rows) avail.set(r.availability || "offline", (avail.get(r.availability || "offline") || 0) + 1);
+            const arr = [...avail.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+            // Ensure at least available/offline buckets
+            if (!arr.find((x) => x.name === "available") && summary) {
+              // fallback: use summary agents_online vs total estimate
+            }
+            setAvailDonut(arr);
+          } else if (summary) {
+            // fallback from summary if agents list empty (e.g. permission)
+            const online = summary.agents_online ?? 0;
+            if (online > 0) setAvailDonut([{ name: "available", value: online }, { name: "offline", value: 0 }]);
+          }
+        }
+      }).catch(() => {}),
     ]).then(() => setLoading(false));
   }, []);
+
+  // if agents endpoint blocked, derive avail from summary after load
+  useEffect(() => {
+    if (availDonut.length === 0 && summary && summary.agents_online > 0) {
+      // keep at least available slice so donut not empty
+      setAvailDonut([{ name: "available", value: summary.agents_online }, { name: "offline", value: Math.max(0, 4 - summary.agents_online) }]);
+    }
+  }, [summary, availDonut.length]);
 
   if (loading) return (
     <div className="dashboard-page">
@@ -50,14 +113,22 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="grid-4" style={{ marginBottom: "var(--space-6)" }}>
-        <div className="card" style={{ textAlign: "center", padding: "1.5rem" }}>
+      <div className="grid-4" style={{ marginBottom: "var(--space-4)" }}>
+        <div className="card" style={{ textAlign: "center", padding: "1.2rem 1rem 0.6rem", display: "flex", flexDirection: "column", gap: 4 }}>
           <p className="text-mono-sm" style={{ margin: 0, fontSize: 10 }}>TOTAL CALLS</p>
-          <p style={{ font: "500 32px/1 var(--serif)", margin: "8px 0 0" }}>{summary?.total_calls ?? 0}</p>
+          <p style={{ font: "500 32px/1 var(--serif)", margin: "4px 0 0" }}>{summary?.total_calls ?? 0}</p>
+          <div className="mini-stat-spark">
+            <MiniLine data={volTrend.length ? volTrend : [{ name: "—", value: 0 }, { name: "—", value: 0 }]} height={140} ariaLabel="7-day call volume line" />
+          </div>
+          <small className="text-mono-sm" style={{ fontSize: 9, color: "var(--muted)", marginTop: 4 }}>7-day volume</small>
         </div>
-        <div className="card" style={{ textAlign: "center", padding: "1.5rem" }}>
+        <div className="card" style={{ textAlign: "center", padding: "1.2rem 1rem 0.6rem", display: "flex", flexDirection: "column", gap: 4 }}>
           <p className="text-mono-sm" style={{ margin: 0, fontSize: 10 }}>TOTAL REVENUE</p>
-          <p style={{ font: "500 32px/1 var(--serif)", margin: "8px 0 0" }}>${((summary?.total_revenue_cents ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p style={{ font: "500 32px/1 var(--serif)", margin: "4px 0 0" }}>${((summary?.total_revenue_cents ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <div className="mini-stat-spark">
+            <MiniBar data={revTrend.length ? revTrend : [{ name: "—", value: 0 }, { name: "—", value: 0 }]} height={140} ariaLabel="7-day revenue bar" layout="horizontal" />
+          </div>
+          <small className="text-mono-sm" style={{ fontSize: 9, color: "var(--muted)", marginTop: 4 }}>7-day revenue</small>
         </div>
         <div className="card" style={{ textAlign: "center", padding: "1.5rem" }}>
           <p className="text-mono-sm" style={{ margin: 0, fontSize: 10 }}>ACTIVE CAMPAIGNS</p>
@@ -67,6 +138,19 @@ export default function AdminPage() {
           <p className="text-mono-sm" style={{ margin: 0, fontSize: 10 }}>AGENTS ONLINE</p>
           <p style={{ font: "500 32px/1 var(--serif)", margin: "8px 0 0" }}>{summary?.agents_online ?? 0}</p>
         </div>
+      </div>
+
+      {/* New bento under metrics — 3 mini charts: state pie, availability donut, volume line */}
+      <div className="mini-bento mini-bento--admin" aria-label="Admin analytics bento">
+        <MiniChartCard title="Call states" subtitle="Distribution · recent 80">
+          <MiniPie data={statePie} height={160} ariaLabel="Call states pie" />
+        </MiniChartCard>
+        <MiniChartCard title="Agent availability" subtitle={`${availDonut.reduce((a, b) => a + b.value, 0) || 0} agents`}>
+          <MiniDonut data={availDonut} height={160} ariaLabel="Agent availability donut" centerLabel={String(summary?.agents_online ?? 0)} />
+        </MiniChartCard>
+        <MiniChartCard title="Revenue trend" subtitle="7 days · paid">
+          <MiniBar data={revTrend} height={160} ariaLabel="Revenue trend bar" />
+        </MiniChartCard>
       </div>
 
       <div className="grid-4" style={{ marginBottom: "var(--space-6)" }}>

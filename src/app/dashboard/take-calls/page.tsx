@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "rea
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { US_STATES } from "@/lib/us-states";
 import { formatDuration, formatTimer } from "@/lib/format";
 import { showToast } from "@/lib/use-toast";
 import DeviceTest from "@/components/device-test";
@@ -67,6 +68,9 @@ function TakeCallsInner() {
   const [membershipId, setMembershipId] = useState<string | null>(null);
   const [agentId, setAgentId] = useState<string | null>(null);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
+  const [statesDraft, setStatesDraft] = useState<string[]>([]);
+  const [savingStates, setSavingStates] = useState(false);
+  const [editingStates, setEditingStates] = useState(false);
   const [availability, setAvailability] = useState<Avail>("offline");
   const [calls, setCalls] = useState<CallRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +96,7 @@ function TakeCallsInner() {
         const agentBody = await agentRes.json();
         setAgentInfo(agentBody.data);
         setAvailability(agentBody.data.availability ?? "offline");
+        setStatesDraft(agentBody.data.states ?? []);
       }
     }
   }, []);
@@ -166,6 +171,39 @@ function TakeCallsInner() {
       setToggling(false);
     }
   }, [agentId, availability, toggling]);
+
+  function toggleState(code: string) {
+    setStatesDraft((prev) => prev.includes(code) ? prev.filter((s) => s !== code) : [...prev, code]);
+  }
+
+  async function saveStates() {
+    if (!agentId) return;
+    setSavingStates(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ states: statesDraft }),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setAgentInfo(body.data);
+        setStatesDraft(body.data.states ?? statesDraft);
+        setEditingStates(false);
+        showToast("States updated", "success");
+      } else {
+        const body = await res.json();
+        setError(body.message ?? "Failed to update states");
+        showToast(body.message ?? "Failed to update states", "error");
+      }
+    } catch {
+      setError("Network error");
+      showToast("Network error", "error");
+    } finally {
+      setSavingStates(false);
+    }
+  }
 
   const autoCreateAgent = useCallback(async () => {
     setCreatingAgent(true);
@@ -292,6 +330,42 @@ function TakeCallsInner() {
               <span className="call-detail-label">Forwarding</span>
               <span className="call-detail-value text-mono-sm">{agentInfo?.forwarding_number ?? "Not set"}</span>
             </div>
+          </div>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span className="call-detail-label">Licensed States</span>
+              {!editingStates ? (
+                <button className="btn btn-sm btn-ghost" onClick={() => { setStatesDraft([...(agentInfo?.states ?? [])]); setEditingStates(true); }}>Edit</button>
+              ) : null}
+            </div>
+            {editingStates ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <p className="text-muted" style={{ fontSize: 11, margin: 0 }}>Pick the states you are licensed to handle. Leave empty for “any state”. Used for state-wise routing.</p>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 200, overflowY: "auto", padding: 8, border: "1px solid var(--line)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
+                  {US_STATES.map((s) => (
+                    <button
+                      key={s.code}
+                      type="button"
+                      className={statesDraft.includes(s.code) ? "badge badge-success" : "badge"}
+                      onClick={() => toggleState(s.code)}
+                      style={{ cursor: "pointer", border: 0, fontFamily: "var(--mono)", fontSize: 10 }}
+                      title={s.name}
+                    >
+                      {s.code}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" onClick={saveStates} disabled={savingStates}>{savingStates ? "Saving..." : "Save states"}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setEditingStates(false)}>Cancel</button>
+                  {statesDraft.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setStatesDraft([])}>Clear</button>}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {agentInfo?.states?.length ? agentInfo.states.map((c: string) => <span key={c} className="badge badge-info" style={{ fontSize: 10 }}>{c}</span>) : <span className="text-mono-sm" style={{ fontSize: 11, color: "var(--muted)" }}>Any state (no restriction)</span>}
+              </div>
+            )}
           </div>
           {(!isApproved || !isOnline) && (
             <div className="error-banner" style={{ marginTop: 16 }}>

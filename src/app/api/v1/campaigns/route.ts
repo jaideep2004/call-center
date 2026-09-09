@@ -38,6 +38,13 @@ export const GET = apiHandler(async (req, context) => {
 export const POST = apiHandler(async (req, context) => {
   const body = validate(createCampaignSchema, await req.json());
   body.required_skills = await assertValidSkills(body.required_skills);
-  const campaign = await campaigns.create({ ...body, agency_id: context.agencyId ?? body.agency_id });
+  // Normalize publisher_ids (client sends publisher_ids for multi-select; fallback to single publisher_id)
+  const publisherIds: string[] | undefined = (body as any).publisher_ids ?? (body.publisher_id ? [body.publisher_id] : undefined);
+  const payload: Record<string, unknown> = { ...body, agency_id: context.agencyId ?? body.agency_id };
+  if (publisherIds !== undefined) {
+    payload.publisher_ids = publisherIds;
+    delete (payload as any).publisher_id;
+  }
+  const campaign = await campaigns.create(payload as any);
   return created(campaign);
 }, { resource: "settings", action: "create" });

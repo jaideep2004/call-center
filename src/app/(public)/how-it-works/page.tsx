@@ -1,32 +1,22 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "How It Works — Coverage Calls",
-  description: "From inbound call to qualified lead — Coverage Calls automates the entire lifecycle.",
+  title: "How it Works — Coverage Calls",
 };
-
-const steps = [
-  { label: "01", title: "Number provisioning", desc: "Port or purchase business numbers through our telephony partners. Assign each number to a campaign with routing rules, pricing, and agent requirements." },
-  { label: "02", title: "Inbound call received", desc: "When a customer calls, our webhook receiver captures the event, verifies the signature, and forwards it to the routing engine for processing." },
-  { label: "03", title: "Routing engine matches", desc: "The routing engine evaluates every available agent against state, ZIP, license, skills, business hours, wallet balance, and priority rules to find the best match." },
-  { label: "04", title: "Agent rings & connects", desc: "The selected agent receives the call through their softphone or PSTN number. On accept, the call is bridged and recording begins automatically." },
-  { label: "05", title: "Billing & ledger", desc: "Call duration is tracked, cost is calculated, and the wallet is charged automatically. Every transaction is recorded in the immutable ledger." },
-  { label: "06", title: "Reports & analytics", desc: "All call data flows into dashboards with real-time metrics, revenue reports, agent performance, and exportable analytics." },
-];
 
 export default function HowItWorksPage() {
   return (
     <section className="page-section">
-      <div className="section-label">HOW IT WORKS / 02</div>
-      <h1>From call to cash —<br />fully automated.</h1>
-      <div className="steps-grid">
-        {steps.map((step) => (
-          <article key={step.label} className="step-card">
-            <span>{step.label}</span>
-            <h3>{step.title}</h3>
-            <p>{step.desc}</p>
-          </article>
-        ))}
+      <div className="content-page" style={{ maxWidth: 720, margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
+        <div className="section-label" style={{ marginBottom: 16 }}>HOW IT WORKS / 01</div>
+        <h1 style={{ font: "500 42px var(--serif)", letterSpacing: "-0.04em", margin: "0 0 16px" }}>How it Works</h1>
+        <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
+          Content coming soon. This page is reserved — check back shortly or explore the homepage.
+        </p>
+        <Link href="/#how-it-works" className="btn btn-primary" style={{ textDecoration: "none" }}>
+          Back to homepage →
+        </Link>
       </div>
     </section>
   );
