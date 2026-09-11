@@ -30,3 +30,5 @@
 - Decisions: Keep 50 states + DC in lib/us-states.ts; keep legacy publisher_id synced to first join row; keep homepage shells empty; use 2026 bento glass 12px radius, hairline top highlight.
 - Broke / TODO: None. Next: visual regression via playwright/chrome-devtools at 375/768/1280 once you reload.
 - Tests: tsc --skipLibCheck 0 · vitest 409 pass | 5 skipped (35 files) · build 148 routes · graphify 1093 nodes 1064 edges.
+
+2026-09-11 00:48 - worker - FIX_EXPORT+AGENT_CAMPAIGNS+RTB_AUTO - did fix export + agent campaigns browse/join + RTB auto key (9 files) tsc:0 next:manual QA

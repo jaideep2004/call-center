@@ -65,9 +65,9 @@ function RegisterForm() {
     <>
       <div className="auth-card__head">
         <p className="auth-card__eyebrow">{inviteToken ? "Invite — 01" : "Create account — 01"}</p>
-        <h1 className="auth-card__title">{inviteToken ? "Join agency" : "Create account"}</h1>
+        <h1 className="auth-card__title">{inviteToken ? "Join Coverage Calls" : "Create account"}</h1>
         <p className="auth-card__subtitle">
-          {inviteToken ? "You were invited to join an agency. Register below to accept." : "Register for a new operations account."}
+          {inviteToken ? "You were invited to join Coverage Calls. Register below to accept." : "Register for a new operations account."}
         </p>
       </div>
 
@@ -119,7 +119,7 @@ function RegisterForm() {
             autoComplete="email"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="you@agency.com…"
+            placeholder="you@coveragecalls.com…"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required

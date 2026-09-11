@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import DataTable from "@/components/data-table";
@@ -48,6 +48,7 @@ function CallsInner() {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [stateFilter, setStateFilter] = useState(initialState);
   const [simulating, setSimulating] = useState(false);
+  const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
   const [agentMap, setAgentMap] = useState<Record<string, string>>({});
   const [campaignMap, setCampaignMap] = useState<Record<string, string>>({});
   const hasMounted = useRef(false);
@@ -93,6 +94,8 @@ function CallsInner() {
   }
 
   async function handleExport(format: "csv" | "xlsx") {
+    if (exporting) return;
+    setExporting(format);
     try {
       const params = new URLSearchParams();
       params.set("format", format);
@@ -100,14 +103,35 @@ function CallsInner() {
       if (debouncedQ) params.set("search", debouncedQ);
       const res = await fetch(`/api/v1/calls/export?${params.toString()}`);
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        showToast(body.message ?? `Export failed (${res.status})`, "error");
+        let msg = `Export failed (${res.status})`;
+        try {
+          const body = (await res.json()) as { message?: string };
+          if (body?.message) msg = body.message;
+        } catch {
+          try {
+            const t = await res.text();
+            if (t) msg = t.slice(0, 300);
+          } catch {}
+        }
+        showToast(msg, "error");
         return;
+      }
+      // Content-Type check: if server returned json despite 200, surface error
+      const ct = res.headers.get("Content-Type") ?? "";
+      if (ct.includes("application/json")) {
+        try {
+          const j = (await res.clone().json()) as { message?: string; success?: boolean };
+          if (j && j.success === false) {
+            showToast(j.message ?? "Export failed", "error");
+            return;
+          }
+        } catch {}
       }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") ?? "";
-      const m = disposition.match(/filename="([^"]+)"/);
-      const filename = m?.[1] ?? `calls-export-${Date.now()}.${format}`;
+      const quoted = disposition.match(/filename="([^"]+)"/);
+      const bare = disposition.match(/filename=([^;]+)/);
+      const filename = quoted?.[1] ?? bare?.[1]?.trim().replace(/^"|"$/g, "") ?? `calls-export-${Date.now()}.${format}`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -115,10 +139,12 @@ function CallsInner() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       showToast(`${format.toUpperCase()} downloaded`, "success");
     } catch {
       showToast("Export failed - network error", "error");
+    } finally {
+      setExporting(null);
     }
   }
 
@@ -204,8 +230,8 @@ function CallsInner() {
           <option value="disputed">Disputed</option>
         </select>
         <div className="stack-h" style={{ gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => handleExport("csv")} disabled={loading}>CSV</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => handleExport("xlsx")} disabled={loading}>Excel</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => handleExport("csv")} disabled={exporting !== null} style={{ minWidth: 72, justifyContent: "center" }}>{exporting === "csv" ? "Exporting..." : "CSV"}</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => handleExport("xlsx")} disabled={exporting !== null} style={{ minWidth: 72, justifyContent: "center" }}>{exporting === "xlsx" ? "Exporting..." : "Excel"}</button>
           <button className="btn btn-secondary btn-sm" onClick={simulateCall} disabled={simulating} style={{ whiteSpace: "nowrap" }}>{simulating ? "Simulating..." : "Simulate Call"}</button>
         </div>
       </div>

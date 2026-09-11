@@ -17,6 +17,9 @@ export async function toExcelBuffer<T extends Record<string, unknown>>(
   sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEEF2F5" } };
   sheet.views = [{ state: "frozen", ySplit: 1 }];
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  return Buffer.from(buffer);
+  // writeBuffer returns ArrayBuffer in edge / Buffer in node; normalize to Node Buffer
+  // Route declares runtime = 'nodejs' so Buffer is available; this also works if edge returns ArrayBuffer.
+  const buf = await workbook.xlsx.writeBuffer() as unknown as ArrayBuffer & Buffer;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (typeof Buffer !== "undefined" && (Buffer as any).isBuffer?.(buf) ? (buf as unknown as Buffer) : Buffer.from(buf as unknown as ArrayBuffer));
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import styles from "./TestimonialsSection.module.css";
 
@@ -110,6 +110,35 @@ export default function TestimonialsSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const row1Ref = useRef<HTMLDivElement>(null);
   const row2Ref = useRef<HTMLDivElement>(null);
+  const [cmsRow1, setCmsRow1] = useState<typeof testimonialsRow1 | null>(null);
+  const [cmsRow2, setCmsRow2] = useState<typeof testimonialsRow2 | null>(null);
+
+  useEffect(() => {
+    fetch("/api/v1/cms")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        const rows: { slug: string; content: { items?: { name: string; role: string; quote: string }[] } }[] = body?.data ?? [];
+        const t = rows.find((x) => x.slug === "testimonials");
+        const items = t?.content?.items ?? [];
+        if (items.length >= 2) {
+          const mapped = items.map((it, i) => ({
+            id: 100 + i,
+            name: it.name || `Customer ${i + 1}`,
+            role: it.role || "Customer",
+            agency: (it as { agency?: string }).agency || "Coverage Calls",
+            avatar: `https://i.pravatar.cc/150?u=${encodeURIComponent(it.name || i)}`,
+            rating: 5,
+            metric: "Verified",
+            quote: it.quote,
+            tag: "Customer",
+          }));
+          const half = Math.ceil(mapped.length / 2);
+          setCmsRow1(mapped.slice(0, half) as typeof testimonialsRow1);
+          setCmsRow2((mapped.slice(half).length ? mapped.slice(half) : mapped) as typeof testimonialsRow2);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -224,10 +253,10 @@ export default function TestimonialsSection() {
 
       <div className={styles.sliderContainer}>
         <div className={styles.sliderTrack} ref={row1Ref}>
-          {testimonialsRow1.concat(testimonialsRow1).map((item, idx) => renderCard(item, idx))}
+          {(cmsRow1 ?? testimonialsRow1).concat(cmsRow1 ?? testimonialsRow1).map((item, idx) => renderCard(item as (typeof testimonialsRow1)[0], idx))}
         </div>
         <div className={styles.sliderTrack} ref={row2Ref}>
-          {testimonialsRow2.concat(testimonialsRow2).map((item, idx) => renderCard(item, idx))}
+          {(cmsRow2 ?? testimonialsRow2).concat(cmsRow2 ?? testimonialsRow2).map((item, idx) => renderCard(item as (typeof testimonialsRow2)[0], idx))}
         </div>
       </div>
 

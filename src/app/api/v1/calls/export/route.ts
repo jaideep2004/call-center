@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { toCsv } from "@/lib/csv";
 import { toExcelBuffer } from "@/lib/excel";
 
+export const runtime = "nodejs";
+
 export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
   const formatRaw = (url.searchParams.get("format") ?? "csv").toLowerCase();
@@ -14,16 +16,31 @@ export const GET = apiHandler(async (req, context) => {
   const format = formatRaw as "csv" | "xlsx";
   const state = url.searchParams.get("state");
   const search = url.searchParams.get("search");
-  // agency scoped - context.agencyId is enforced by apiHandler permissions; ensure missing agency fails early
-  if (!context.agencyId) {
+  // agency scoped - allow privileged admin/super_admin without agencyId to export across agencies
+  const role = context.user?.role ?? "agent";
+  const isPrivileged = role === "admin" || role === "super_admin";
+  if (!context.agencyId && !isPrivileged) {
     return fail("Agency scope required", 403) as unknown as NextResponse;
   }
-  const params: unknown[] = [context.agencyId];
-  const clauses: string[] = ["c.agency_id = $1"];
-  if (state) { params.push(state); clauses.push(`c.state = $${params.length}`); }
-  if (search) { params.push(`%${search}%`); clauses.push(`(c.id::text LIKE $${params.length} OR c.from_hash LIKE $${params.length})`); }
+  const params: unknown[] = [];
+  const clauses: string[] = [];
+  if (context.agencyId) {
+    params.push(context.agencyId);
+    clauses.push(`c.agency_id = $${params.length}`);
+  }
+  if (state) {
+    params.push(state);
+    clauses.push(`c.state = $${params.length}`);
+  }
+  if (search) {
+    params.push(`%${search}%`);
+    clauses.push(`(c.id::text LIKE $${params.length} OR c.from_hash LIKE $${params.length})`);
+  }
 
-  const rows = await query<Record<string, unknown>>(`
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+
+  const rows = await query<Record<string, unknown>>(
+    `
     SELECT c.id, c.state, c.provider, c.from_hash, c.started_at, c.connected_at, c.ended_at,
            a.id as agent_id,
            EXTRACT(EPOCH FROM (c.ended_at - c.connected_at))::int as duration_seconds,
@@ -31,9 +48,11 @@ export const GET = apiHandler(async (req, context) => {
     FROM app.calls c
     LEFT JOIN app.agents a ON a.id = c.agent_id
     LEFT JOIN app.dispositions d ON d.call_id = c.id
-    WHERE ${clauses.join(" AND ")}
+    ${where}
     ORDER BY c.created_at DESC
-  `, params);
+  `,
+    params,
+  );
 
   const columns = [
     { key: "id", label: "Call ID" },

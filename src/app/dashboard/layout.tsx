@@ -37,12 +37,12 @@ function NotificationBadge({ membershipId }: { membershipId: string | null }) {
 const agentNav = [
   { label: "Command", href: "/dashboard", icon: "01" },
   { label: "Take Calls", href: "/dashboard/take-calls", icon: "01b" },
+  { label: "Campaigns", href: "/dashboard/agent-campaigns", icon: "03" },
   { label: "Book Call", href: "/dashboard/onboarding", icon: "01c" },
   { label: "Calls", href: "/dashboard/calls", icon: "06" },
   // Finance group: Keep Subscriptions + Wallet consecutive + visually grouped (billing)
   { label: "My Wallet", href: "/dashboard/wallet/agent", icon: "07b" },
   { label: "Subscriptions", href: "/dashboard/agents/subscription", icon: "05f" },
-  { label: "Reports", href: "/dashboard/reports", icon: "08" },
   { label: "Scripts", href: "/dashboard/scripts", icon: "05c" },
   { label: "Tutorials", href: "/dashboard/tutorials", icon: "05h" },
   { label: "Support", href: "/dashboard/support", icon: "09b" },

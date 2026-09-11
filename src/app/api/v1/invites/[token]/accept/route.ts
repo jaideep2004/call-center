@@ -37,6 +37,7 @@ export const POST = apiHandler(async (req, { params, user }) => {
   const newAgent = await agents.create({
     agency_id: inviterMembership.agency_id,
     membership_id: newMembership.id,
+    endpoint_types: ["webrtc"],
   });
 
   await recruitmentInvites.accept(token);

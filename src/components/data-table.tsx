@@ -39,8 +39,19 @@ export default function DataTable<T extends { id: string }>({
 }: DataTableProps<T>) {
   if (loading) {
     return (
-      <div className="stack" style={{ gap: 12 }}>
-        {Array.from({ length: skeletonRows }).map((_, i) => rowSkeleton(columns.length, i))}
+      <div className="data-table-wrap">
+        <table className="data-table" aria-busy="true">
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th key={col.key}>{col.header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: skeletonRows }).map((_, i) => rowSkeleton(columns.length, i))}
+          </tbody>
+        </table>
       </div>
     );
   }

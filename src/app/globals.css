@@ -240,8 +240,10 @@ button {
 }
 .console-main {
 	flex: 1;
+	min-width: 0;
 	padding: 43px clamp(24px, 4vw, 68px);
 	max-width: 1500px;
+	overflow-x: hidden;
 }
 .console-header {
 	display: flex;

@@ -108,6 +108,40 @@ export async function replaceForCampaign(
   return { agencyIds, agentIds };
 }
 
+export async function addAgent(
+  campaignId: string,
+  agentId: string,
+  assignedBy?: string,
+): Promise<CampaignAssignmentRow | null> {
+  const rows = await query<CampaignAssignmentRow>(
+    `INSERT INTO app.campaign_assignments (campaign_id, agent_id, assigned_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *`,
+    [campaignId, agentId, assignedBy ?? null],
+  );
+  if (rows[0]) return rows[0];
+  const existing = await query<CampaignAssignmentRow>(
+    `SELECT * FROM app.campaign_assignments WHERE campaign_id = $1 AND agent_id = $2 LIMIT 1`,
+    [campaignId, agentId],
+  );
+  return existing[0] ?? null;
+}
+
+export async function addAgency(
+  campaignId: string,
+  agencyId: string,
+  assignedBy?: string,
+): Promise<CampaignAssignmentRow | null> {
+  const rows = await query<CampaignAssignmentRow>(
+    `INSERT INTO app.campaign_assignments (campaign_id, agency_id, assigned_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *`,
+    [campaignId, agencyId, assignedBy ?? null],
+  );
+  if (rows[0]) return rows[0];
+  const existing = await query<CampaignAssignmentRow>(
+    `SELECT * FROM app.campaign_assignments WHERE campaign_id = $1 AND agency_id = $2 LIMIT 1`,
+    [campaignId, agencyId],
+  );
+  return existing[0] ?? null;
+}
+
 export const campaignAssignments = {
   findForCampaign,
   findAgencyIds,
@@ -118,4 +152,6 @@ export const campaignAssignments = {
   hasAssignments,
   findAllAssignedCampaignIds,
   replaceForCampaign,
+  addAgent,
+  addAgency,
 };

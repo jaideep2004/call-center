@@ -40,8 +40,8 @@ const QUICK_TYPES = [
   { slug: "faq", title: "FAQ", icon: "?", desc: "Questions & answers", color: "#7C3AED" },
   { slug: "testimonials", title: "Testimonials", icon: "★", desc: "Customer quotes", color: "#06B6D4" },
   { slug: "posts", title: "Blog Posts", icon: "◩", desc: "Articles & updates", color: "#F59E0B" },
-  { slug: "creatives", title: "Creatives", icon: "◈", desc: "Banners & images", color: "#10B981" },
   { slug: "privacy", title: "Privacy", icon: "§", desc: "Legal markdown", color: "#8B5CF6" },
+  { slug: "terms", title: "Terms", icon: "≡", desc: "Legal markdown", color: "#EC4899" },
 ] as const;
 
 export default function AdminCmsPage() {
@@ -332,10 +332,11 @@ export default function AdminCmsPage() {
               key={t.slug}
               onClick={() => {
                 if (t.slug === "posts") ensureSection("posts", "Blog Posts", { items: [] });
-                else if (t.slug === "creatives") ensureSection("creatives", "Creatives", { items: [] });
                 else if (t.slug === "faq") ensureSection("faq", "FAQ", { items: [] });
                 else if (t.slug === "testimonials") ensureSection("testimonials", "Testimonials", { items: [] });
-                else ensureSection(t.slug, t.title, { body: "" });
+                else if (t.slug === "privacy") ensureSection("privacy", "Privacy Policy", { body: "" });
+                else if (t.slug === "terms") ensureSection("terms", "Terms of Service", { body: "" });
+                else ensureSection((t as { slug: string; title: string }).slug, (t as { slug: string; title: string }).title, { body: "" });
               }}
               className="card"
               style={{ padding: "14px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", border: exists ? "1px solid var(--line)" : "1px dashed var(--line)", opacity: exists ? 1 : 0.9 }}

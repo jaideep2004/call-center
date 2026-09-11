@@ -216,6 +216,7 @@ export function MiniLine({
   color = "var(--accent)",
   showGrid = false,
   showDots = false,
+  compact = false,
 }: {
   data: TrendPoint[];
   height?: number;
@@ -223,9 +224,10 @@ export function MiniLine({
   color?: string;
   showGrid?: boolean;
   showDots?: boolean;
+  compact?: boolean;
 }) {
   const reduced = useReducedMotion();
-  const h = Math.max(140, Math.min(180, height));
+  const h = compact ? height : Math.max(140, Math.min(180, height));
   const hasData = useMemo(() => data?.some((d) => d.value > 0) ?? false, [data]);
   if (!data || data.length < 2) return <EmptyChart height={h} label="Not enough data" />;
   if (!hasData) return <EmptyChart height={h} label="No activity yet" />;

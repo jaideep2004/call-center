@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { US_STATES } from "@/lib/us-states";
-import { formatDuration, formatTimer } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 import { showToast } from "@/lib/use-toast";
 import DeviceTest from "@/components/device-test";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
+import { useTelnyxWebRTC } from "@/lib/use-telnyx-webrtc";
 
 type Avail = "offline" | "available" | "busy" | "away";
 
@@ -32,6 +33,10 @@ interface AgentInfo {
   forwarding_number: string | null;
   endpoint_types: string[];
   states: string[];
+  priority?: number;
+  last_assigned_at?: string | null;
+  user_name?: string;
+  npn?: string | null;
 }
 
 const STATUS_LABELS: Record<Avail, string> = {
@@ -43,9 +48,9 @@ const STATUS_LABELS: Record<Avail, string> = {
 
 const STATUS_COLORS: Record<Avail, string> = {
   offline: "var(--muted)",
-  available: "var(--acid)",
-  busy: "var(--orange)",
-  away: "var(--yellow)",
+  available: "var(--success, #22c55e)",
+  busy: "var(--warning, #f59e0b)",
+  away: "var(--amber, #f59e0b)",
 };
 
 const CALL_STATE_COLORS: Record<string, string> = {
@@ -58,6 +63,57 @@ const CALL_STATE_COLORS: Record<string, string> = {
 };
 
 const PAGE_SIZE = 10;
+
+function ChecklistRow({ ok, pending, label, desc, meta }: { ok: boolean; pending?: boolean; label: string; desc: string; meta?: string }) {
+  return (
+    <div
+      className="tc-check-row"
+      style={{
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+        padding: "12px 12px",
+        borderRadius: 10,
+        border: `1px solid ${ok ? "rgba(34,197,94,0.22)" : pending ? "rgba(245,158,11,0.18)" : "var(--line)"}`,
+        background: ok ? "rgba(34,197,94,0.07)" : pending ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.02)",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 999,
+          display: "grid",
+          placeItems: "center",
+          flexShrink: 0,
+          background: ok ? "rgba(34,197,94,0.14)" : pending ? "rgba(245,158,11,0.14)" : "rgba(255,255,255,0.04)",
+          border: `1px solid ${ok ? "rgba(34,197,94,0.28)" : pending ? "rgba(245,158,11,0.22)" : "var(--line)"}`,
+          color: ok ? "#86efac" : pending ? "#fbbf24" : "var(--muted)",
+          fontSize: 13,
+          fontWeight: 700,
+          lineHeight: 1,
+        }}
+      >
+        {ok ? "✓" : pending ? "•" : "×"}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <strong style={{ font: "600 13px var(--sans)", letterSpacing: "-0.01em", color: "var(--ink)" }}>{label}</strong>
+          {meta && (
+            <span
+              className={`badge ${ok ? "badge-success" : pending ? "badge-warning" : ""}`}
+              style={{ fontSize: 9, padding: "2px 6px", textTransform: "uppercase", letterSpacing: 0.6 }}
+            >
+              {meta}
+            </span>
+          )}
+        </div>
+        <p style={{ margin: "4px 0 0", font: "400 12px/1.5 var(--sans)", color: ok ? "#b9d7c3" : "var(--muted)", opacity: ok ? 0.95 : 0.9 }}>{desc}</p>
+      </div>
+    </div>
+  );
+}
 
 function TakeCallsInner() {
   const { data: session } = authClient.useSession();
@@ -81,7 +137,9 @@ function TakeCallsInner() {
   const [callSearch, setCallSearch] = useState(searchParams.get("q") ?? "");
   const [callDebounced, setCallDebounced] = useState(searchParams.get("q") ?? "");
   const [callPage, setCallPage] = useState(Math.max(1, Number(searchParams.get("page") ?? "1") || 1));
+  const [deviceReady, setDeviceReady] = useState(false);
   const hasMounted = useRef(false);
+  const webrtc = useTelnyxWebRTC(agentId);
 
   const loadAgent = useCallback(async () => {
     const res = await fetch("/api/v1/me");
@@ -144,6 +202,19 @@ function TakeCallsInner() {
     if (qs === searchParams.toString()) return;
     router.replace(qs ? `?${qs}` : "?", { scroll: false });
   }, [callDebounced, callPage, router, searchParams]);
+
+  // hydrate deviceReady from storage on agent change (in case DeviceTest hasn't mounted yet)
+  useEffect(() => {
+    if (!agentId) return;
+    try {
+      const v = localStorage.getItem(`cc-device-ready:${agentId}`);
+      if (v === "1") setDeviceReady(true);
+    } catch {}
+  }, [agentId]);
+
+  const handleDeviceReady = useCallback((ready: boolean) => {
+    setDeviceReady(ready);
+  }, []);
 
   const toggleAvailability = useCallback(async () => {
     if (!agentId || toggling) return;
@@ -238,14 +309,14 @@ function TakeCallsInner() {
   const callColumns: Column<CallRow>[] = [
     { key: "id", header: "Call", render: (c) => <Link href={`/dashboard/calls/${c.id}`} className="clickable">{c.id.slice(0, 8)}</Link> },
     { key: "state", header: "Status", render: (c) => <span className={`badge ${CALL_STATE_COLORS[c.state] ?? ""}`}>{c.state}</span> },
-    { key: "from_hash", header: "From", render: (c) => <span className="text-mono-sm" title={c.from_hash ?? ""}>{c.from_hash?.slice(0, 12) ?? "\u2014"}</span> },
-    { key: "caller_state", header: "State", render: (c) => c.caller_state ? <span className="badge badge-info">{c.caller_state}</span> : <span className="text-muted">\u2014</span> },
+    { key: "from_hash", header: "From", render: (c) => <span className="text-mono-sm" title={c.from_hash ?? ""}>{c.from_hash?.slice(0, 12) ?? "—"}</span> },
+    { key: "caller_state", header: "State", render: (c) => c.caller_state ? <span className="badge badge-info">{c.caller_state}</span> : <span className="text-muted">—</span> },
     { key: "campaign_id", header: "Campaign", render: (c) => <span className="text-mono-sm">{campaignMap[c.campaign_id] ?? c.campaign_id.slice(0, 8)}</span> },
     { key: "duration", header: "Duration", render: (c) => {
       const d = c.connected_at && c.ended_at ? Math.round((new Date(c.ended_at).getTime() - new Date(c.connected_at).getTime()) / 1000) : 0;
-      return <span className="text-mono-sm">{d > 0 ? formatDuration(d) : "\u2014"}</span>;
+      return <span className="text-mono-sm">{d > 0 ? formatDuration(d) : "—"}</span>;
     }},
-    { key: "started_at", header: "Date", render: (c) => <span className="text-mono-sm">{c.started_at ? new Date(c.started_at).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "\u2014"}</span> },
+    { key: "started_at", header: "Date", render: (c) => <span className="text-mono-sm">{c.started_at ? new Date(c.started_at).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "—"}</span> },
   ];
 
   if (loading) return (
@@ -256,151 +327,417 @@ function TakeCallsInner() {
 
   const isOnline = availability === "available";
   const isApproved = agentInfo?.approval_status === "approved";
+  const hasEndpoint = (agentInfo?.endpoint_types?.length ?? 0) > 0;
+  const hasPSTN = agentInfo?.endpoint_types?.includes("pstn") ?? false;
+  const hasWebRTC = agentInfo?.endpoint_types?.includes("webrtc") ?? false;
+  const pstnForwardingOk = !hasPSTN || Boolean(agentInfo?.forwarding_number);
+  const endpointReady = hasEndpoint && pstnForwardingOk;
+  const statesReady = !!agentInfo; // loaded; empty means Any state and is valid
+  const webrtcLabel = hasWebRTC ? (webrtc.isReady ? "WebRTC live" : webrtc.error ? "WebRTC error" : "WebRTC connecting") : hasPSTN ? "PSTN forward" : "Not set";
+  const readyChecks = [
+    { ok: isApproved, label: "Admin Approval", desc: isApproved ? "Approved to receive calls" : agentInfo ? `${agentInfo.approval_status} — Contact admin to approve` : "Loading approval…", meta: isApproved ? "Approved" : (agentInfo?.approval_status ?? "pending") },
+    { ok: deviceReady, label: "Mic & Speaker", desc: deviceReady ? "Both tested — verified on this device" : "Test mic & speaker to unlock Go Online", meta: deviceReady ? "Verified" : "Required" },
+    { ok: statesReady, label: "Licensed States", desc: agentInfo?.states?.length ? `${agentInfo.states.length} states selected — routing filtered` : "Any state — you will receive calls from all states", meta: agentInfo?.states?.length ? `${agentInfo.states.length} set` : "Any" },
+    { ok: endpointReady, label: "Call Endpoint", desc: !hasEndpoint ? "No endpoint configured — contact admin" : !pstnForwardingOk ? "PSTN selected but forwarding number missing" : hasWebRTC && hasPSTN ? `Hybrid: webrtc + pstn → ${agentInfo?.forwarding_number ?? ""}` : hasWebRTC ? `Browser softphone · ${webrtcLabel}` : `Phone forward → ${agentInfo?.forwarding_number ?? ""}`, meta: endpointReady ? (hasWebRTC && hasPSTN ? "Hybrid" : hasWebRTC ? webrtcLabel : "PSTN") : "Missing" },
+  ];
+  const passCount = readyChecks.filter((c) => c.ok).length;
+  const allReady = passCount === readyChecks.length;
+  const canGoOnline = isApproved && deviceReady && endpointReady;
+  const goOnlineBlockedReason = !isApproved ? "Awaiting admin approval" : !endpointReady ? "Endpoint not ready" : !deviceReady ? "Test mic & speaker first" : null;
+  const isGoOnlineDisabled = !isOnline && !!goOnlineBlockedReason;
 
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-page-header">
-        <div>
-          <p className="eyebrow"><i /> AGENT / TAKE CALLS</p>
-          <h1>Take Calls</h1>
-        </div>
-      </div>
-
-      <div className="take-calls-card">
-        <div className="take-calls-status">
-          <span className="take-calls-dot" style={{ background: STATUS_COLORS[availability] }} />
-          <div>
-            <p className="take-calls-label">Current Status</p>
-            <p className="take-calls-value">{STATUS_LABELS[availability]}</p>
-          </div>
-        </div>
-        {agentId ? (
-          <button
-            className={`btn ${isOnline ? "btn-danger" : "btn-success"} take-calls-toggle`}
-            onClick={toggleAvailability}
-            disabled={toggling || !isApproved}
-          >
-            {toggling ? "Updating..." : isOnline ? "Go Offline" : "Go Online"}
-          </button>
-        ) : (
-          <button
-            className="btn btn-primary take-calls-toggle"
-            onClick={autoCreateAgent}
-            disabled={creatingAgent}
-          >
-            {creatingAgent ? "Creating..." : "Create Agent Profile"}
-          </button>
-        )}
-      </div>
-
-      <div className="card card--spacious" style={{ maxWidth: 640 }}>
-        <h2 style={{ marginBottom: 4, font: "500 16px var(--serif)" }}>Device Check</h2>
-        <p className="text-muted" style={{ fontSize: 12, marginBottom: "var(--space-4)" }}>
-          Verify your headset before going online. Grant mic access when prompted.
-        </p>
-        <DeviceTest compact />
-      </div>
-
-      {agentId && (
-        <div className="card card--spacious">
-          <h2 style={{ marginBottom: 14, font: "500 16px var(--serif)" }}>Agent Status</h2>
-          <div className="call-detail-grid">
-            <div className="call-detail-field">
-              <span className="call-detail-label">Approval</span>
-              <span className="call-detail-value">
-                {isApproved ? (
-                  <span style={{ color: "var(--acid)" }}>Approved</span>
-                ) : (
-                  <span style={{ color: "#e89b79" }}>{agentInfo?.approval_status ?? "Unknown"} — Contact admin to approve</span>
-                )}
+    <div className="dashboard-page tc-page">
+      {/* HERO */}
+      <section className="tc-hero" aria-labelledby="tc-title">
+        <div className="tc-hero__main">
+          <p className="eyebrow"><i aria-hidden /> AGENT / TAKE CALLS</p>
+          <h1 id="tc-title">Take Calls</h1>
+          <p className="tc-subtitle">
+            Go online only when every check is green. Devices are verified on this browser — refresh keeps your test.
+          </p>
+          <div className="tc-hero__meta" role="list">
+            <span className={`badge ${isApproved ? "badge-success" : "badge-warning"}`} role="listitem" title={`Approval: ${agentInfo?.approval_status ?? "unknown"}`}>
+              {isApproved ? "Approved" : agentInfo?.approval_status ?? "Pending approval"}
+            </span>
+            <span className="badge" role="listitem" title={agentInfo?.endpoint_types?.join(", ") ?? "No endpoint"} style={{ textTransform: "uppercase", letterSpacing: 0.6 }}>
+              {agentInfo?.endpoint_types?.length ? agentInfo.endpoint_types.join(" · ") : "No endpoint"}
+            </span>
+            {hasPSTN && agentInfo?.forwarding_number && (
+              <span className="text-mono-sm tc-hero__forwarding" role="listitem" title={agentInfo.forwarding_number}>
+                → {agentInfo.forwarding_number}
               </span>
-            </div>
-            <div className="call-detail-field">
-              <span className="call-detail-label">Online Status</span>
-              <span className="call-detail-value" style={{ color: isOnline ? "var(--acid)" : "var(--muted)" }}>
-                {STATUS_LABELS[availability]}
-                {!isOnline && isApproved && <span style={{ color: "#e89b79", fontSize: 11, marginLeft: 8 }}>Turn on to receive calls</span>}
+            )}
+            <span className="text-mono-sm tc-hero__count" role="listitem">{calls.length} total calls</span>
+            {hasWebRTC && (
+              <span className={`badge ${webrtc.isReady ? "badge-success" : webrtc.error ? "badge-danger" : "badge-warning"}`} style={{ fontSize: 9 }} title={webrtc.error ?? webrtcLabel}>
+                {webrtcLabel}
               </span>
-            </div>
-            <div className="call-detail-field">
-              <span className="call-detail-label">Endpoint</span>
-              <span className="call-detail-value text-mono-sm">{agentInfo?.endpoint_types?.join(", ") ?? "—"}</span>
-            </div>
-            <div className="call-detail-field">
-              <span className="call-detail-label">Forwarding</span>
-              <span className="call-detail-value text-mono-sm">{agentInfo?.forwarding_number ?? "Not set"}</span>
-            </div>
-          </div>
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <span className="call-detail-label">Licensed States</span>
-              {!editingStates ? (
-                <button className="btn btn-sm btn-ghost" onClick={() => { setStatesDraft([...(agentInfo?.states ?? [])]); setEditingStates(true); }}>Edit</button>
-              ) : null}
-            </div>
-            {editingStates ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <p className="text-muted" style={{ fontSize: 11, margin: 0 }}>Pick the states you are licensed to handle. Leave empty for “any state”. Used for state-wise routing.</p>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 200, overflowY: "auto", padding: 8, border: "1px solid var(--line)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
-                  {US_STATES.map((s) => (
-                    <button
-                      key={s.code}
-                      type="button"
-                      className={statesDraft.includes(s.code) ? "badge badge-success" : "badge"}
-                      onClick={() => toggleState(s.code)}
-                      style={{ cursor: "pointer", border: 0, fontFamily: "var(--mono)", fontSize: 10 }}
-                      title={s.name}
-                    >
-                      {s.code}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-primary btn-sm" onClick={saveStates} disabled={savingStates}>{savingStates ? "Saving..." : "Save states"}</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setEditingStates(false)}>Cancel</button>
-                  {statesDraft.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setStatesDraft([])}>Clear</button>}
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {agentInfo?.states?.length ? agentInfo.states.map((c: string) => <span key={c} className="badge badge-info" style={{ fontSize: 10 }}>{c}</span>) : <span className="text-mono-sm" style={{ fontSize: 11, color: "var(--muted)" }}>Any state (no restriction)</span>}
-              </div>
             )}
           </div>
-          {(!isApproved || !isOnline) && (
-            <div className="error-banner" style={{ marginTop: 16 }}>
-              <p>
-                {!agentId ? "No agent profile. Click 'Create Agent Profile' above." :
-                 !isApproved ? "Your agent profile needs admin approval before you can receive calls." :
-                 !isOnline ? "You are offline. Click 'Go Online' to start receiving calls." :
-                 "You are ready to receive calls."}
+        </div>
+
+        <div className="tc-hero__cta">
+          <div className="tc-availability" aria-live="polite">
+            <span className="take-calls-dot" style={{ background: STATUS_COLORS[availability], boxShadow: isOnline ? "0 0 12px rgba(34,197,94,0.45)" : "none" }} aria-hidden />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p className="take-calls-label" style={{ margin: 0 }}>Availability</p>
+              <p className="take-calls-value" style={{ margin: "2px 0 0", color: isOnline ? "var(--success, #22c55e)" : "var(--ink)" }}>{STATUS_LABELS[availability]}</p>
+            </div>
+            {isOnline ? (
+              <span className="badge badge-success" style={{ fontSize: 9, flexShrink: 0 }}>RECEIVING</span>
+            ) : (
+              <span className="badge" style={{ fontSize: 9, flexShrink: 0 }}>{allReady ? "READY" : `${passCount}/4 checks`}</span>
+            )}
+          </div>
+
+          {agentId ? (
+            <>
+              <div style={{ position: "relative" }} title={goOnlineBlockedReason ?? undefined}>
+                <button
+                  className={`btn ${isOnline ? "btn-danger" : "btn-primary"} tc-cta-btn`}
+                  onClick={toggleAvailability}
+                  disabled={toggling || isGoOnlineDisabled}
+                  aria-describedby="tc-cta-help"
+                  aria-busy={toggling}
+                >
+                  {toggling ? "Updating…" : isOnline ? "Go Offline" : "Go Online"}
+                </button>
+              </div>
+              <p id="tc-cta-help" className="tc-cta-help">
+                {isOnline
+                  ? "You are live — calls will be routed to your endpoint."
+                  : goOnlineBlockedReason === "Test mic & speaker first"
+                    ? "Test mic & speaker first — primary CTA is gated until both are verified."
+                    : goOnlineBlockedReason ?? "Complete all checks to go online."}
               </p>
+              {!isOnline && !allReady && (
+                <div className="tc-cta-progress" aria-hidden>
+                  <div className="tc-cta-progress__bar">
+                    <span style={{ width: `${(passCount / 4) * 100}%` }} />
+                  </div>
+                  <span className="text-mono-sm" style={{ fontSize: 10, color: "var(--muted)" }}>{passCount}/4 ready</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <button
+              className="btn btn-primary tc-cta-btn"
+              onClick={autoCreateAgent}
+              disabled={creatingAgent}
+              aria-busy={creatingAgent}
+            >
+              {creatingAgent ? "Creating…" : "Create Agent Profile"}
+            </button>
+          )}
+
+          {!isApproved && agentId && (
+            <div className="tc-callout tc-callout--warning" role="status">
+              <strong>Approval required</strong>
+              <span>Your profile is {agentInfo?.approval_status ?? "pending"}. Contact admin to approve before you can receive calls.</span>
+            </div>
+          )}
+          {isApproved && !endpointReady && agentId && (
+            <div className="tc-callout tc-callout--warning" role="status">
+              <strong>Endpoint missing</strong>
+              <span>{hasPSTN && !pstnForwardingOk ? "PSTN endpoint needs a forwarding number — contact admin." : "No call endpoint configured — contact admin to set WebRTC or PSTN."}</span>
+            </div>
+          )}
+          {isApproved && endpointReady && !isOnline && (
+            <div className={`tc-callout ${allReady ? "tc-callout--success" : "tc-callout--muted"}`} role="status">
+              <strong>{allReady ? "Ready to receive calls" : "Almost ready"}</strong>
+              <span>{allReady ? "Click Go Online to start receiving inbound calls." : `Complete ${4 - passCount} more check(s) to unlock Go Online.`}</span>
             </div>
           )}
           {isApproved && isOnline && (
-            <div className="error-banner" style={{ marginTop: 16, borderColor: "#465f57", background: "rgba(70,95,87,0.1)" }}>
-              <p style={{ color: "#b9d7c3" }}>Ready to receive calls. Incoming calls will be routed to you.</p>
+            <div className="tc-callout tc-callout--success" role="status">
+              <strong>Live — receiving calls</strong>
+              <span>Incoming calls will be routed to {hasWebRTC && hasPSTN ? "browser or phone" : hasWebRTC ? "your browser softphone" : hasPSTN ? agentInfo?.forwarding_number ?? "your forwarding number" : "your endpoint"}.</span>
             </div>
           )}
         </div>
-      )}
+      </section>
 
-      {error && <p className="form-error" style={{ marginTop: 8 }}>{error}</p>}
+      {/* MIDDLE 2-col */}
+      <div className="tc-grid">
+        {/* LEFT */}
+        <div className="tc-grid__left">
+          {/* Device Gate */}
+          <section className="card card--spacious tc-card" aria-labelledby="tc-device-title">
+            <div className="tc-card__head">
+              <div>
+                <h2 id="tc-device-title" style={{ margin: 0, font: "600 16px var(--serif)", letterSpacing: "-0.03em" }}>Device Readiness</h2>
+                <p className="text-muted" style={{ margin: "4px 0 0", fontSize: 12, lineHeight: 1.5 }}>
+                  Verify headset on this browser. We gate <span className="text-mono-sm" style={{ fontSize: 11, color: "var(--ink)" }}>Go Online</span> until mic & speaker are tested. Stored per device as <span className="text-mono-sm" style={{ fontSize: 10 }}>cc-device-ready</span>.
+                </p>
+              </div>
+              <span className={`badge ${deviceReady ? "badge-success" : "badge-warning"}`} style={{ flexShrink: 0, fontSize: 10 }}>
+                {deviceReady ? "Verified" : "Action needed"}
+              </span>
+            </div>
 
-      <div className="filter-bar">
-        <div className="filter-bar__primary">
-          <h2 style={{ margin: 0, font: "500 16px var(--serif)" }}>Recent Calls</h2>
+            <DeviceTest compact={false} agentId={agentId} onReadyChange={handleDeviceReady} />
+
+            {!deviceReady && (
+              <p className="text-mono-sm" style={{ margin: "10px 0 0", fontSize: 11, color: "var(--warning, #f59e0b)", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.18)", padding: "8px 10px", borderRadius: 8 }}>
+                Tip: Click <strong>Start mic check</strong> and allow permission, speak for a few seconds, then <strong>Play test sound</strong>. Both must show ✓ TESTED.
+              </p>
+            )}
+          </section>
+
+          {/* Readiness Checklist */}
+          <section className="card card--spacious tc-card" aria-labelledby="tc-checklist-title">
+            <div className="tc-card__head" style={{ marginBottom: 14 }}>
+              <div>
+                <h2 id="tc-checklist-title" style={{ margin: 0, font: "600 16px var(--serif)", letterSpacing: "-0.03em" }}>Call Readiness Checklist</h2>
+                <p className="text-muted" style={{ margin: "4px 0 0", fontSize: 12 }}>All green to receive calls. Mirrors routing gates.</p>
+              </div>
+              <span className="text-mono-sm" style={{ fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", color: allReady ? "var(--success, #22c55e)" : "var(--muted)", border: `1px solid ${allReady ? "rgba(34,197,94,0.28)" : "var(--line)"}`, padding: "4px 8px", borderRadius: 999, background: allReady ? "rgba(34,197,94,0.10)" : "rgba(255,255,255,0.03)" }}>
+                {passCount}/4 PASS
+              </span>
+            </div>
+
+            <div className="tc-checklist">
+              <ChecklistRow
+                ok={isApproved}
+                pending={!isApproved && !!agentInfo}
+                label="Admin approval"
+                desc={isApproved ? "You are approved — routing is enabled." : agentInfo ? `Status: ${agentInfo.approval_status}. Contact admin to approve.` : "Loading…"}
+                meta={isApproved ? "Approved" : agentInfo?.approval_status ?? "…"}
+              />
+              <ChecklistRow
+                ok={deviceReady}
+                label="Device (mic + speaker)"
+                desc={deviceReady ? "Mic started and speaker tone played — stored for this device." : "Grant mic, confirm level moves, then play tone. Both emit ✓ TESTED."}
+                meta={deviceReady ? "Verified" : "Required"}
+              />
+              <ChecklistRow
+                ok={statesReady}
+                label="Licensed states"
+                desc={agentInfo?.states?.length ? `${agentInfo.states.length} states filtered — only matching caller states will route.` : "No restriction — eligible for calls from any state."}
+                meta={agentInfo?.states?.length ? `${agentInfo.states.length} set` : "Any"}
+              />
+              <ChecklistRow
+                ok={endpointReady}
+                pending={!endpointReady && hasEndpoint}
+                label="WebRTC / PSTN endpoint"
+                desc={
+                  !hasEndpoint
+                    ? "No endpoint assigned — routing will skip you."
+                    : !pstnForwardingOk
+                      ? "PSTN needs a forwarding number."
+                      : hasWebRTC && hasPSTN
+                        ? `Hybrid — browser + PSTN fallback to ${agentInfo?.forwarding_number ?? ""} · ${webrtcLabel}`
+                        : hasWebRTC
+                          ? `Browser softphone — ${webrtcLabel}`
+                          : `PSTN forward to ${agentInfo?.forwarding_number ?? ""}`
+                }
+                meta={endpointReady ? (hasWebRTC && hasPSTN ? "Hybrid" : hasWebRTC ? (webrtc.isReady ? "WebRTC live" : "WebRTC…") : "PSTN") : "Missing"}
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: 14,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: `1px solid ${allReady ? "rgba(34,197,94,0.22)" : "var(--line)"}`,
+                background: allReady ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.02)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <span className="text-mono-sm" style={{ fontSize: 11, color: allReady ? "#b9d7c3" : "var(--muted)" }}>
+                {allReady ? "All checks pass — you can go online." : `${4 - passCount} check(s) still needed — Go Online is disabled.`}
+              </span>
+              <span style={{ display: "inline-flex", gap: 6 }}>
+                {readyChecks.map((c) => (
+                  <i
+                    key={c.label}
+                    aria-hidden
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 999,
+                      background: c.ok ? "var(--success, #22c55e)" : "var(--line)",
+                      boxShadow: c.ok ? "0 0 8px rgba(34,197,94,0.45)" : "none",
+                      display: "inline-block",
+                    }}
+                  />
+                ))}
+              </span>
+            </div>
+          </section>
         </div>
-        <div className="filter-bar__group" style={{ marginLeft: "auto" }}>
-          <input className="input" type="search" placeholder="Search calls…" value={callSearch} onChange={(e) => setCallSearch(e.target.value)} style={{ minWidth: 220 }} />
-          <span className="filter-bar__meta" style={{ marginLeft: 0 }}>{filteredCalls.length} call(s){callDebounced ? " (filtered)" : ""}{filteredCalls.length > PAGE_SIZE ? ` — page ${callPage}/${callTotalPages}` : ""}</span>
+
+        {/* RIGHT */}
+        <div className="tc-grid__right">
+          {/* Agent Snapshot */}
+          {agentId && agentInfo && (
+            <section className="card card--spacious tc-card tc-card--snapshot" aria-labelledby="tc-snapshot-title">
+              <div className="tc-card__head">
+                <h2 id="tc-snapshot-title" style={{ margin: 0, font: "600 14px var(--serif)", letterSpacing: "-0.02em" }}>Agent Snapshot</h2>
+                <span className="badge" style={{ fontSize: 9, textTransform: "uppercase" }}>{availability}</span>
+              </div>
+
+              <div className="tc-snapshot-grid">
+                <div className="tc-snapshot-field">
+                  <span className="call-detail-label">Approval</span>
+                  <span className="call-detail-value" style={{ fontSize: 13 }}>
+                    {isApproved ? <span style={{ color: "var(--success, #22c55e)" }}>Approved</span> : <span style={{ color: "#f59e0b" }}>{agentInfo.approval_status}</span>}
+                  </span>
+                </div>
+                <div className="tc-snapshot-field">
+                  <span className="call-detail-label">Endpoint</span>
+                  <span className="call-detail-value text-mono-sm" style={{ fontSize: 12, wordBreak: "break-all" }}>
+                    {agentInfo.endpoint_types?.length ? agentInfo.endpoint_types.join(" · ") : "—"}
+                  </span>
+                </div>
+                <div className="tc-snapshot-field">
+                  <span className="call-detail-label">Forwarding</span>
+                  <span className="call-detail-value text-mono-sm" style={{ fontSize: 12 }}>{agentInfo.forwarding_number ?? "Not set"}</span>
+                </div>
+                <div className="tc-snapshot-field">
+                  <span className="call-detail-label">Priority</span>
+                  <span className="call-detail-value text-mono-sm" style={{ fontSize: 12 }}>{agentInfo.priority ?? "—"}</span>
+                </div>
+                <div className="tc-snapshot-field" style={{ gridColumn: "1 / -1" }}>
+                  <span className="call-detail-label">Licensed States</span>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                    {agentInfo.states?.length ? agentInfo.states.slice(0, 8).map((c: string) => <span key={c} className="badge badge-info" style={{ fontSize: 10 }}>{c}</span>) : <span className="text-mono-sm" style={{ fontSize: 11, color: "var(--muted)" }}>Any state (no restriction)</span>}
+                    {(agentInfo.states?.length ?? 0) > 8 && <span className="badge" style={{ fontSize: 10 }}>+{(agentInfo.states?.length ?? 0) - 8} more</span>}
+                  </div>
+                </div>
+                <div className="tc-snapshot-field" style={{ gridColumn: "1 / -1", borderTop: "1px solid var(--line)", paddingTop: 10, marginTop: 2 }}>
+                  <span className="call-detail-label">Last assigned</span>
+                  <span className="call-detail-value text-mono-sm" style={{ fontSize: 11, color: "var(--muted)" }}>{agentInfo.last_assigned_at ? new Date(agentInfo.last_assigned_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never"}</span>
+                </div>
+                <div className="tc-snapshot-field" style={{ gridColumn: "1 / -1" }}>
+                  <span className="call-detail-label">Agent ID</span>
+                  <span className="call-detail-value text-mono-sm" style={{ fontSize: 10, color: "var(--muted)", wordBreak: "break-all" }}>{agentInfo.id}</span>
+                </div>
+              </div>
+
+              <div className="tc-snapshot-actions">
+                <Link href="/dashboard/settings" className="btn btn-sm btn-ghost" style={{ flex: 1, fontSize: 11 }}>
+                  Settings
+                </Link>
+                <a href="#tc-states" className="btn btn-sm btn-secondary" style={{ flex: 1, fontSize: 11 }}>
+                  Edit states
+                </a>
+              </div>
+
+              {!pstnForwardingOk && (
+                <p className="text-mono-sm" style={{ margin: "10px 0 0", fontSize: 11, color: "#fbbf24", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.18)", padding: "8px 10px", borderRadius: 8 }}>
+                  PSTN fallback is selected but no forwarding number is set — routing may fail. Contact admin.
+                </p>
+              )}
+            </section>
+          )}
+
+          {/* States Editor */}
+          {agentId && (
+            <section id="tc-states" className="card card--spacious tc-card" aria-labelledby="tc-states-title">
+              <div className="tc-card__head">
+                <h2 id="tc-states-title" style={{ margin: 0, font: "600 14px var(--serif)", letterSpacing: "-0.02em" }}>Licensed States</h2>
+                {!editingStates ? (
+                  <button className="btn btn-sm btn-ghost" onClick={() => { setStatesDraft([...(agentInfo?.states ?? [])]); setEditingStates(true); }} style={{ fontSize: 11, padding: "6px 10px" }}>
+                    Edit
+                  </button>
+                ) : null}
+              </div>
+
+              {editingStates ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <p className="text-muted" style={{ fontSize: 11, margin: 0, lineHeight: 1.5 }}>
+                    Pick states you are licensed to handle. Leave empty for “any state”. Used for state-wise routing — only calls from these states will route to you.
+                  </p>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 220, overflowY: "auto", padding: 10, border: "1px solid var(--line)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
+                    {US_STATES.map((s) => (
+                      <button
+                        key={s.code}
+                        type="button"
+                        className={statesDraft.includes(s.code) ? "badge badge-success" : "badge"}
+                        onClick={() => toggleState(s.code)}
+                        style={{ cursor: "pointer", border: 0, fontFamily: "var(--mono)", fontSize: 10, padding: "5px 8px" }}
+                        title={s.name}
+                        aria-pressed={statesDraft.includes(s.code)}
+                      >
+                        {s.code}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-primary btn-sm" onClick={saveStates} disabled={savingStates} aria-busy={savingStates}>{savingStates ? "Saving…" : "Save states"}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setEditingStates(false)}>Cancel</button>
+                    {statesDraft.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setStatesDraft([])}>Clear</button>}
+                  </div>
+                  <p className="text-mono-sm" style={{ fontSize: 10, color: "var(--muted)", margin: 0 }}>{statesDraft.length} selected · {statesDraft.length === 0 ? "Any state" : statesDraft.join(", ").slice(0, 60) + (statesDraft.join(", ").length > 60 ? "…" : "")}</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {agentInfo?.states?.length ? agentInfo.states.map((c: string) => <span key={c} className="badge badge-info" style={{ fontSize: 10 }}>{c}</span>) : <span className="text-mono-sm" style={{ fontSize: 11, color: "var(--muted)" }}>Any state (no restriction)</span>}
+                  </div>
+                  <p className="text-muted" style={{ fontSize: 11, margin: "10px 0 0", lineHeight: 1.5 }}>
+                    State filter is live for routing. Ask admin to adjust campaign allowed states if you are not receiving calls.
+                  </p>
+                </>
+              )}
+            </section>
+          )}
+
+          {!agentId && (
+            <section className="card card--spacious tc-card">
+              <h2 style={{ margin: 0, font: "600 14px var(--serif)" }}>No agent profile</h2>
+              <p className="text-muted" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.6 }}>Create your agent profile to configure states and verify devices. An admin must approve you before routing begins.</p>
+            </section>
+          )}
         </div>
       </div>
 
-      <div className="card card--spacious">
-        {filteredCalls.length === 0 ? (
-          <div className="empty-state"><p>{calls.length === 0 ? "No calls yet. Once you go online, incoming calls will appear here." : `No calls match "${callDebounced}".`}</p></div>
-        ) : (
+      {error && <p className="form-error" style={{ marginTop: 4, padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: 8 }}>{error}</p>}
+
+      {/* BOTTOM: Recent Calls */}
+      <section className="card card--table tc-calls-card" aria-labelledby="tc-calls-title" style={{ overflow: "hidden" }}>
+        <div className="card-header" style={{ gap: 16, alignItems: "center" }}>
+          <div style={{ flex: "1 1 160px", minWidth: 0 }}>
+            <h2 id="tc-calls-title" style={{ margin: 0, font: "600 16px var(--serif)", letterSpacing: "-0.02em" }}>Recent Calls</h2>
+            <p className="text-muted" style={{ margin: "4px 0 0", fontSize: 11 }}>Your last routed calls. Search by ID, hash, state or campaign.</p>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flex: "1 1 280px", justifyContent: "flex-end" }}>
+            <div style={{ position: "relative", flex: "1 1 200px", maxWidth: 280 }}>
+              <input
+                className="input"
+                type="search"
+                placeholder="Search calls…"
+                value={callSearch}
+                onChange={(e) => setCallSearch(e.target.value)}
+                aria-label="Search calls"
+                style={{ minWidth: 0, paddingLeft: 36 }}
+              />
+              <span aria-hidden style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted)", fontSize: 12 }}>⌕</span>
+            </div>
+            <span className="text-mono-sm" style={{ whiteSpace: "nowrap", fontSize: 11, color: "var(--muted)", border: "1px solid var(--line)", padding: "6px 10px", borderRadius: 999, background: "rgba(255,255,255,0.02)" }}>
+              {filteredCalls.length} call(s){callDebounced ? " · filtered" : ""}{filteredCalls.length > PAGE_SIZE ? ` · page ${callPage}/${callTotalPages}` : ""}
+            </span>
+          </div>
+        </div>
+
+        <div className="data-table-wrap" style={{ borderTop: "1px solid var(--line)" }}>
+          {filteredCalls.length === 0 ? (
+            <div className="empty-state" style={{ padding: "36px 24px" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 999, display: "grid", placeItems: "center", background: "rgba(168,85,247,0.10)", border: "1px solid rgba(168,85,247,0.18)", color: "var(--acid)", fontSize: 20, marginBottom: 12 }} aria-hidden>◯</div>
+              <p style={{ margin: 0, font: "600 14px var(--serif)", color: "var(--ink)" }}>{calls.length === 0 ? "No calls yet" : `No calls match “${callDebounced}”`}</p>
+              <p style={{ margin: "6px 0 0", fontSize: 12, maxWidth: 420, lineHeight: 1.6 }}>
+                {calls.length === 0 ? "Once you go online, inbound calls routed to you will appear here. Test devices and go online to start." : "Try a different search or clear the filter to see all calls."}
+              </p>
+              {callDebounced && <button className="btn btn-sm btn-ghost" onClick={() => setCallSearch("")} style={{ marginTop: 12, fontSize: 11 }}>Clear search</button>}
+            </div>
+          ) : (
             <DataTable
               columns={callColumns}
               data={paginatedCalls}
@@ -413,8 +750,9 @@ function TakeCallsInner() {
               order="desc"
               onSort={() => {}}
             />
-        )}
-      </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

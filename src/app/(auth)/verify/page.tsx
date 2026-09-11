@@ -75,7 +75,7 @@ export default function VerifyPage() {
               autoComplete="email"
               autoCorrect="off"
               spellCheck={false}
-              placeholder="you@publisher.com…"
+              placeholder="you@coveragecalls.com…"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

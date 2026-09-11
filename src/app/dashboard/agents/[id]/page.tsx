@@ -17,6 +17,7 @@ interface AgentDetail {
   licenses: string[];
   skills: string[];
   endpoint_types: string[];
+  forwarding_number: string | null;
   npn: string | null;
   last_assigned_at: string | null;
   user_name: string;
@@ -37,6 +38,10 @@ export default function AgentDetailPage() {
   const [statesDraft, setStatesDraft] = useState<string[]>([]);
   const [savingStates, setSavingStates] = useState(false);
   const [editingStates, setEditingStates] = useState(false);
+  const [editingEndpoint, setEditingEndpoint] = useState(false);
+  const [endpointDraft, setEndpointDraft] = useState<string[]>([]);
+  const [forwardingDraft, setForwardingDraft] = useState("");
+  const [savingEndpoint, setSavingEndpoint] = useState(false);
 
   useEffect(() => { fetch(`/api/v1/agents/${id}`).then(async (res) => {
       if (res.ok) {
@@ -45,6 +50,8 @@ export default function AgentDetailPage() {
         setNpn(body.data.npn ?? "");
         setSoftwareFee(body.data.software_fee_cents != null ? String(body.data.software_fee_cents / 100) : "");
         setStatesDraft(body.data.states ?? []);
+        setEndpointDraft(body.data.endpoint_types ?? []);
+        setForwardingDraft(body.data.forwarding_number ?? "");
       }
       setLoading(false);
     });
@@ -128,6 +135,46 @@ export default function AgentDetailPage() {
       }
     } catch {
       showToast("Network error", "error");
+    }
+  }
+
+  function toggleEndpoint(ep: string) {
+    setEndpointDraft((prev) => prev.includes(ep) ? prev.filter((e) => e !== ep) : [...prev, ep]);
+  }
+
+  async function saveEndpoint() {
+    if (endpointDraft.length === 0) {
+      showToast("Select at least one endpoint (webrtc or pstn)", "error");
+      return;
+    }
+    if (endpointDraft.includes("pstn") && !forwardingDraft.trim()) {
+      showToast("Forwarding number required for PSTN", "error");
+      return;
+    }
+    setSavingEndpoint(true);
+    try {
+      const payload: Record<string, unknown> = { endpoint_types: endpointDraft };
+      if (endpointDraft.includes("pstn")) payload.forwarding_number = forwardingDraft.trim() || null;
+      else payload.forwarding_number = null;
+      const res = await fetch(`/api/v1/agents/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (res.ok) {
+        setAgent(body.data);
+        setEndpointDraft(body.data.endpoint_types ?? endpointDraft);
+        setForwardingDraft(body.data.forwarding_number ?? "");
+        setEditingEndpoint(false);
+        showToast("Endpoint updated", "success");
+      } else {
+        showToast(body.message ?? "Failed", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    } finally {
+      setSavingEndpoint(false);
     }
   }
 
@@ -287,6 +334,76 @@ export default function AgentDetailPage() {
               </dl>
             )}
           </section>
+
+          <section className="card" style={{ padding: "var(--space-6)", borderColor: agent.endpoint_types?.includes("webrtc") ? "rgba(70,95,87,0.3)" : "var(--line)" }}>
+            <div className="split" style={{ alignItems: "center", marginBottom: "var(--space-4)" } as React.CSSProperties}>
+              <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em" }}>Endpoint Configuration</h2>
+              {!editingEndpoint ? (
+                <button className="btn btn-sm btn-secondary" onClick={() => { setEndpointDraft([...(agent.endpoint_types ?? [])]); setForwardingDraft(agent.forwarding_number ?? ""); setEditingEndpoint(true); }}>Edit</button>
+              ) : null}
+            </div>
+            {editingEndpoint ? (
+              <div className="stack" style={{ gap: "var(--space-4)" }}>
+                <div>
+                  <p className="text-muted" style={{ fontSize: 11, margin: "0 0 8px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>How will this agent receive calls?</p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {[
+                      { id: "webrtc", label: "WebRTC", desc: "Browser softphone (recommended)" },
+                      { id: "pstn", label: "PSTN", desc: "Forward to phone number" },
+                    ].map((ep) => (
+                      <button
+                        key={ep.id}
+                        type="button"
+                        onClick={() => toggleEndpoint(ep.id)}
+                        style={{
+                          flex: 1, minWidth: 160, textAlign: "left", padding: "12px 14px", borderRadius: 10,
+                          border: endpointDraft.includes(ep.id) ? "1.5px solid var(--acid)" : "1px solid var(--line)",
+                          background: endpointDraft.includes(ep.id) ? "rgba(70,95,87,0.12)" : "rgba(255,255,255,0.02)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ width: 16, height: 16, borderRadius: 4, border: "1.5px solid var(--line)", background: endpointDraft.includes(ep.id) ? "var(--acid)" : "transparent", display: "grid", placeItems: "center", fontSize: 11, color: "#0a0a0a" }}>{endpointDraft.includes(ep.id) ? "✓" : ""}</span>
+                          <strong style={{ fontSize: 13 }}>{ep.label}</strong>
+                        </div>
+                        <span className="text-muted" style={{ fontSize: 11 }}>{ep.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {endpointDraft.length === 0 && <p style={{ fontSize: 11, color: "#e89b79", marginTop: 8 }}>Select at least one endpoint.</p>}
+                </div>
+                {endpointDraft.includes("pstn") && (
+                  <div>
+                    <label className="text-mono-sm" style={{ fontSize: 11, fontWeight: 600, display: "block", marginBottom: 6 }}>Forwarding number (E.164) *</label>
+                    <input className="input" value={forwardingDraft} onChange={(e) => setForwardingDraft(e.target.value)} placeholder="+15551234567" style={{ maxWidth: 260 }} />
+                    <p className="text-muted" style={{ fontSize: 10, marginTop: 4 }}>Required for PSTN. Calls will be forwarded via Telnyx when browser is unavailable.</p>
+                  </div>
+                )}
+                {endpointDraft.includes("webrtc") && (
+                  <p className="text-muted" style={{ fontSize: 11, margin: 0, padding: "8px 10px", background: "rgba(70,95,87,0.08)", borderRadius: 8, border: "1px solid rgba(70,95,87,0.2)" }}>WebRTC enables in-browser calling. Agent will show “WebRTC Connected” when SIP credentials are valid. Needs <span className="text-mono-sm">TELNYX_WEBRTC_*</span> on server.</p>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" onClick={saveEndpoint} disabled={savingEndpoint}>{savingEndpoint ? "Saving..." : "Save endpoint"}</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEditingEndpoint(false)}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <dl className="data-list">
+                <dt>Endpoints</dt>
+                <dd>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    {agent.endpoint_types?.length ? agent.endpoint_types.map((ep) => (
+                      <span key={ep} className={`badge ${ep === "webrtc" ? "badge-success" : "badge-info"}`} style={{ textTransform: "uppercase", fontSize: 11 }}>{ep}</span>
+                    )) : <span className="badge badge-warning">None — agent cannot receive calls</span>}
+                  </div>
+                  {(!agent.endpoint_types || agent.endpoint_types.length === 0) && <p style={{ fontSize: 11, color: "#e89b79", margin: "6px 0 0" }}>Configure at least one endpoint to enable routing.</p>}
+                </dd>
+                <dt>Forwarding</dt><dd className="text-mono-sm">{agent.forwarding_number ?? "—"}</dd>
+                <dt>Status</dt><dd className="text-mono-sm" style={{ fontSize: 11 }}>{agent.endpoint_types?.includes("webrtc") && !agent.endpoint_types?.includes("pstn") ? "Browser only" : agent.endpoint_types?.includes("pstn") && !agent.endpoint_types?.includes("webrtc") ? "Phone forward only" : agent.endpoint_types?.includes("webrtc") && agent.endpoint_types?.includes("pstn") ? "Hybrid (browser + PSTN fallback)" : "Not configured"}</dd>
+              </dl>
+            )}
+          </section>
+
           <section className="card" style={{ padding: "var(--space-6)" }}>
             <div className="split" style={{ alignItems: "center", marginBottom: "var(--space-4)" } as React.CSSProperties}>
               <h2 style={{ font: "500 18px var(--serif)", margin: 0, letterSpacing: "-0.03em" }}>Licensed States</h2>
