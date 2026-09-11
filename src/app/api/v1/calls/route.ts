@@ -8,7 +8,8 @@ export const GET = apiHandler(async (req, context) => {
   const { page, limit } = validate(paginationSchema, params);
   const { search } = validate(searchSchema, params);
   const { sortBy, order } = validate(sortSchema, params);
-  const state = url.searchParams.get("state") ?? undefined;
+  const stateParam = url.searchParams.get("state") ?? undefined;
+  const state = stateParam ? (stateParam.includes(",") ? stateParam.split(",").map((s) => s.trim()).filter(Boolean) : stateParam) : undefined;
   const agentId = url.searchParams.get("agent_id") ?? undefined;
   const providerAgentCallId = url.searchParams.get("provider_agent_call_id") ?? undefined;
 

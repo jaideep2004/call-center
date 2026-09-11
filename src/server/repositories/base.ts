@@ -54,9 +54,23 @@ export abstract class BaseRepository<T> {
       for (const [key, value] of Object.entries(filters)) {
         if (value !== undefined && value !== null) {
           if (!IDENTIFIER_RE.test(key)) continue;
-          conditions.push(`${key} = $${paramIndex}`);
-          queryParams.push(value);
-          paramIndex++;
+          if (Array.isArray(value)) {
+            if (value.length === 0) {
+              conditions.push(`1=0`);
+            } else if (value.length === 1) {
+              conditions.push(`${key} = $${paramIndex}`);
+              queryParams.push(value[0]);
+              paramIndex++;
+            } else {
+              conditions.push(`${key}::text = ANY($${paramIndex}::text[])`);
+              queryParams.push(value);
+              paramIndex++;
+            }
+          } else {
+            conditions.push(`${key} = $${paramIndex}`);
+            queryParams.push(value);
+            paramIndex++;
+          }
         }
       }
     }

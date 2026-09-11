@@ -47,15 +47,20 @@ export class CallRepository extends BaseRepository<CallRow> {
     );
   }
 
-  async findMany(params: FindManyParams & { agencyId?: string; state?: string } = {}) {
+  async findMany(params: FindManyParams & { agencyId?: string; state?: string | string[] } = {}) {
     const { sortBy, order, ...rest } = params;
+    let stateFilter: string | string[] | undefined = params.state;
+    if (typeof stateFilter === "string" && stateFilter.includes(",")) {
+      stateFilter = stateFilter.split(",").map((s) => s.trim()).filter(Boolean);
+      if (stateFilter.length === 1) stateFilter = stateFilter[0];
+    }
     return super.findMany({
       ...rest,
       sortBy: sortBy ?? "started_at",
       order,
       filters: {
         ...(params.agencyId ? { agency_id: params.agencyId } : {}),
-        ...(params.state ? { state: params.state } : {}),
+        ...(stateFilter ? { state: stateFilter } : {}),
         ...params.filters,
       },
     });
