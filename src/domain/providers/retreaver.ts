@@ -306,6 +306,19 @@ export const retreaver = {
     return body as { status: string };
   },
 
+  /**
+   * Pause/unpause a Retreaver buyer campaign (P1.4 wallet sync). Paused
+   * campaigns stop receiving RTB traffic; unpausing restores it. Idempotent —
+   * safe to call on every sync tick when guarded by a state comparison.
+   */
+  async setCampaignPaused(cid: string, paused: boolean): Promise<RetreaverCampaign> {
+    const { body } = await request(API_BASE, `/campaigns/cid/${encodeURIComponent(cid)}.json`, {
+      method: "PUT",
+      body: { campaign: { paused } },
+    });
+    return (body as Record<string, unknown>)?.campaign as RetreaverCampaign;
+  },
+
   async writeCallData(data: { key: string; callerNumber?: string; callUuid?: string; tags?: Record<string, string> }): Promise<unknown> {
     return request(DATA_BASE, "/data_writing", {
       method: "POST",

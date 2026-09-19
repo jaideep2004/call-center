@@ -19,6 +19,7 @@ interface Call {
   started_at: string | null;
   connected_at: string | null;
   ended_at: string | null;
+  display_code: string | null;
 }
 
 const STATE_COLORS: Record<string, string> = {
@@ -191,7 +192,7 @@ function CallsInner() {
 
   const columns: Column<Call>[] = [
     { key: "started_at", header: "Started", sortable: true, render: (c) => <span className="text-mono-sm">{c.started_at ? new Date(c.started_at).toLocaleString() : "\u2014"}</span> },
-    { key: "id", header: "Call ID", render: (c) => <Link href={`/dashboard/calls/${c.id}`} className="clickable">{c.id.slice(0, 8)}</Link> },
+    { key: "id", header: "Call ID", render: (c) => <Link href={`/dashboard/calls/${c.id}`} className="clickable" title={c.id}>{c.display_code ?? c.id.slice(0, 8)}</Link> },
     { key: "state", header: "State", sortable: true, render: (c) => <span className={`badge ${STATE_COLORS[c.state] ?? ""}`}>{c.state}</span> },
     { key: "from_hash", header: "Caller", render: (c) => <span className="text-mono-sm" title={c.from_hash ?? ""}>{c.from_hash?.slice(0, 12) ?? "\u2014"}</span> },
     { key: "caller_state", header: "Caller State", render: (c) => c.caller_state ? <span className="badge badge-info">{c.caller_state}</span> : <span className="text-muted">\u2014</span> },

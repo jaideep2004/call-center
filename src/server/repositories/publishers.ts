@@ -11,6 +11,8 @@ export interface PublisherRow {
   retreaver_status: string;
   active: boolean;
   user_id: string | null;
+  /** Human-readable serial (PB-NNNN, DB default). UUID stays the PK. */
+  display_code: string | null;
   created_at: string;
 }
 

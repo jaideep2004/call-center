@@ -157,7 +157,7 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     const columns = [...keys, "display_code"].join(", ");
     const placeholders = values.map((_, i) => `$${i + 1}`).join(", ");
     const row = await queryOne<AgentRow>(
-      `INSERT INTO ${this.fullTable()} (${columns}) VALUES (${placeholders}, 'CC' || nextval('app.agent_code_seq')::text) RETURNING *`,
+      `INSERT INTO ${this.fullTable()} (${columns}) VALUES (${placeholders}, 'AG-' || LPAD(nextval('app.agent_code_seq')::text, 4, '0')) RETURNING *`,
       values,
       client,
     );
@@ -165,11 +165,30 @@ export class AgentRepository extends BaseRepository<AgentRow> {
   }
 
   async updateAvailability(id: string, availability: string, agencyId: string): Promise<AgentRow> {
-    return super.update(id, { availability }, agencyId);
+    return this.update(id, { availability }, agencyId);
   }
 
   async updateApproval(id: string, approval_status: string, agencyId: string): Promise<AgentRow> {
-    return super.update(id, { approval_status }, agencyId);
+    return this.update(id, { approval_status }, agencyId);
+  }
+
+  /**
+   * Suspend/reject forces availability offline in the same write: a
+   * suspended agent who left Go Online on stops receiving routes on the
+   * very next ping, with no client action needed (UI shows Offline on
+   * refresh). Approval itself never touches availability.
+   */
+  async update(
+    id: string,
+    data: Partial<AgentRow>,
+    agencyId?: string,
+    client?: PoolClient,
+  ): Promise<AgentRow> {
+    const patch: Record<string, unknown> = { ...data };
+    if (patch.approval_status === "suspended" || patch.approval_status === "rejected") {
+      patch.availability = "offline";
+    }
+    return super.update(id, patch, agencyId, client);
   }
 }
 

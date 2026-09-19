@@ -105,6 +105,10 @@ export const createCampaignSchema = z.object({
   name: z.string().min(1).max(255),
   routing_strategy: z.enum(["round_robin", "priority"]).default("round_robin"),
   price_cents: z.number().int().min(0).default(0),
+  max_publisher_payout_cents: z.number().int().min(0).nullable().optional(),
+  min_publisher_payout_cents: z.number().int().min(0).nullable().optional(),
+  visibility: z.enum(["default", "exclusive"]).default("default"),
+  is_exclusive: z.boolean().default(false),
   buffer_seconds: z.number().int().min(0).default(0),
   min_connected_seconds: z.number().int().min(0).default(0),
   required_skills: z.array(z.string()).default([]),
@@ -119,7 +123,11 @@ export const updateCampaignSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   status: z.enum(["draft", "active", "paused", "completed", "archived"]).optional(),
   routing_strategy: z.enum(["round_robin", "priority"]).optional(),
-  price_cents: z.number().int().min(0).optional(),
+  price_cents: z.number().int().min(0).nullable().optional(),
+  max_publisher_payout_cents: z.number().int().min(0).nullable().optional(),
+  min_publisher_payout_cents: z.number().int().min(0).nullable().optional(),
+  visibility: z.enum(["default", "exclusive"]).optional(),
+  is_exclusive: z.boolean().optional(),
   buffer_seconds: z.number().int().min(0).optional(),
   min_connected_seconds: z.number().int().min(0).optional(),
   required_skills: z.array(z.string()).optional(),
@@ -140,6 +148,91 @@ export const createRtbReservationSchema = z.object({
   campaign_id: z.string().min(1),
   caller_number: z.string().min(1).max(32).optional(),
   tags: z.record(z.string(), z.string()).optional(),
+});
+
+/** P1.3 marketplace pre-selection: ping a publisher campaign, filter buyer offers first. */
+export const reserveRtbSchema = z.object({
+  publisher_campaign_id: z.string().min(1),
+  caller_number: z.string().min(1).max(32).optional(),
+  /** Explicit 2-letter caller state override; else derived from caller_number NPA. */
+  caller_state: z.string().trim().toUpperCase().pipe(z.string().length(2)).optional(),
+  publisher_payout_min_cents: z.number().int().min(0).nullable().optional(),
+  publisher_payout_max_cents: z.number().int().min(0).nullable().optional(),
+  tags: z.record(z.string(), z.string()).optional(),
+  /** P1.5: redelivery with the same key returns the original reservation. */
+  idempotency_key: z.string().min(1).max(128).optional(),
+});
+
+/** P1.4 agency pool wallet (head only). */
+export const agencyPoolCheckoutSchema = z.object({
+  amount_cents: z.number().int().min(100).max(1000000),
+  success_url: z.string().url().optional(),
+  cancel_url: z.string().url().optional(),
+});
+
+export const agencyAllocationSchema = z.object({
+  agent_id: z.string().min(1),
+  allocated_cents: z.number().int().min(0).max(100000000),
+});
+
+export const agencyPoolEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+
+/** P2.1 campaign creatives (agent dashboard ads). */
+export const createCreativeSchema = z.object({
+  campaign_id: z.string().min(1).nullable().optional(),
+  type: z.enum(["image", "video"]),
+  title: z.string().min(1).max(255),
+  media_url: z.string().url().max(2048),
+  thumbnail_url: z.string().url().max(2048).nullable().optional(),
+  cta_label: z.string().max(64).nullable().optional(),
+  cta_href: z.string().url().max(2048).nullable().optional(),
+  placement: z.enum(["agent_hero", "agent_feed"]).default("agent_feed"),
+  priority: z.number().int().min(0).max(1000).default(0),
+  active: z.boolean().default(true),
+  starts_at: z.string().datetime().nullable().optional(),
+  ends_at: z.string().datetime().nullable().optional(),
+});
+
+export const updateCreativeSchema = createCreativeSchema.partial().omit({ campaign_id: true }).extend({
+  campaign_id: z.string().min(1).nullable().optional(),
+});
+
+/** P2.2 tutorial watch progress (90%+ flips completed server-side). */
+export const tutorialProgressSchema = z.object({
+  watched_seconds: z.number().min(0).max(86400),
+  watched_percent: z.number().min(0).max(100),
+  reset: z.boolean().optional(),
+});
+
+export const tutorialCategories = ["general", "onboarding", "product", "compliance", "soft_skills"] as const;
+
+/** P2.2 tutorials (Ringel-like): admin create carries display fields the UI sends. */
+export const createTutorialSchema = z.object({
+  title: z.string().min(1).max(255),
+  content: z.string().min(1),
+  category: z.enum(tutorialCategories).default("general"),
+  video_url: z.string().url().max(2048).nullable().optional(),
+  duration_seconds: z.number().int().min(0).nullable().optional(),
+  tags: z.array(z.string()).default([]),
+  thumbnail_url: z.string().url().max(2048).nullable().optional(),
+  order_index: z.number().int().min(0).default(0),
+  published: z.boolean().default(false),
+  required: z.boolean().default(false),
+});
+
+export const updateTutorialSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  content: z.string().min(1).optional(),
+  category: z.enum(tutorialCategories).optional(),
+  video_url: z.string().url().max(2048).nullable().optional(),
+  duration_seconds: z.number().int().min(0).nullable().optional(),
+  tags: z.array(z.string()).optional(),
+  thumbnail_url: z.string().url().max(2048).nullable().optional(),
+  order_index: z.number().int().min(0).optional(),
+  published: z.boolean().optional(),
+  required: z.boolean().optional(),
 });
 
 export const createCallSchema = z.object({
@@ -174,6 +267,16 @@ export const publicLeadSchema = z.object({
   email: z.string().email().max(255),
   phone: phoneSchema,
   message: z.string().max(5000).optional(),
+});
+
+export const contactMessageSchema = z.object({
+  name: z.string().min(1).max(255),
+  email: z.string().email().max(255),
+  phone: z.string().max(32).optional().default(""),
+  agency: z.string().max(255).optional().default(""),
+  callVolume: z.string().max(64).optional().default(""),
+  inquiryType: z.string().max(100).optional().default(""),
+  message: z.string().min(1).max(5000),
 });
 
 export const createMembershipSchema = z.object({
@@ -345,6 +448,11 @@ export const createPhoneNumberSchema = z.object({
   number: phoneSchema,
   campaign_id: z.string().min(1),
   provider: z.string().min(1).default("telnyx"),
+});
+
+/** Move a DID between campaigns, or null to park it unassigned (0051). */
+export const updatePhoneNumberSchema = z.object({
+  campaign_id: z.string().min(1).nullable(),
 });
 
 export function validate<T extends z.ZodTypeAny>(schema: T, data: unknown): z.output<T> {

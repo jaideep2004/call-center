@@ -4,16 +4,22 @@ import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { showToast } from "@/lib/use-toast";
 import { usePublishers } from "@/features/publishers/use-publishers";
+import { useSkills } from "@/features/skills/use-skills";
 
 interface CampaignDetail {
   id: string;
   name: string;
   status: string;
   routing_strategy: string;
-  price_cents: number;
+  price_cents: number | null;
+  max_publisher_payout_cents: number | null;
+  min_publisher_payout_cents: number | null;
+  visibility: string;
+  is_exclusive: boolean;
   min_connected_seconds: number;
   buffer_seconds: number;
   allowed_endpoints: string[];
+  required_skills: string[];
   record_calls: boolean;
   consent_policy: Record<string, unknown>;
   publisher_id: string | null;
@@ -53,6 +59,7 @@ function CampaignDetailInner() {
   const activeTab: TabKey = (rawTab && TAB_KEYS.has(rawTab as TabKey) ? rawTab : "general") as TabKey;
 
   const { publishers } = usePublishers();
+  const { names: skillOptions } = useSkills();
   const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -71,9 +78,6 @@ function CampaignDetailInner() {
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [rtbKey, setRtbKey] = useState("");
   const [showRtbKey, setShowRtbKey] = useState(false);
-  const [rtbAutoLoading, setRtbAutoLoading] = useState(false);
-  const [generatedRtbUrl, setGeneratedRtbUrl] = useState<string | null>(null);
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [deploying, setDeploying] = useState(false);
   const [retreaverNumbers, setRetreaverNumbers] = useState<
     { id: number; number: string | null; toll_free: boolean; afid: string | null; sid: string | null }[]
@@ -277,6 +281,15 @@ function CampaignDetailInner() {
     );
   }
 
+  function toggleRequiredSkill(skill: string) {
+    if (!campaign) return;
+    const cur = campaign.required_skills ?? [];
+    update(
+      "required_skills",
+      cur.includes(skill) ? cur.filter((s) => s !== skill) : [...cur, skill],
+    );
+  }
+
   async function handleRename() {
     if (!campaign || !editName.trim()) return;
     await update("name", editName.trim());
@@ -315,29 +328,6 @@ function CampaignDetailInner() {
       showToast("Network error deploying campaign", "error");
     }
     setDeploying(false);
-  }
-
-  async function handleAutoCreateRtbKey() {
-    if (rtbAutoLoading) return;
-    setRtbAutoLoading(true);
-    try {
-      const res = await fetch(`/api/v1/campaigns/${id}/retreaver/rtb-key`, { method: "POST" });
-      const body = await res.json().catch(() => ({} as { message?: string; data?: { key: string; rtbUrl: string } }));
-      if (res.ok && (body as { data?: { key: string; rtbUrl: string } }).data) {
-        const data = (body as { data: { key: string; rtbUrl: string; campaign?: CampaignDetail } }).data;
-        setGeneratedKey(data.key);
-        setGeneratedRtbUrl(data.rtbUrl);
-        setRtbKey(data.key);
-        if (data.campaign) setCampaign(data.campaign as CampaignDetail);
-        else if (campaign) setCampaign({ ...campaign, rtb_postback_key_encrypted: "***", rtb_enabled: true });
-        showToast("RTB key auto-created - copy the URL below", "success");
-      } else {
-        showToast((body as { message?: string }).message ?? "Failed to auto-create RTB key", "error");
-      }
-    } catch {
-      showToast("Network error creating RTB key", "error");
-    }
-    setRtbAutoLoading(false);
   }
 
   if (loading)
@@ -512,7 +502,8 @@ function CampaignDetailInner() {
       {/* Tab contents */}
       <div style={{ marginTop: "var(--space-5)" }}>
         {activeTab === "general" && (
-          <div className='stack' style={{ gap: "var(--space-5)", maxWidth: 760 }}>
+          <div className='camp-grid'>
+          <div>
             <section className='card' style={{ padding: "var(--space-6)" }}>
               <div
                 style={{
@@ -669,7 +660,8 @@ function CampaignDetailInner() {
                 </p>
               )}
             </section>
-
+          </div>
+          <div className='stack' style={{ gap: "var(--space-5)" }}>
             <section className='card' style={{ padding: "var(--space-6)" }}>
               <h2
                 style={{
@@ -717,27 +709,6 @@ function CampaignDetailInner() {
                   margin: "0 0 var(--space-4)",
                   letterSpacing: "-0.03em",
                 }}>
-                Consent Policy
-              </h2>
-              <pre
-                className='text-mono-sm'
-                style={{
-                  fontSize: 11,
-                  color: "var(--muted)",
-                  overflow: "auto",
-                  maxHeight: 200,
-                }}>
-                {JSON.stringify(campaign.consent_policy, null, 2)}
-              </pre>
-            </section>
-
-            <section className='card' style={{ padding: "var(--space-6)" }}>
-              <h2
-                style={{
-                  font: "500 18px var(--serif)",
-                  margin: "0 0 var(--space-4)",
-                  letterSpacing: "-0.03em",
-                }}>
                 Danger Zone
               </h2>
               <p
@@ -761,6 +732,7 @@ function CampaignDetailInner() {
                 )}
               </button>
             </section>
+          </div>
           </div>
         )}
 
@@ -818,8 +790,33 @@ function CampaignDetailInner() {
               Bidding
             </h2>
             <p className='text-muted' style={{ fontSize: 11, margin: "0 0 var(--space-4)" }}>
-              Manual bid — applies immediately to billing and publisher payout. No schedule. Leave empty to use campaign price.
+              Manual bid — applies immediately to billing and publisher payout. No schedule. Leave empty to use campaign price. Max payout caps what the platform can pay the publisher for this offer.
             </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 12 }}>
+              <label className='text-mono-sm' style={{ fontSize: 11, color: "var(--muted)" }}>Max publisher payout ($)
+                <input
+                  className='input'
+                  type='number'
+                  min='0'
+                  step='0.01'
+                  placeholder='e.g. 10.00'
+                  value={campaign.max_publisher_payout_cents != null ? String(campaign.max_publisher_payout_cents / 100) : ""}
+                  onChange={(e) => update("max_publisher_payout_cents", e.target.value === "" ? null : Math.round(parseFloat(e.target.value) * 100))}
+                  style={{ maxWidth: 120, marginLeft: 6, marginTop: 4, display: "block" }}
+                />
+              </label>
+              <label className='text-mono-sm' style={{ fontSize: 11, color: "var(--muted)" }}>Visibility
+                <select
+                  className='input'
+                  value={campaign.visibility ?? "default"}
+                  onChange={(e) => update("visibility", e.target.value)}
+                  style={{ maxWidth: 140, marginLeft: 6, marginTop: 4, display: "block" }}
+                >
+                  <option value='default'>Default (open)</option>
+                  <option value='exclusive'>Exclusive</option>
+                </select>
+              </label>
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
               <label className='text-mono-sm' style={{ fontSize: 11, color: "var(--muted)" }}>$ / call
                 <input
@@ -873,7 +870,8 @@ function CampaignDetailInner() {
         )}
 
         {activeTab === "rtb" && (
-          <div className='stack' style={{ gap: "var(--space-5)", maxWidth: 720 }}>
+          <div className='camp-grid'>
+          <div>
             <section className='card' style={{ padding: "var(--space-6)" }}>
               <h2
                 style={{
@@ -932,23 +930,7 @@ function CampaignDetailInner() {
                             disabled={saving === "rtb_postback_key"}>
                             {saving === "rtb_postback_key" ? <span className='spinner' /> : "Save"}
                           </button>
-                          <button
-                            className='btn btn-secondary btn-sm'
-                            onClick={handleAutoCreateRtbKey}
-                            disabled={rtbAutoLoading || saving === "rtb_postback_key"}
-                            style={{ whiteSpace: "nowrap" }}>
-                            {rtbAutoLoading ? <span className='spinner' /> : "Auto Create"}
-                          </button>
                         </>
-                      )}
-                      {!showRtbKey && (
-                        <button
-                          className='btn btn-secondary btn-sm'
-                          onClick={handleAutoCreateRtbKey}
-                          disabled={rtbAutoLoading}
-                          style={{ whiteSpace: "nowrap" }}>
-                          {rtbAutoLoading ? <span className='spinner' /> : "Auto Create"}
-                        </button>
                       )}
                     </div>
                   ) : (
@@ -971,54 +953,16 @@ function CampaignDetailInner() {
                         disabled={saving === "rtb_postback_key"}>
                         {saving === "rtb_postback_key" ? <span className='spinner' /> : "Save"}
                       </button>
-                      <button
-                        className='btn btn-secondary btn-sm'
-                        onClick={handleAutoCreateRtbKey}
-                        disabled={rtbAutoLoading || saving === "rtb_postback_key"}
-                        style={{ whiteSpace: "nowrap" }}>
-                        {rtbAutoLoading ? <span className='spinner' /> : "Auto Create"}
-                      </button>
                     </div>
                   )}
                   <p className='text-muted' style={{ fontSize: 11, margin: "8px 0 0" }}>
-                    Stored encrypted with ENCRYPTION_KEY. Never shown again after saving. <span style={{ color: "var(--ink)", fontWeight: 600 }}>Auto Create</span> generates a random 32-char hex for demo/testing; real Retreaver keys must be created in Retreaver UI for production RTB.
+                    Paste the key from Retreaver (campaign → Postback Keys → Real Time Bidding). Stored encrypted with ENCRYPTION_KEY. Never shown again after saving.
                   </p>
-                  {(generatedKey || generatedRtbUrl) && (
-                    <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(168,85,247,.18)", background: "rgba(168,85,247,.08)", maxWidth: 560 }}>
-                      <p className='text-mono-sm' style={{ fontSize: 11, margin: "0 0 6px", color: "var(--muted)", letterSpacing: "0.4px", textTransform: "uppercase" }}>Generated RTB credentials</p>
-                      {generatedKey && (
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
-                          <span className='text-mono-sm' style={{ fontSize: 12, color: "var(--ink)", wordBreak: "break-all", flex: 1 }}>key: {generatedKey}</span>
-                          <button
-                            className='btn btn-ghost btn-sm'
-                            onClick={() => {
-                              navigator.clipboard.writeText(generatedKey).then(() => showToast("Key copied", "success")).catch(() => showToast("Copy failed", "error"));
-                            }}
-                            style={{ fontSize: 11 }}>
-                            Copy key
-                          </button>
-                        </div>
-                      )}
-                      {generatedRtbUrl && (
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                          <span className='text-mono-sm' style={{ fontSize: 11, color: "var(--ink)", wordBreak: "break-all", flex: 1, background: "rgba(0,0,0,.2)", padding: "6px 8px", borderRadius: 6 }}>{generatedRtbUrl}</span>
-                          <button
-                            className='btn btn-ghost btn-sm'
-                            onClick={() => {
-                              navigator.clipboard.writeText(generatedRtbUrl).then(() => showToast("RTB URL copied", "success")).catch(() => showToast("Copy failed", "error"));
-                            }}
-                            style={{ fontSize: 11 }}>
-                            Copy URL
-                          </button>
-                        </div>
-                      )}
-                      <p className='text-muted text-mono-sm' style={{ fontSize: 10, margin: "8px 0 0" }}>Demo URL: replace YOUR_PUBLISHER_ID with your Retreaver afid. Real RTB still requires the key to exist in Retreaver’s UI.</p>
-                    </div>
-                  )}
                 </dd>
               </dl>
             </section>
-
+          </div>
+          <div className='stack' style={{ gap: "var(--space-5)" }}>
             <section className='card' style={{ padding: "var(--space-6)" }}>
               <div
                 style={{
@@ -1085,10 +1029,12 @@ function CampaignDetailInner() {
               )}
             </section>
           </div>
+          </div>
         )}
 
         {activeTab === "assignments" && (
-          <div className='stack' style={{ gap: "var(--space-5)", maxWidth: 720 }}>
+          <div className='camp-grid'>
+          <div>
             <section className='card' style={{ padding: "var(--space-6)" }}>
               <h2
                 style={{
@@ -1173,6 +1119,40 @@ function CampaignDetailInner() {
                       )}
                     </div>
                   </div>
+                  <div>
+                    <p
+                      style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink)", marginBottom: 10, fontFamily: "var(--mono)" }}>
+                      Required Skills <span style={{ fontWeight: 400, color: "var(--muted)", textTransform: "none", letterSpacing: 0, fontSize: 11 }}>— agents missing any ticked skill are skipped (skill_missing); empty = no skill filter</span>
+                    </p>
+                    <div className='stack-h' style={{ gap: 8, flexWrap: "wrap" }}>
+                      {skillOptions.length === 0 && (
+                        <span className='text-muted' style={{ fontSize: 12 }}>
+                          No verticals yet — create one from Agents → Invite → + New vertical.
+                        </span>
+                      )}
+                      {skillOptions.map((s) => {
+                        const on = (campaign?.required_skills ?? []).includes(s);
+                        return (
+                          <button
+                            key={s}
+                            type='button'
+                            className={on ? "badge badge-success" : "badge"}
+                            onClick={() => toggleRequiredSkill(s)}
+                            disabled={saving === "required_skills"}
+                            style={{
+                              cursor: "pointer",
+                              border: 0,
+                              fontFamily: "var(--mono)",
+                              fontSize: 12,
+                              padding: "7px 12px",
+                              fontWeight: on ? 700 : 500,
+                            }}>
+                            {s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <div className='split' style={{ gap: 8, alignItems: "center" }}>
                     <button
                       className='btn btn-primary btn-sm'
@@ -1191,12 +1171,13 @@ function CampaignDetailInner() {
                 </p>
               )}
             </section>
-
+          </div>
+          <div className='stack' style={{ gap: "var(--space-5)" }}>
             <section className='card' style={{ padding: "var(--space-6)" }}>
               <h2
                 style={{
                   font: "500 18px var(--serif)",
-                  margin: "0 0 var(--space-4)",
+                  margin: 0,
                   letterSpacing: "-0.03em",
                 }}>
                 Endpoints
@@ -1252,6 +1233,7 @@ function CampaignDetailInner() {
                 {JSON.stringify(campaign.consent_policy, null, 2)}
               </pre>
             </section>
+          </div>
           </div>
         )}
       </div>

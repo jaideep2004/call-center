@@ -7,6 +7,8 @@ export interface InvoiceRow {
   total_cents: number;
   currency: string;
   status: string;
+  /** Human-readable serial (IN-NNNN, DB default). UUID stays the PK. */
+  display_code: string | null;
   created_at: string;
 }
 

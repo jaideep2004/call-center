@@ -760,7 +760,9 @@
 .tc-callout--success strong { color: #86efac; }
 .tc-callout--muted { border-color: var(--line); background: rgba(255,255,255,0.02); }
 .tc-callout--muted strong { color: var(--ink); }
-.tc-grid { display: grid; grid-template-columns: 1.55fr 0.85fr; gap: var(--space-6); align-items: start; }
+.tc-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: var(--space-6); align-items: start; }
+/* Campaign detail 2-col (General / RTB / Assignments tabs) — same rhythm as take-calls */
+.camp-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: var(--space-6); align-items: start; }
 .tc-grid__left { display: flex; flex-direction: column; gap: var(--space-6); }
 .tc-grid__right { display: flex; flex-direction: column; gap: var(--space-6); position: sticky; top: var(--space-6); }
 .tc-card { border-radius: 16px; overflow: hidden; }
@@ -777,6 +779,7 @@
   .tc-hero { grid-template-columns: 1fr; }
   .tc-hero__cta { order: -1; }
   .tc-grid { grid-template-columns: 1fr; }
+  .camp-grid { grid-template-columns: 1fr; }
   .tc-grid__right { position: static; }
   .tc-snapshot-grid { grid-template-columns: 1fr 1fr; }
 }
@@ -1093,4 +1096,38 @@
 
 /* polished card headings */
 .cc-card h2{ letter-spacing:-0.02em; }
+
+/* ── GLOBAL THIN SCROLLBARS — violet thumb on dark track ──
+   Styling only: no overflow/display changes, so existing scroll
+   containers (page, sidebar, modal interiors, .data-table-wrap
+   horizontal scrollers) keep their exact behavior. */
+html {
+	scrollbar-width: thin;
+	scrollbar-color: var(--acid) transparent;
+}
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(168, 85, 247, 0.5) transparent;
+}
+*::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+	background: rgba(168, 85, 247, 0.45);
+	border-radius: 9999px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+	background: rgba(168, 85, 247, 0.7);
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner {
+	background: transparent;
+}
 

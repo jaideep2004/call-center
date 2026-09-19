@@ -1,5 +1,6 @@
 import { BaseRepository } from "./base";
 import { query } from "@/server/db";
+import { allocationForAgent } from "./agency-wallets";
 import type { PoolClient } from "pg";
 
 export interface WalletEntryRow {
@@ -64,6 +65,19 @@ export class WalletEntryRepository extends BaseRepository<WalletEntryRow> {
       [agentId],
     );
     return parseInt(rows[0]?.total ?? "0", 10);
+  }
+
+  /** Effective balance = personal ledger + agency-pool allocation (P1.4). */
+  async sumEffectiveByAgent(agentId: string, client?: PoolClient): Promise<number> {
+    const [rows, allocated] = await Promise.all([
+      query<{ total: string }>(
+        "SELECT COALESCE(SUM(amount_cents), 0) as total FROM app.wallet_entries WHERE agent_id = $1",
+        [agentId],
+        client,
+      ),
+      allocationForAgent(agentId, client),
+    ]);
+    return parseInt(rows[0]?.total ?? "0", 10) + allocated;
   }
 }
 

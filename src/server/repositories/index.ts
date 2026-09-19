@@ -1,4 +1,4 @@
-export { agencies } from "./agencies";
+export { agencies, agency_wallet_enabled } from "./agencies";
 export { agents } from "./agents";
 export { calls } from "./calls";
 export { leads } from "./leads";
@@ -30,6 +30,9 @@ export { skills } from "./skills";
 export { publishers } from "./publishers";
 export { publisherInvites } from "./publisher-invites";
 export { campaignAssignments } from "./campaign-assignments";
+export { agentCampaignSelections } from "./agent-campaign-selections";
+export { campaignCreatives } from "./campaign-creatives";
+export { agencyWallets, effectiveBalanceSql } from "./agency-wallets";
 export { systemSettings } from "./system-settings";
 export { bidOverrides } from "./bid-overrides";
 export { agentFees } from "./agent-fees";

@@ -12,6 +12,7 @@ interface Agency {
   status: string;
   currency: string;
   recording_retention_days: number;
+  display_code: string | null;
   created_at: string;
 }
 
@@ -149,6 +150,7 @@ function AdminAgenciesInner() {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Code</th>
                 <th>Slug</th>
                 <th>Status</th>
                 <th>Currency</th>
@@ -165,6 +167,7 @@ function AdminAgenciesInner() {
                   style={{ cursor: "pointer" }}
                 >
                   <td><strong>{a.name}</strong></td>
+                  <td className="text-mono-sm">{a.display_code ?? "—"}</td>
                   <td className="text-mono-sm">{a.slug}</td>
                   <td><span className={`badge${a.status === "active" ? " badge-success" : a.status === "suspended" ? " badge-danger" : ""}`}>{a.status}</span></td>
                   <td className="text-mono-sm">{a.currency}</td>

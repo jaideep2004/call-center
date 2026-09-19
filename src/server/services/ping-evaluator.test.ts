@@ -96,6 +96,41 @@ describe("evaluatePing", () => {
     const result = await evaluatePing({ did: "+15550000001", caller: "anonymous" });
     expect(result.decision).toBe("accept");
   });
+
+  it("passes the campaign id to the agent query with an is_live gate (P1.2)", async () => {
+    queryOneMock
+      .mockResolvedValueOnce(activeCampaign)
+      .mockResolvedValueOnce({ id: "agent-9" });
+    await evaluatePing({ did: "+15550000000", caller: "+13125551234" });
+    expect(queryOneMock).toHaveBeenCalledTimes(2);
+    const [sql, params] = queryOneMock.mock.calls[1] as [string, unknown[]];
+    expect(sql).toContain("agent_campaign_selections");
+    expect(sql).toContain("is_live = true");
+    // legacy-open fallback: campaigns nobody selected stay open
+    expect(sql).toContain("NOT EXISTS (SELECT 1 FROM app.agent_campaign_selections");
+    expect(params).toContain("camp-1");
+  });
+
+  it("rejects with no_agent_available when no agent is live for that campaign", async () => {
+    queryOneMock
+      .mockResolvedValueOnce(activeCampaign)
+      .mockResolvedValueOnce(null); // DB found no live+available agent
+    const result = await evaluatePing({ did: "+15550000000", caller: "+13125551234" });
+    expect(result).toMatchObject({ decision: "reject", reason: "no_agent_available", state: "IL" });
+    const [sql, params] = queryOneMock.mock.calls[1] as [string, unknown[]];
+    expect(sql).toContain("agent_campaign_selections");
+    expect(params).toContain("camp-1");
+  });
+
+  it("funds the wallet gate from the effective balance (personal + pool allocation, P1.4)", async () => {
+    queryOneMock
+      .mockResolvedValueOnce(activeCampaign)
+      .mockResolvedValueOnce({ id: "agent-9" });
+    await evaluatePing({ did: "+15550000000", caller: "+13125551234" });
+    const [sql] = queryOneMock.mock.calls[1] as [string, unknown[]];
+    expect(sql).toContain("agency_wallet_allocations");
+    expect(sql).toContain("agency_wallets");
+  });
 });
 
 describe("resolveNpaState", () => {

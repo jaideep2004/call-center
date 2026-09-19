@@ -30,6 +30,24 @@ describe("emailLayout", () => {
     expect(html).toContain("https://app.example.com/x");
     expect(html).toContain("ignore it");
   });
+
+  it("uses a wide card (680px) that fills desktop inboxes", () => {
+    const html = emailLayout({ preheader: "p", bodyHtml: "<p>Hi</p>" });
+    expect(html).toContain("max-width: 680px");
+  });
+
+  it("carries button padding on the td, never only the anchor (Gmail collapses anchor padding)", () => {
+    const html = emailLayout({
+      preheader: "p",
+      bodyHtml: "<p>Hi</p>",
+      cta: { label: "Create your account", href: "https://app.example.com/register?invite=abc" },
+    });
+    // padding + radius on the cell survive every Gmail render path
+    expect(html).toMatch(/<td[^>]*padding:\s*16px 32px[^>]*>\s*<!--\[if mso\]/);
+    // anchor is plain text styling — no layout responsibility
+    const anchor = html.match(/<a href="https:\/\/app\.example\.com[^>]*>Create your account<\/a>/)?.[0] ?? "";
+    expect(anchor).not.toContain("padding:");
+  });
 });
 
 describe("verificationEmail", () => {

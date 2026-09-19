@@ -1,5 +1,6 @@
 import { apiHandler, ok, noContent } from "@/server/api-utils";
 import { leads } from "@/server/repositories";
+import { notify } from "@/server/services/notify";
 import { ForbiddenError } from "@/server/errors";
 import { validate, updateLeadSchema } from "@/server/validate";
 
@@ -22,7 +23,26 @@ export const GET = apiHandler(async (req, { params, agencyId, user }) => {
 export const PATCH = apiHandler(async (req, { params, agencyId, user }) => {
   const { id } = await params;
   const body = validate(updateLeadSchema, await req.json());
-  const lead = await leads.update(id, body, scopeFor({ agencyId, user }));
+  const scope = scopeFor({ agencyId, user });
+  // Read-before-write only when an assignment is requested, so the inbox
+  // fires exactly on assignee change (not on every lead edit).
+  const prev = body.assigned_agent_id !== undefined
+    ? await leads.findById(id, scope).catch(() => null)
+    : null;
+  const lead = await leads.update(id, body, scope);
+  if (body.assigned_agent_id && body.assigned_agent_id !== prev?.assigned_agent_id) {
+    // Best-effort (notify() never throws): agency inbox + live badge.
+    await notify({
+      agencyId: scope ?? null,
+      topic: "lead.assigned",
+      payload: {
+        message: `Lead assigned to an agent`,
+        lead_id: lead.id,
+        assigned_agent_id: body.assigned_agent_id,
+        href: `/dashboard/leads/${lead.id}`,
+      },
+    });
+  }
   return ok(lead, "Lead updated");
 }, { resource: "leads", action: "update" });
 

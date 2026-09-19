@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
+import Modal from "@/components/modal";
 import { showToast } from "@/lib/use-toast";
 
 interface AgentPlan {
@@ -26,6 +27,23 @@ export default function AdminPlansPage() {
   const [priceCents, setPriceCents] = useState(0);
   const [callAllowance, setCallAllowance] = useState(0);
   const [billingType, setBillingType] = useState<'prepaid' | 'postpaid'>('prepaid');
+  const [featuresText, setFeaturesText] = useState("");
+
+  /** Feature bullet points live as { list: string[] } (homepage renders them verbatim). */
+  function featuresFromPlan(plan: { features?: Record<string, unknown> }): string {
+    const f = plan.features ?? {};
+    const raw = Array.isArray((f as { list?: unknown }).list)
+      ? ((f as { list?: unknown }).list as unknown[])
+      : Array.isArray(f)
+        ? (f as unknown[])
+        : [];
+    return raw.map((x) => String(x ?? "")).filter((s) => s.trim()).join("\n");
+  }
+
+  function featuresToRecord(): Record<string, unknown> {
+    const list = featuresText.split("\n").map((s) => s.trim()).filter(Boolean);
+    return { list };
+  }
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
@@ -43,7 +61,7 @@ export default function AdminPlansPage() {
   const resetForm = useCallback(() => {
     setShowForm(false);
     setEditingPlan(null);
-    setName(""); setPriceCents(0); setCallAllowance(0); setBillingType('prepaid');
+    setName(""); setPriceCents(0); setCallAllowance(0); setBillingType('prepaid'); setFeaturesText("");
   }, []);
 
   const openEditForm = (plan: AgentPlan) => {
@@ -52,6 +70,7 @@ export default function AdminPlansPage() {
     setPriceCents(plan.price_cents);
     setCallAllowance(plan.call_allowance);
     setBillingType((plan.billing_type as 'prepaid' | 'postpaid') ?? 'prepaid');
+    setFeaturesText(featuresFromPlan(plan as { features?: Record<string, unknown> }));
     setShowForm(true);
   };
 
@@ -65,7 +84,7 @@ export default function AdminPlansPage() {
         {
           method: isEdit ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, price_cents: priceCents, call_allowance: callAllowance, billing_type: billingType }),
+          body: JSON.stringify({ name, price_cents: priceCents, call_allowance: callAllowance, billing_type: billingType, features: featuresToRecord() }),
         },
       );
       if (res.ok) {
@@ -167,12 +186,13 @@ export default function AdminPlansPage() {
           <h1>Agent Plans</h1>
         </div>
         <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-          {showForm ? "Cancel" : "New Plan"}
+          New Plan
         </button>
       </div>
 
       {showForm && (
-        <div className="card" style={{ padding: "var(--space-6)", maxWidth: 520 }}>
+        <Modal label={editingPlan ? "Edit Plan" : "Create New Plan"} onClose={resetForm}>
+        <div className="card" style={{ padding: "var(--space-6)", width: "min(520px, 100%)" }}>
           <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>
             {editingPlan ? "Edit Plan" : "Create New Plan"}
           </h2>
@@ -208,6 +228,10 @@ export default function AdminPlansPage() {
               </select>
               <span className="form-hint">Prepaid charges upfront; postpaid bills after usage.</span>
             </div>
+            <div className="form-group">
+              <label className="form-label">Feature points (one per line — shown on the homepage pricing cards)</label>
+              <textarea className="textarea" rows={4} value={featuresText} onChange={(e) => setFeaturesText(e.target.value)} placeholder={"Live inbound calls\nFull call logs & recordings\nScripts & lead context"} />
+            </div>
             <div style={{ display: "flex", gap: "var(--space-3)", paddingTop: "var(--space-2)" }}>
               <button className="btn btn-primary" onClick={handleSave} disabled={!name || callAllowance < 0 || saving}>
                 {saving ? "Saving..." : editingPlan ? "Update Plan" : "Create Plan"}
@@ -216,6 +240,7 @@ export default function AdminPlansPage() {
             </div>
           </div>
         </div>
+        </Modal>
       )}
 
       <DataTable

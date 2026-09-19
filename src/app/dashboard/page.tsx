@@ -5,6 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { authClient } from "@/lib/auth-client";
 import { MiniDonut, MiniLine } from "@/components/dashboard-mini-charts";
+import { AgentHero, AgentFeed } from "@/components/campaign-slots";
 
 const AdminCharts = dynamic(() => import("@/components/admin-home-charts"), { ssr: false });
 
@@ -342,6 +343,7 @@ export default function DashboardPage(){
         </section>
 
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          <AgentHero />
           <section className="cc-card" aria-label="Quick Actions">
             <div className="cc-card__head"><div><h2>Quick Actions</h2><small>One click to act</small></div></div>
             <div className="cc-quick" style={{ gridTemplateColumns:"1fr 1fr" }}>
@@ -351,6 +353,7 @@ export default function DashboardPage(){
               <Link href="/dashboard/reports" className="btn btn-ghost" style={{ border:"1px solid var(--line)", borderRadius:10, minHeight:44, flexDirection:"column", gap:2, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><span>View Reports</span><small style={{fontSize:10, color:"var(--muted)"}}>Stats</small></Link>
             </div>
           </section>
+          <AgentFeed />
 
           <section className="cc-card" style={{ background:"linear-gradient(135deg, rgba(168,85,247,.14), rgba(96,165,250,.08))", borderColor:"rgba(168,85,247,.18)" }} aria-label="Your next action">
             <h3 style={{ font:"600 14px var(--serif)", margin:0, letterSpacing:"-0.02em", color:"var(--ink)" }}>Your Next Action</h3>

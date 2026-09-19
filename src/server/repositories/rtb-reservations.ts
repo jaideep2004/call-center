@@ -57,6 +57,34 @@ export class RtbReservationRepository {
     );
   }
 
+  /** Idempotency lookup for publisher ping redelivery (P1.5, 0047). */
+  async findByClientKey(clientKey: string): Promise<RtbReservationRow | null> {
+    return queryOne<RtbReservationRow>(
+      "SELECT * FROM app.rtb_reservations WHERE client_key = $1 LIMIT 1",
+      [clientKey],
+    );
+  }
+
+  /**
+   * Stamp the idempotency key after a successful reserve. Best-effort:
+   * returns false on unique conflict (a concurrent duplicate won the race —
+   * both callers hold a valid reservation, neither is double-billed since
+   * Retreaver confirms each uuid at most once).
+   */
+  async setClientKey(id: string, clientKey: string): Promise<boolean> {
+    try {
+      const row = await queryOne<RtbReservationRow>(
+        `UPDATE app.rtb_reservations SET client_key = $2, updated_at = now()
+          WHERE id = $1 AND client_key IS NULL RETURNING *`,
+        [id, clientKey],
+      );
+      return Boolean(row);
+    } catch (error: unknown) {
+      if ((error as { code?: string })?.code === "23505") return false;
+      throw error;
+    }
+  }
+
   async findExpiredReserved(): Promise<RtbReservationRow[]> {
     return query<RtbReservationRow>(
       `SELECT * FROM app.rtb_reservations WHERE status = 'reserved' AND expires_at IS NOT NULL AND expires_at < now()`,

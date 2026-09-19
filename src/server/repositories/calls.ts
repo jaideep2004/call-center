@@ -21,6 +21,8 @@ export interface CallRow {
   ended_at: string | null;
   routing_snapshot: Record<string, unknown>;
   qualification_snapshot: Record<string, unknown>;
+  /** Human-readable serial (CL-NNNN, DB default). UUID stays the PK. */
+  display_code: string | null;
 }
 
 export class CallRepository extends BaseRepository<CallRow> {

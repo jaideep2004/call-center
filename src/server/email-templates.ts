@@ -44,19 +44,21 @@ function logoUrl(): string {
 
 function ctaButton(label: string, href: string): string {
   const safeLabel = escapeHtml(label);
-  // Bulletproof button: Gmail-safe solid #7C3AED, 48px tall (16px font + 16px vertical padding), min-width 240, inline-block, centered table.
+  // Bulletproof button: padding lives on the <td>, NOT the <a> — several
+  // Gmail render paths ignore anchor padding and collapse the button into
+  // a shrunk pill with overflowing text. 48px tall, min-width 240, centered.
   // Solid color only, inline CSS, mso v:roundrect fallback for Outlook.
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 28px auto 0; border-collapse: separate;">
       <tr>
-        <td align="center" bgcolor="${ACCENT}" style="border-radius: 10px; background-color: ${ACCENT}; background: ${ACCENT};">
+        <td align="center" bgcolor="${ACCENT}" style="border-radius: 10px; background-color: ${ACCENT}; background: ${ACCENT}; padding: 16px 32px; border: 1px solid ${ACCENT};">
           <!--[if mso]>
           <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href}" style="height:48px;v-text-anchor:middle;width:280px;" arcsize="14%" strokecolor="${ACCENT}" fillcolor="${ACCENT}">
             <center style="color:#ffffff;font-family:${FONT};font-size:16px;font-weight:700;letter-spacing:0.02em;">${safeLabel}</center>
           </v:roundrect>
           <![endif]-->
           <!--[if !mso]><!-->
-          <a href="${href}" target="_blank" rel="noopener" style="display: inline-block; min-width: 240px; background-color: ${ACCENT}; background: ${ACCENT}; color: #FFFFFF; font-family: ${FONT}; font-size: 16px; font-weight: 700; line-height: 16px; mso-line-height-rule: exactly; padding: 16px 32px; border-radius: 10px; text-decoration: none; text-align: center; mso-padding-alt: 0; letter-spacing: 0.02em; border: 1px solid ${ACCENT};">${safeLabel}</a>
+          <a href="${href}" target="_blank" rel="noopener" style="display: inline-block; min-width: 240px; color: #FFFFFF; font-family: ${FONT}; font-size: 16px; font-weight: 700; line-height: 24px; mso-line-height-rule: exactly; text-decoration: none; text-align: center; letter-spacing: 0.02em;">${safeLabel}</a>
           <!--<![endif]-->
         </td>
       </tr>
@@ -97,8 +99,8 @@ export function emailLayout({ preheader, bodyHtml, cta, footerNote }: LayoutOpti
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">COVERAGE CALLS</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BG}; background:${BG}; width:100%; border-collapse: collapse;">
     <tr>
-      <td align="center" style="padding: 32px 16px 40px; background-color:${BG}; background:${BG};">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; margin: 0 auto; border-collapse: separate;">
+      <td align="center" style="padding: 32px 12px 40px; background-color:${BG}; background:${BG};">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 680px; width: 100%; margin: 0 auto; border-collapse: separate;">
           <!-- Header: white, light-safe, logo centered -->
           <tr>
             <td align="center" class="cc-header" style="background-color:${CARD}; background:${CARD}; border: 1px solid ${BORDER}; border-bottom: none; border-radius: 16px 16px 0 0; padding: 32px 24px 20px; box-shadow: 0 1px 2px rgba(16,12,42,0.04);">

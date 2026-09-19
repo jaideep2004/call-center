@@ -14,6 +14,7 @@ interface Campaign {
   price_cents: number;
   min_connected_seconds: number;
   retreaver_cid: string | null;
+  display_code: string | null;
   created_at: string;
 }
 function formatCents(cents: number) {
@@ -80,7 +81,7 @@ function CampaignsInner() {
   }
 
   const columns: Column<Campaign>[] = [
-    { key: "name", header: "Name", sortable: true, render: (c) => <Link href={`/dashboard/campaigns/${c.id}`} className="clickable" style={{ fontWeight: 500 }}>{c.name}</Link> },
+    { key: "name", header: "Name", sortable: true, render: (c) => <span><Link href={`/dashboard/campaigns/${c.id}`} className="clickable" style={{ fontWeight: 500 }}>{c.name}</Link>{c.display_code && <span className="text-mono-sm" style={{ marginLeft: 8, color: "var(--muted)", fontSize: 11 }}>{c.display_code}</span>}</span> },
     { key: "status", header: "Status", sortable: true, render: (c) => <span className={`badge${c.status === "active" ? " badge-success" : c.status === "paused" ? " badge-warning" : c.status === "archived" ? " badge-danger" : ""}`}>{c.status}</span> },
     { key: "routing_strategy", header: "Strategy", render: (c) => <span className="text-mono-sm">{c.routing_strategy}</span> },
     { key: "price_cents", header: "Price", sortable: true, render: (c) => <span className="text-mono-sm" style={{ color: "var(--accent)" }}>{c.price_cents != null ? formatCents(c.price_cents) : "\u2014"}</span> },

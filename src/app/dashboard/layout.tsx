@@ -3,11 +3,34 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+import {
+  BarChart3, Bell, BookOpen, Building2, Calendar, CalendarPlus, Disc, FileText,
+  GraduationCap, Landmark, Layers, LayoutDashboard, LayoutTemplate, LifeBuoy,
+  Lightbulb, Megaphone, Phone, PhoneCall, Radio, Receipt, Scale, Settings,
+  Shield, SlidersHorizontal, TrendingUp, UserPlus, Users, Wallet, Dot,
+  type LucideIcon,
+} from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/lib/use-toast";
 import { useSocket } from "@/lib/use-socket";
 import Softphone from "@/components/softphone";
 import "@/styles/dashboard.css";
+
+/** Sidebar icon per legacy nav code (expanded: icon + label, collapsed rail: icon only). */
+const NAV_ICONS: Record<string, LucideIcon> = {
+  "01": LayoutDashboard, "01b": PhoneCall, "03": Megaphone, "01c": CalendarPlus,
+  "06": Phone, "07b": Wallet, "05f": Layers, "05c": FileText, "05h": GraduationCap,
+  "09b": LifeBuoy, "09": Bell, "10": Settings, "11": Lightbulb, "04": Building2,
+  "05": Users, "02": UserPlus, "03b": Radio, "06c": Scale, "06b": Disc,
+  "05g": Receipt, "08b": TrendingUp, "07": BookOpen, "10c": Calendar,
+  "08": BarChart3, "11b": LayoutTemplate, "10b": SlidersHorizontal,
+  "07c": Landmark, "AA": Shield,
+};
+
+function NavIco({ code }: { code: string }) {
+  const Ico = NAV_ICONS[code] ?? Dot;
+  return <Ico size={16} strokeWidth={2} className="nav-ico" aria-hidden />;
+}
 
 function NotificationBadge({ membershipId }: { membershipId: string | null }) {
   const { socket } = useSocket(membershipId);
@@ -67,6 +90,7 @@ const adminNavGroups = [
       { label: "Disputes", href: "/dashboard/admin/disputes", icon: "06c" },
       { label: "Recordings", href: "/dashboard/recordings", icon: "06b" },
       { label: "Scripts", href: "/dashboard/scripts", icon: "05c" },
+      { label: "Tutorials", href: "/dashboard/tutorials", icon: "05h" },
     ]
   },
   {
@@ -117,6 +141,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { toasts, dismiss } = useToast();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => typeof window !== "undefined" && window.localStorage.getItem("cc-sidebar-collapsed") === "1",
+  );
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("cc-sidebar-collapsed", next ? "1" : "0");
+      } catch {
+        /* storage unavailable (private mode) — collapse still works for the session */
+      }
+      return next;
+    });
+  }
   const [membershipId, setMembershipId] = useState<string | null>(null);
   const [agentId, setAgentId] = useState<string | null>(null);
   const [agentAvailability, setAgentAvailability] = useState<string>("offline");
@@ -199,7 +237,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav>
           {publisherNav.map((item) => (
             <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
-              <b>{item.icon}</b>{item.label}
+              <NavIco code={item.icon} /><span className="nav-label">{item.label}</span>
               {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
             </Link>
           ))}
@@ -210,14 +248,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return (
         <nav>
           <Link className={isActive("/dashboard") ? "active" : ""} href="/dashboard" title="Command">
-            <b>01</b>Command
+            <NavIco code="01" /><span className="nav-label">Command</span>
           </Link>
           {adminNavGroups.map((group) => (
             <div key={group.label}>
               <span className="nav-section-label">{group.label}</span>
               {group.items.map((item) => (
                 <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
-                  <b>{item.icon}</b>{item.label}
+                  <NavIco code={item.icon} /><span className="nav-label">{item.label}</span>
                   {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
                 </Link>
               ))}
@@ -235,7 +273,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }
             href="/dashboard/admin" title="Admin Console"
           >
-            <b>AA</b>Admin
+            <NavIco code="AA" /><span className="nav-label">Admin</span>
           </Link>
         </nav>
       );
@@ -247,7 +285,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <nav>
         {mainItems.slice(0, 4).map((item) => (
           <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
-            <b>{item.icon}</b>{item.label}
+            <NavIco code={item.icon} /><span className="nav-label">{item.label}</span>
             {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
           </Link>
         ))}
@@ -255,13 +293,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="nav-section-label" style={{ marginBottom: 4, display: "block", fontSize: 9, letterSpacing: "0.12em" }}>BILLING</span>
           {financeItems.map((item) => (
             <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label} style={{ marginBottom: 2 }}>
-              <b>{item.icon}</b>{item.label}
+              <NavIco code={item.icon} /><span className="nav-label">{item.label}</span>
             </Link>
           ))}
+          {role === "agency" && (
+            <Link className={isActive("/dashboard/wallet/pool") ? "active" : ""} href="/dashboard/wallet/pool" title="Pool Wallet" style={{ marginBottom: 2 }}>
+              <NavIco code="07c" /><span className="nav-label">Pool Wallet</span>
+            </Link>
+          )}
         </div>
         {mainItems.slice(4).map((item) => (
           <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
-            <b>{item.icon}</b>{item.label}
+            <NavIco code={item.icon} /><span className="nav-label">{item.label}</span>
             {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
           </Link>
         ))}
@@ -272,10 +315,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="console" data-role={isAdmin ? "admin" : isPublisher ? "publisher" : "agent"} style={{position:"relative"}}>
       <div aria-hidden style={{position:"absolute", inset:"0 0 auto 0", height:1, background:"linear-gradient(90deg, transparent, rgba(168,85,247,.22), transparent)", pointerEvents:"none"}} />
-      <aside className="sidebar">
-        <Link href="/" aria-label="Coverage Calls home" style={{ display: "inline-flex", alignItems: "center", padding: "0 10px" }}>
-          <img src="/images/coveragecallsfinal.png" alt="Coverage Calls" style={{ height: 28, width: "auto", objectFit: "contain", display: "block" }} />
-        </Link>
+      <aside className={sidebarCollapsed ? "sidebar sidebar--collapsed" : "sidebar"}>
+        <div className="sidebar-top">
+          <Link href="/" aria-label="Coverage Calls home" className="sidebar-brand" style={{ display: "inline-flex", alignItems: "center", padding: "0 10px" }}>
+            <img src="/images/coveragecallsfinal.png" alt="Coverage Calls" className="sidebar-logo-full" style={{ height: 28, width: "auto", objectFit: "contain", display: "block" }} />
+            <img src="/images/coveragefavicon.png" alt="Coverage Calls" className="sidebar-logo-mark" style={{ height: 32, width: 32, objectFit: "contain", display: "none" }} />
+          </Link>
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={toggleSidebar}
+            aria-expanded={!sidebarCollapsed}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? "»" : "«"}
+          </button>
+        </div>
         <p className="agency">{isAdmin ? "ADMIN CONSOLE" : isPublisher ? "PUBLISHER PORTAL" : "OPERATIONS CONSOLE"}</p>
         {renderNav()}
         <div className="operator" ref={dropdownRef}>

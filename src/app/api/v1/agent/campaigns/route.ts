@@ -102,6 +102,18 @@ export const GET = apiHandler(async (req, context) => {
     });
   }
 
+  // Live-for-campaign flags for this viewer (P1.2: agent selects campaign in Take Calls)
+  let liveSet = new Set<string>();
+  if (agentId) {
+    try {
+      const liveRows = await query<{ campaign_id: string }>(
+        `SELECT campaign_id FROM app.agent_campaign_selections WHERE agent_id = $1 AND is_live = true`,
+        [agentId],
+      );
+      liveSet = new Set(liveRows.map((r) => r.campaign_id));
+    } catch {}
+  }
+
   // Enrich rows with assignment metadata
   const enriched = filtered.map((c) => {
     const entry = assignmentMap.get(c.id);
@@ -118,6 +130,7 @@ export const GET = apiHandler(async (req, context) => {
       assignment_status,
       is_assigned_to_me: isAssigned,
       has_assignments: hasAny,
+      is_live_for_me: liveSet.has(c.id),
     };
   });
 

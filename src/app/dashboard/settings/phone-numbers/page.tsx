@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
+import Modal from "@/components/modal";
 import { showToast } from "@/lib/use-toast";
 
 interface PhoneNumber {
   id: string;
-  campaign_id: string;
+  campaign_id: string | null;
   provider: string;
   e164: string;
   status: string;
@@ -18,6 +19,7 @@ interface PhoneNumber {
 interface Campaign {
   id: string;
   name: string;
+  display_code?: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -96,24 +98,75 @@ function PhoneNumbersInner() {
   }
 
   const campaignMap = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const c of campaigns) m[c.id] = c.name;
+    const m: Record<string, { name: string; display_code?: string | null }> = {};
+    for (const c of campaigns) m[c.id] = { name: c.name, display_code: c.display_code };
     return m;
   }, [campaigns]);
 
   const filtered = useMemo(() => {
     if (!debouncedQ) return numbers;
     const q = debouncedQ;
-    return numbers.filter((n) => n.e164.toLowerCase().includes(q) || n.provider.toLowerCase().includes(q) || (campaignMap[n.campaign_id] ?? "").toLowerCase().includes(q) || n.status.toLowerCase().includes(q));
+    return numbers.filter((n) => n.e164.toLowerCase().includes(q) || n.provider.toLowerCase().includes(q) || (n.campaign_id ? (campaignMap[n.campaign_id]?.name ?? n.campaign_id) : "unassigned").toLowerCase().includes(q) || n.status.toLowerCase().includes(q));
   }, [numbers, debouncedQ, campaignMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
+  async function moveNumber(id: string, campaignId: string | null) {
+    try {
+      const res = await fetch(`/api/v1/phone-numbers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaign_id: campaignId }),
+      });
+      const body = await res.json();
+      if (res.ok) {
+        setNumbers((prev) => prev.map((n) => (n.id === id ? body.data : n)));
+        showToast(campaignId ? "Number moved" : "Number unassigned — parked as spare", "success");
+      } else {
+        showToast(body.message ?? "Failed to move number", "error");
+      }
+    } catch {
+      showToast("Network error moving number", "error");
+    }
+  }
+
   const columns: Column<PhoneNumber>[] = [
     { key: "e164", header: "Number", render: (n) => <span className="text-mono-sm" style={{ fontWeight: 500 }}>{n.e164}</span> },
     { key: "provider", header: "Provider", render: (n) => <span className={`badge ${n.provider === "telnyx" ? "badge-info" : ""}`}>{n.provider}</span> },
-    { key: "campaign_id", header: "Campaign", render: (n) => <span className="text-mono-sm">{campaignMap[n.campaign_id] ?? n.campaign_id.slice(0, 8)}</span> },
+    {
+      key: "campaign_id", header: "Campaign", render: (n) => {
+        const known = n.campaign_id ? campaignMap[n.campaign_id] : undefined;
+        return (
+          <span>
+            {known ? (
+              <span className="text-mono-sm" title={n.campaign_id ?? ""} style={{ fontWeight: 500 }}>
+                {known.name}
+                {known.display_code && <span style={{ marginLeft: 6, color: "var(--muted)", fontSize: 11 }}>{known.display_code}</span>}
+              </span>
+            ) : n.campaign_id ? (
+              <span className="badge badge-warning" title={n.campaign_id}>Unknown campaign · {n.campaign_id.slice(0, 8)}</span>
+            ) : (
+              <span className="badge">Unassigned</span>
+            )}
+            <select
+              className="select"
+              aria-label={`Move ${n.e164} to campaign`}
+              value={n.campaign_id ?? ""}
+              onChange={(e) => moveNumber(n.id, e.target.value || null)}
+              style={{ marginLeft: 8, maxWidth: 190, fontSize: 11, padding: "4px 6px" }}
+            >
+              <option value="">Unassigned (spare)</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.display_code ? `${c.display_code} · ` : ""}{c.name}
+                </option>
+              ))}
+            </select>
+          </span>
+        );
+      },
+    },
     { key: "status", header: "Status", render: (n) => <span className={`badge ${n.status === "active" ? "badge-success" : n.status === "inactive" ? "" : "badge-warning"}`}>{n.status}</span> },
   ];
 
@@ -131,12 +184,13 @@ function PhoneNumbersInner() {
         </div>
         <div className="search-bar">
           <input className="input" type="search" placeholder="Search numbers..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 180 }} />
-          <button className="btn btn-primary btn-sm" onClick={() => setShowForm((v) => !v)}>{showForm ? "Cancel" : "+ Add number"}</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>+ Add number</button>
         </div>
       </div>
 
       {showForm && (
-        <form onSubmit={handleAdd} className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-5)" }}>
+        <Modal label="Add new number" onClose={() => setShowForm(false)}>
+        <form onSubmit={handleAdd} className="card" style={{ padding: "var(--space-5)", width: "min(560px, 100%)" }}>
           <h3 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-3)" }}>Add new number</h3>
           <div className="split" style={{ gap: "var(--space-3)", alignItems: "end", flexWrap: "wrap" } as React.CSSProperties}>
             <div className="form-group" style={{ flex: 2, minWidth: 160 }}>
@@ -160,8 +214,12 @@ function PhoneNumbersInner() {
             <button className="btn btn-primary" type="submit" disabled={saving || !number || !campaignId} style={{ marginBottom: 2 }}>
               {saving ? "..." : "Add"}
             </button>
+            <button className="btn btn-ghost" type="button" onClick={() => setShowForm(false)} style={{ marginBottom: 2 }}>
+              Cancel
+            </button>
           </div>
         </form>
+        </Modal>
       )}
 
       {loading ? (

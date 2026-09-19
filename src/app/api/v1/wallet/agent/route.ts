@@ -1,13 +1,22 @@
 import { apiHandler, ok, fail } from "@/server/api-utils";
-import { walletEntries, agents } from "@/server/repositories";
+import { walletEntries, agents, agencyWallets } from "@/server/repositories";
 import { validate, agentWalletTopUpSchema } from "@/server/validate";
 
 export const GET = apiHandler(async (req, { membership }) => {
   if (!membership) return ok({ balance_cents: 0 });
   const agent = await agents.findByMembershipId(membership.id);
   if (!agent) return ok({ balance_cents: 0 });
-  const balance = await walletEntries.sumByAgent(agent.id);
-  return ok({ balance_cents: balance, agent_id: agent.id });
+  const [balance, allocated] = await Promise.all([
+    walletEntries.sumByAgent(agent.id),
+    agencyWallets.allocationForAgent(agent.id),
+  ]);
+  return ok({
+    balance_cents: balance,
+    agent_id: agent.id,
+    // P1.4 dual-wallet split: personal ledger + agency-pool allocation.
+    allocated_cents: allocated,
+    effective_balance_cents: balance + allocated,
+  });
 }, { resource: "wallet", action: "view" });
 
 export const POST = apiHandler(async (req, { membership, agencyId }) => {

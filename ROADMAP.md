@@ -343,3 +343,31 @@ All client questions are answered — nothing is blocked. Build routing/billing 
 - Accept: script content `Hello [Your Name] from [State] NPN {{npn}}` with agent `John, CA, 12345` renders as `Hello John from CA NPN 12345`.
 
 Each item = one commit-sized unit. Verify (typecheck + tests) before moving to the next item.
+
+---
+
+## PHASE 6 — RTB Marketplace: One Publisher Campaign → Many Buyer Campaigns (ACTIVE — client confirmed 2026-09-14)
+
+Spec: `docs/plans/RTB_MARKETPLACE_AND_CMS_PLAN.md` Part 1. Order: marketplace FIRST, CMS/Tutorials LAST (on hold).
+Client anchors: Medicare Short 30s $16/$10, Long 120s $35/$20; FE Short 30s $50/$35, Long 90s $65/$50; ranges Medicare $10-20 / FE $35-50 adjustable; eligibility BEFORE Retreaver picks; <300ms best-effort, accuracy first; dual wallets (agent + agency pool).
+
+### 6.1 Pricing + payout fields
+- Migration `0044`: `campaigns.max_publisher_payout_cents/min_publisher_payout_cents/visibility/is_exclusive`. Extend `campaigns.ts`, `validate.ts`, `findManyWithBid`. Admin Bidding tab edits live. Seed 4 rows.
+
+### 6.2 Take-Calls campaign selection
+- Migration `0045_agent_campaign_selections`. `POST /api/v1/agent/campaigns/:id/live`. Take Calls multi-select gates Go Online. `routeCall` filters `is_live`.
+
+### 6.3 Pre-selection eligibility (before Retreaver)
+- NEW `eligibility.ts` (status/RTB/range/margin/state/live-agent/wallet/caps). `POST /api/v1/rtb/reserve` -> one `reserveRtb`, empty -> `no-target`. `selectAgent` stays for inside-winner only. No round-robin across offers.
+
+### 6.4 Dual wallets
+- Migration `0046_agency_wallets` + allocations. Effective balance = personal + allocation. Agency Dashboard pool UI. 30s sync job pauses depleted offers in Retreaver.
+
+### 6.5 Billing + verification
+- `finalizeCall` uses winning bid/payout; margin logged. Tests map to 17 acceptance items.
+
+## PHASE 7 — CMS Creatives + Tutorials (ON HOLD — build after Phase 6 UAT)
+
+Spec: `docs/plans/RTB_MARKETPLACE_AND_CMS_PLAN.md` Part 2.
+- 7.1 Campaign ads: `0047_campaign_creatives` + `cms-uploads` bucket + Admin Creatives tab + agent hero/feed slots.
+- 7.2 Tutorials: `0048` thumbnail/order/published/required + `tutorial_progress` + player + badges (v1 non-blocking).

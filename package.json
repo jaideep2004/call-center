@@ -21,6 +21,7 @@
     "gateway": "tsx src/gateway/index.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "@telnyx/webrtc": "^2.27.8",
     "better-auth": "^1.4.3",
     "dotenv": "^16.6.1",

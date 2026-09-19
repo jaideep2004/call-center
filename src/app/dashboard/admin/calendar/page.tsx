@@ -1,8 +1,13 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Script from "next/script";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
 import { showToast } from "@/lib/use-toast";
+
+/** Client-provided GoHighLevel booking widget (LeadConnector). Swap the ID if they rotate calendars. */
+const GHL_BOOKING_ID = "pmvq1BWzISoVJkfnrZWJ";
+const GHL_BOOKING_SRC = `https://api.leadconnectorhq.com/widget/booking/${GHL_BOOKING_ID}`;
 
 interface Slot {
 	id: string;
@@ -47,6 +52,7 @@ export default function AdminCalendarPage() {
 	const [slotPage, setSlotPage] = useState(1);
 	const [slotSortBy, setSlotSortBy] = useState("date");
 	const [slotOrder, setSlotOrder] = useState<"asc" | "desc">("asc");
+	const [calTab, setCalTab] = useState<"slots" | "booking">("slots");
 	const [bookingSearch, setBookingSearch] = useState("");
 	const [bookingDateFilter, setBookingDateFilter] = useState("");
 	const [bookingStatusFilter, setBookingStatusFilter] = useState<
@@ -484,7 +490,41 @@ export default function AdminCalendarPage() {
 						Agents see these in <b>Dashboard → Onboarding → Book Call</b>.
 					</p>
 				</div>
+				<div style={{ display: "flex", gap: 8 }}>
+					<button
+						type='button'
+						className={`btn btn-sm ${calTab === "slots" ? "btn-primary" : "btn-secondary"}`}
+						onClick={() => setCalTab("slots")}>
+						Onboarding Slots
+					</button>
+					<button
+						type='button'
+						className={`btn btn-sm ${calTab === "booking" ? "btn-primary" : "btn-secondary"}`}
+						onClick={() => setCalTab("booking")}>
+						Client Booking
+					</button>
+				</div>
 			</div>
+
+			{calTab === "booking" ? (
+				<div className='card' style={{ padding: "var(--space-5)" }}>
+					<h2 className='card-title' style={{ marginBottom: 4 }}>
+						Client Booking Calendar
+					</h2>
+					<p className='text-muted' style={{ fontSize: 11, margin: "0 0 var(--space-4)" }}>
+						External GoHighLevel booking widget — bookings made here live in GoHighLevel, not in the slots table below.
+					</p>
+					<Script src='https://link.msgsndr.com/js/form_embed.js' strategy='lazyOnload' />
+					<iframe
+						src={GHL_BOOKING_SRC}
+						title='Client booking calendar'
+						style={{ width: "100%", minHeight: 700, border: "none", overflow: "hidden", borderRadius: 12, background: "#fff" }}
+						scrolling='no'
+						allow='payment'
+					/>
+				</div>
+			) : (
+			<>
 
 			<div
 				className='card'
@@ -714,6 +754,8 @@ export default function AdminCalendarPage() {
 					/>
 				)}
 			</div>
+			</>
+			)}
 		</div>
 	);
 }

@@ -20,6 +20,7 @@ const TOPIC_COLORS: Record<string, string> = {
   "call.ended": "badge-success",
   "lead.assigned": "badge-warning",
   "support.new": "badge-warning",
+  "support.reply": "badge-info",
   default: "",
 };
 

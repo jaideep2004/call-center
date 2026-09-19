@@ -143,6 +143,36 @@ export default function FeaturesAndPricing() {
   const autoTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pausedRef = useRef(false);
 
+  // Dynamic plans from Admin → Plans (public endpoint). Empty/error keeps
+  // the built-in cards, so this section never renders blank.
+  const [livePlans, setLivePlans] = useState<
+    { id: string; name: string; price_cents: number; call_allowance: number; billing_type: string; features: string[] }[] | null
+  >(null);
+  useEffect(() => {
+    fetch("/api/v1/public/plans")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        const rows = Array.isArray(body?.data) ? body.data : [];
+        if (rows.length > 0) setLivePlans(rows);
+      })
+      .catch(() => {});
+  }, []);
+
+  const mid = livePlans ? Math.floor(livePlans.length / 2) : -1;
+  const money = (cents: number) =>
+    Number.isInteger(cents / 100) ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
+  const cards = livePlans
+    ? livePlans.map((p, i) => ({
+        name: p.name,
+        badge: i === mid && livePlans.length > 1 ? "MOST POPULAR" : undefined,
+        price: money(p.price_cents),
+        period: "/mo",
+        desc: `${p.billing_type === "postpaid" ? "Postpaid" : "Prepaid"} · ${p.call_allowance > 0 ? `${p.call_allowance} calls/mo` : "Unlimited calls"}`,
+        features: p.features.length > 0 ? p.features : ["Live inbound calls"],
+        highlighted: i === mid,
+      }))
+    : pricingData;
+
   // Auto-cycle highlight across feature cards (pauses on hover, resumes on leave)
   useEffect(() => {
     const startInterval = () => {
@@ -259,7 +289,7 @@ export default function FeaturesAndPricing() {
           </div>
 
           <div className={styles.pricingGrid}>
-            {pricingData.map((plan, idx) => (
+            {cards.map((plan, idx) => (
               <div
                 key={idx}
                 className={`${styles.pricingCard} ${plan.highlighted ? styles.pricingCardHighlighted : ''}`}
@@ -287,11 +317,13 @@ export default function FeaturesAndPricing() {
                   ))}
                 </div>
 
-                <button
+                <a
+                  href="/register"
                   className={`${styles.ctaBtn} ${plan.highlighted ? styles.ctaBtnPrimary : styles.ctaBtnSecondary}`}
+                  style={{ textDecoration: "none", textAlign: "center", display: "block" }}
                 >
                   Start free trial
-                </button>
+                </a>
               </div>
             ))}
           </div>

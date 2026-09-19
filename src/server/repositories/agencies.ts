@@ -12,6 +12,8 @@ export interface AgencyRow {
   parent_agency_id: string | null;
   commission_rate: number;
   head_membership_id: string | null;
+  /** Human-readable serial (AC-NNNN, DB default). UUID stays the PK. */
+  display_code: string | null;
   created_at: string;
 }
 
@@ -49,6 +51,16 @@ export class AgencyRepository extends BaseRepository<AgencyRow> {
   async update(id: string, data: Partial<AgencyRow>): Promise<AgencyRow> {
     return super.update(id, data);
   }
+}
+
+/** Whether the agency pool wallet is enabled (reads agency_wallets.enabled; false when no pool row). */
+export async function agency_wallet_enabled(agencyId: string, client?: PoolClient): Promise<boolean> {
+  const row = await queryOne<{ enabled: boolean }>(
+    `SELECT enabled FROM app.agency_wallets WHERE agency_id = $1`,
+    [agencyId],
+    client,
+  );
+  return row?.enabled ?? false;
 }
 
 export const agencies = new AgencyRepository();

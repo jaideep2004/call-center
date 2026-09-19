@@ -16,6 +16,7 @@ interface Publisher {
   retreaver_status: string;
   active: boolean;
   user_id: string | null;
+  display_code: string | null;
   created_at: string;
   updated_at?: string;
   last_sync_at?: string | null;
@@ -144,7 +145,6 @@ export default function AdminPublishersPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [afid, setAfid] = useState("");
-  const [commission, setCommission] = useState("0");
   const [fixedPriceDollars, setFixedPriceDollars] = useState("");
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -210,13 +210,13 @@ export default function AdminPublishersPage() {
           name: name.trim(),
           email: email.trim() || undefined,
           afid: afid.trim() || undefined,
-          commission_pct: parseInt(commission) || 0,
+          commission_pct: 0, // hidden until the platform-cut formula is decided (payout = campaign max for now)
           fixed_price_cents: cents,
         }),
       });
       const body = await res.json();
       if (res.ok) {
-        setName(""); setEmail(""); setAfid(""); setCommission("0"); setFixedPriceDollars("");
+        setName(""); setEmail(""); setAfid(""); setFixedPriceDollars("");
         showToast("Publisher created", "success");
         fetchPublishers();
       } else {
@@ -386,7 +386,6 @@ export default function AdminPublishersPage() {
       let cmp = 0;
       if (sortBy === "name") cmp = a.name.localeCompare(b.name);
       else if (sortBy === "created_at") cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      else if (sortBy === "commission_pct") cmp = a.commission_pct - b.commission_pct;
       else if (sortBy === "retreaver_status") cmp = a.retreaver_status.localeCompare(b.retreaver_status);
       return order === "asc" ? cmp : -cmp;
     });
@@ -408,11 +407,10 @@ export default function AdminPublishersPage() {
   }
 
   const columns: Column<Publisher>[] = [
-    { key: "name", header: "Name", sortable: true, render: (p) => <span style={{ fontWeight: 500 }}>{p.name}</span> },
+    { key: "name", header: "Name", sortable: true, render: (p) => <span><span style={{ fontWeight: 500 }}>{p.name}</span>{p.display_code && <span className="text-mono-sm" style={{ marginLeft: 8, color: "var(--muted)", fontSize: 11 }}>{p.display_code}</span>}</span> },
     { key: "email", header: "Email", render: (p) => <span className="text-mono-sm">{p.email ?? "—"}</span> },
     { key: "afid", header: "afid", render: (p) => <span className="text-mono-sm">{p.afid ?? "—"}</span> },
     { key: "fixed_price_cents", header: "Fixed price", render: (p) => <span className="text-mono-sm">{p.fixed_price_cents != null ? `$${(p.fixed_price_cents / 100).toFixed(2)}` : "—"}</span> },
-    { key: "commission_pct", header: "Commission", sortable: true, render: (p) => <span className="text-mono-sm">{p.commission_pct}%</span> },
     {
       key: "retreaver_status", header: "Retreaver", sortable: true,
       render: (p) => <span className={`badge ${p.retreaver_status === "active" ? "badge-success" : p.retreaver_status === "paused" ? "badge-warning" : p.retreaver_status === "error" ? "badge-danger" : ""}`}>{p.retreaver_status}</span>,
@@ -476,7 +474,7 @@ export default function AdminPublishersPage() {
         <div style={{ minWidth: 0 }}>
           <p className="eyebrow"><i /> ADMIN / PUBLISHERS <span style={{ color: "var(--muted)", marginLeft: 8 }}>• {filtered.length} TOTAL</span></p>
           <h1>Publishers</h1>
-          <p className="text-muted" style={{ fontSize: 12, marginTop: 6, maxWidth: 560 }}>Invite traffic partners, set fixed price or commission, and sync with Retreaver. Use the publisher multi-select on campaign pages.</p>
+            <p className="text-muted" style={{ fontSize: 12, marginTop: 6, maxWidth: 560 }}>Invite traffic partners, set fixed price, and sync with Retreaver. Use the publisher multi-select on campaign pages.</p>
           {lastSync && <p className="text-mono-sm" style={{ marginTop: 6, color: "var(--muted)", fontSize: 11 }}>Last sync: {new Date(lastSync).toLocaleString()}</p>}
           {connection && (
             <span className={`badge ${connection.ok ? "badge-success" : "badge-danger"}`} style={{ marginTop: 8, display: "inline-flex" }}>
@@ -517,15 +515,11 @@ export default function AdminPublishersPage() {
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="pub-email">Email</label>
-            <input id="pub-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="optional" />
+            <input id="pub-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="pub-afid">Retreaver afid</label>
             <input id="pub-afid" className="input" value={afid} onChange={(e) => setAfid(e.target.value)} placeholder="auto on provision" />
-          </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor="pub-commission">Commission %</label>
-            <input id="pub-commission" className="input" type="number" min="0" max="100" value={commission} onChange={(e) => setCommission(e.target.value)} />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="pub-price">Fixed price / call ($)</label>
@@ -538,7 +532,7 @@ export default function AdminPublishersPage() {
           </div>
         </form>
         {error && <p className="form-error" style={{ marginTop: 12 }}>{error}</p>}
-        <p className="text-muted" style={{ fontSize: 11, marginTop: 12 }}>Fixed price in dollars — stored as cents (×100). Leave empty for commission-only payout.</p>
+        <p className="text-muted" style={{ fontSize: 11, marginTop: 12 }}>Fixed price in dollars — stored as cents (×100). Leave empty to pay the campaign max payout.</p>
       </section>
 
       <div className="filter-bar">

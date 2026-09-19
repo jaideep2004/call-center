@@ -4,6 +4,7 @@ import { routeCall, finalizeCall } from "@/server/services/call-orchestrator";
 import { syncRetreaverCalls } from "@/server/services/retreaver";
 import { linkRetreaverCalls } from "@/server/services/retreaver-link";
 import { expireStaleRtbReservations } from "@/server/services/retreaver-rtb";
+import { syncOfferWalletPauses } from "@/server/services/offer-wallet-sync";
 import { runCallMaintenance } from "@/server/services/call-cleanup";
 import { generateMonthlyFees, generateWeeklyInvoices } from "@/server/services/agent-fees";
 import { purgeExpiredRecordings } from "@/server/services/recording-purge";
@@ -35,6 +36,7 @@ async function main() {
     "generate-agent-fees",
     "generate-weekly-invoices",
     "purge-expired-recordings",
+    "sync-offer-wallet-pauses",
   ]) {
     await boss.createQueue(name);
   }
@@ -56,6 +58,10 @@ async function main() {
     await boss.schedule("sync-retreaver-calls", "*/10 * * * *");
     await boss.schedule("link-retreaver-calls", "*/5 * * * *");
     await boss.schedule("expire-rtb-reservations", "*/5 * * * *");
+    // P1.4: pause/unpause RTB offers in Retreaver from effective funding.
+    // Per-ping eligibility still enforces funding in real time, so this sweep
+    // is RTB-side enforcement only (env-gated like the other Retreaver jobs).
+    await boss.schedule("sync-offer-wallet-pauses", "*/30 * * * * *");
     console.info("retreaver scheduled jobs enabled");
   }
 
@@ -150,6 +156,18 @@ async function main() {
         console.info(JSON.stringify({ event: "rtb_expired", jobId: job.id, expired }));
       } catch (error) {
         console.error(JSON.stringify({ event: "rtb_expire_failed", jobId: job.id, error: String(error) }));
+      }
+    }
+  });
+
+  await boss.work("sync-offer-wallet-pauses", { localConcurrency: 1 }, async (jobs) => {
+    for (const job of jobs) {
+      try {
+        const result = await syncOfferWalletPauses();
+        console.info(JSON.stringify({ event: "offer_wallet_synced", jobId: job.id, ...result }));
+      } catch (error) {
+        // Scheduled reconciliation: next 30s tick re-runs the sweep.
+        console.error(JSON.stringify({ event: "offer_wallet_sync_failed", jobId: job.id, error: String(error) }));
       }
     }
   });

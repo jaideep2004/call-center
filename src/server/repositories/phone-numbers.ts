@@ -5,7 +5,8 @@ import type { PoolClient } from "pg";
 export interface PhoneNumberRow {
   id: string;
   agency_id: string;
-  campaign_id: string;
+  /** Null = spare pool inventory, matches no campaign (0051). */
+  campaign_id: string | null;
   provider: string;
   e164: string;
   status: string;
@@ -43,6 +44,11 @@ export class PhoneNumberRepository extends BaseRepository<PhoneNumberRow> {
       pagination: { page: 1, limit: 1000 },
     });
     return rows;
+  }
+
+  /** Move a number between campaigns, or null to park it as spare inventory. */
+  async reassign(id: string, campaignId: string | null, agencyId: string, client?: PoolClient): Promise<PhoneNumberRow> {
+    return super.update(id, { campaign_id: campaignId }, agencyId, client);
   }
 }
 

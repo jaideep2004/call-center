@@ -1,4 +1,5 @@
-import { calls, agents, campaigns, phoneNumbers, dispositions, dispositionPayouts, agentSubscriptions, walletEntries, campaignAssignments, bidOverrides } from "@/server/repositories";
+import { calls, agents, campaigns, phoneNumbers, dispositions, dispositionPayouts, agentSubscriptions, walletEntries, campaignAssignments, bidOverrides, agentCampaignSelections } from "@/server/repositories";
+import { effectiveBalanceSql } from "@/server/repositories/agency-wallets";
 import { transaction, query } from "@/server/db";
 import { getTelephonyProvider } from "@/server/telephony-registry";
 import { selectAgent } from "@/domain/routing";
@@ -76,8 +77,8 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
           campaignId = phone.campaign_id;
         } else {
           console.warn(`[processProviderEvent] unknown DID ${event.to.slice(0,12)}..., falling back to first active phone`);
-          // Fallback: first active phone (masked DIDs break exact match)
-          const fallback = await client.query(`SELECT agency_id, campaign_id FROM app.phone_numbers WHERE status='active' LIMIT 1`);
+          // Fallback: first active ASSIGNED phone (unassigned spares never route)
+          const fallback = await client.query(`SELECT agency_id, campaign_id FROM app.phone_numbers WHERE status='active' AND campaign_id IS NOT NULL LIMIT 1`);
           if (fallback.rows[0]) {
             agencyId = fallback.rows[0].agency_id;
             campaignId = fallback.rows[0].campaign_id;
@@ -86,7 +87,7 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
       }
       if (!agencyId || !campaignId) {
         // Still no match — use first agency/campaign so webhook never 400s on UUID
-        const fallback = await client.query(`SELECT agency_id, campaign_id FROM app.phone_numbers WHERE status='active' LIMIT 1`);
+        const fallback = await client.query(`SELECT agency_id, campaign_id FROM app.phone_numbers WHERE status='active' AND campaign_id IS NOT NULL LIMIT 1`);
         if (fallback.rows[0]) {
           agencyId = fallback.rows[0].agency_id;
           campaignId = fallback.rows[0].campaign_id;
@@ -318,9 +319,15 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
     ]);
   }
 
+  // Exclusive campaigns ("Only For Agents/Agencies") are NEVER open: they
+  // require an assignment match even when no assignment rows exist yet (which
+  // restricts them to nobody until the head assigns someone in the UI).
+  const requireAssignment = hasAssignments
+    || campaign?.is_exclusive === true
+    || campaign?.visibility === "exclusive";
   let assignedAgencyIds: string[] = [];
   let assignedAgentIds: string[] = [];
-  if (hasAssignments) {
+  if (requireAssignment) {
     if (client) {
       assignedAgencyIds = await campaignAssignments.findAgencyIds(call.campaign_id, client);
       assignedAgentIds = await campaignAssignments.findAgentIds(call.campaign_id, client);
@@ -336,14 +343,15 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
   // agent instead of refetching by id (one less query per call).
   const agentById = new Map(availableAgents.map((a) => [a.id, a]));
 
-  // Call-readiness gate (client Q2): skip agents whose wallet can't cover the
-  // campaign price; prepaid (wallet-funded) agents are tier 1 and get calls
-  // FIRST, subscription-funded agents are tier 2.
+  // Call-readiness gate (client Q2): skip agents whose EFFECTIVE balance
+  // (personal ledger + agency-pool allocation, P1.4) can't cover the campaign
+  // price; prepaid (wallet-funded) agents are tier 1 and get calls FIRST,
+  // subscription-funded agents are tier 2.
   const priceCents = bidOverride?.price_cents ?? campaign?.price_cents ?? 10;
   const eligibilityRows = availableAgents.length > 0
     ? await query<{ id: string; wallet_cents: string; has_sub: boolean }>(
         `SELECT a.id,
-                COALESCE((SELECT SUM(we.amount_cents) FROM app.wallet_entries we WHERE we.agent_id = a.id), 0)::text AS wallet_cents,
+                (${effectiveBalanceSql("a")})::text AS wallet_cents,
                 EXISTS (
                   SELECT 1 FROM app.agent_subscriptions s
                   JOIN app.agent_plans p ON p.id = s.plan_id
@@ -359,10 +367,21 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
     : [];
   const eligibility = new Map(eligibilityRows.map((r) => [r.id, r]));
 
+  // P1.2 live-for-campaign: only agents live for THIS campaign may ring.
+  // Legacy: if nobody ever selected this campaign, treat as open (all pass).
+  let liveAgentIds: Set<string> | null = null;
+  try {
+    const live = await agentCampaignSelections.findLiveAgentIds(call.campaign_id, client);
+    liveAgentIds = live ? new Set(live) : null;
+  } catch { liveAgentIds = null; }
+
     const candidates = [];
     for (const a of availableAgents) {
       if (excludeAgentIds?.includes(a.id)) continue;
-      if (hasAssignments && !assignedAgencyIds.includes(a.agency_id) && !assignedAgentIds.includes(a.id)) {
+      if (requireAssignment && !assignedAgencyIds.includes(a.agency_id) && !assignedAgentIds.includes(a.id)) {
+        continue;
+      }
+      if (liveAgentIds && !liveAgentIds.has(a.id)) {
         continue;
       }
       const elig = eligibility.get(a.id);
@@ -604,6 +623,14 @@ export async function handleNoAnswer(callId: string, reason: NoAnswerReason, cli
   return { rerouted: true, attempts: tried.size, reason, result };
 }
 
+export interface FinalizeMarketplace {
+  revenue_cents: number | null;
+  cost_cents: number | null;
+  margin_cents: number | null;
+  qualified: boolean;
+  reason: string | null;
+}
+
 export async function finalizeCall(callId: string, client?: PoolClient) {
   const call = await calls.findById(callId, undefined, client);
   if (!call || call.state !== "ended") return null;
@@ -637,6 +664,26 @@ export async function finalizeCall(callId: string, client?: PoolClient) {
     totalCents = calculateBilling(connectedSeconds, bufferSeconds, pricePerSecondCents).totalCents;
   }
 
+  // Marketplace economics (P1.5 — REPORTING ONLY, never re-bills).
+  // Revenue = winning offer's effective bid, cost = its effective payout
+  // (override wins in both; strict nulls — no fabricated defaults), margin =
+  // revenue - cost. Duration-billed calls below min_connected_seconds earn
+  // nothing (explicit zeros); disposition-based calls keep their own payout
+  // economics (margin null). Persisted into qualification_snapshot inside the
+  // invoice-winner branch below, so redelivery never double-records.
+  const effectiveBid = bidOverride?.price_cents ?? campaign?.price_cents ?? null;
+  const effectivePayout = bidOverride?.payout_cents ?? campaign?.max_publisher_payout_cents ?? null;
+  let marketplace: FinalizeMarketplace;
+  if (dispositionBased) {
+    marketplace = { revenue_cents: null, cost_cents: null, margin_cents: null, qualified: false, reason: "disposition_based" };
+  } else if (effectiveBid == null || effectivePayout == null) {
+    marketplace = { revenue_cents: null, cost_cents: null, margin_cents: null, qualified: false, reason: "unconfigured" };
+  } else if (connectedSeconds < minConnectedSeconds) {
+    marketplace = { revenue_cents: 0, cost_cents: 0, margin_cents: 0, qualified: false, reason: "below_min_connected" };
+  } else {
+    marketplace = { revenue_cents: effectiveBid, cost_cents: effectivePayout, margin_cents: effectiveBid - effectivePayout, qualified: true, reason: null };
+  }
+
   return transaction(async (client) => {
     // IDEMPOTENCY ANCHOR: only the first finalize per call creates the invoice.
     // Every money movement below runs exclusively inside this winner branch, so
@@ -650,9 +697,28 @@ export async function finalizeCall(callId: string, client?: PoolClient) {
     );
 
     if (invoiceResult.rows.length === 0) {
-      return { skipped: true, reason: "already_finalized", totalCents, connectedSeconds };
+      return { skipped: true, reason: "already_finalized", totalCents, connectedSeconds, marketplace };
     }
     const invoice = invoiceResult.rows[0];
+
+    // Marketplace margin record (P1.5): jsonb merge inside the winner branch
+    // only — redelivery skips above and never double-records.
+    await client.query(
+      `UPDATE app.calls
+          SET qualification_snapshot = COALESCE(qualification_snapshot, '{}'::jsonb) || $2::jsonb
+        WHERE id = $1 AND agency_id = $3`,
+      [call.id, JSON.stringify({ marketplace }), call.agency_id],
+    );
+    console.log(JSON.stringify({
+      event: "finalize_marketplace",
+      callId: call.id,
+      campaignId: call.campaign_id,
+      revenue_cents: marketplace.revenue_cents,
+      cost_cents: marketplace.cost_cents,
+      margin_cents: marketplace.margin_cents,
+      qualified: marketplace.qualified,
+      reason: marketplace.reason,
+    }));
 
     // Agent pays per call (subscription allowance or wallet credit).
     if (call.agent_id) {
@@ -677,6 +743,7 @@ export async function finalizeCall(callId: string, client?: PoolClient) {
           totalCents,
           connectedSeconds,
           bufferSeconds,
+          marketplace,
           insufficientBalance: true,
         };
       }
@@ -698,7 +765,7 @@ export async function finalizeCall(callId: string, client?: PoolClient) {
       );
     }
 
-    return { invoice, totalCents, connectedSeconds, bufferSeconds, dispositionBased };
+    return { invoice, totalCents, connectedSeconds, bufferSeconds, dispositionBased, marketplace };
   });
 }
 

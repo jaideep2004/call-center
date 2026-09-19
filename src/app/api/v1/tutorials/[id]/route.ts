@@ -1,5 +1,6 @@
 import { apiHandler, ok, noContent } from "@/server/api-utils";
 import { tutorials } from "@/server/repositories";
+import { validate, updateTutorialSchema } from "@/server/validate";
 
 export const GET = apiHandler(async (req, context) => {
   const { id } = await context.params;
@@ -9,7 +10,7 @@ export const GET = apiHandler(async (req, context) => {
 
 export const PATCH = apiHandler(async (req, context) => {
   const { id } = await context.params;
-  const body = await req.json();
+  const body = validate(updateTutorialSchema, await req.json());
   const row = await tutorials.update(id, body, context.agencyId!);
   return ok(row);
 }, { resource: "agents", action: "manage" });

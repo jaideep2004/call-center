@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { showToast } from "@/lib/use-toast";
+import AdminCreatives from "@/components/admin-creatives";
 
 interface CmsSection {
   id: string;
@@ -15,7 +16,10 @@ interface CmsSection {
 type FaqItem = { question: string; answer: string };
 type TestimonialItem = { name: string; role: string; quote: string };
 type PostItem = { title: string; slug: string; excerpt: string; body: string; image: string; author: string };
-type CreativeItem = { title: string; image_url: string; link_url: string; placement: string };
+
+/** Legacy homepage-banner slugs — superseded by the Campaign Ads tab (campaign_creatives).
+ *  Rows may still exist in DB; they are hidden from the Sections UI, never deleted. */
+const RETIRED_CMS_SLUGS = ["creatives", "banner", "banners"];
 
 function mdToHtml(md: string): string {
   let h = md
@@ -57,9 +61,9 @@ export default function AdminCmsPage() {
   const [faqItems, setFaqItems] = useState<FaqItem[]>([]);
   const [testimonialItems, setTestimonialItems] = useState<TestimonialItem[]>([]);
   const [postItems, setPostItems] = useState<PostItem[]>([]);
-  const [creativeItems, setCreativeItems] = useState<CreativeItem[]>([]);
   const [bodyText, setBodyText] = useState("");
   const [preview, setPreview] = useState(false);
+  const [tab, setTab] = useState<"sections" | "ads">("sections");
 
   const refresh = useCallback(() => {
     fetch("/api/v1/cms/admin")
@@ -145,19 +149,6 @@ export default function AdminCmsPage() {
           : []
       );
       setContentText(JSON.stringify(c, null, 2));
-    } else if (s.slug === "creatives" || s.slug === "banner" || s.slug === "banners") {
-      const raw = Array.isArray((c as { items?: unknown }).items) ? ((c as { items: unknown[] }).items as Record<string, unknown>[]) : [];
-      setCreativeItems(
-        raw.length
-          ? raw.map((it) => ({
-              title: String((it as Record<string, unknown>).title ?? ""),
-              image_url: String((it as Record<string, unknown>).image_url ?? (it as Record<string, unknown>).image ?? ""),
-              link_url: String((it as Record<string, unknown>).link_url ?? (it as Record<string, unknown>).link ?? ""),
-              placement: String((it as Record<string, unknown>).placement ?? "homepage"),
-            }))
-          : []
-      );
-      setContentText(JSON.stringify(c, null, 2));
     } else if (s.slug === "privacy" || s.slug === "terms") {
       setBodyText(String((c as { body?: unknown }).body ?? (typeof c === "string" ? c : "")));
       setContentText(JSON.stringify(c, null, 2));
@@ -188,18 +179,6 @@ export default function AdminCmsPage() {
           })),
       };
     }
-    if (activeSlug === "creatives" || activeSlug === "banner" || activeSlug === "banners") {
-      return {
-        items: creativeItems
-          .filter((it) => it.title.trim() || it.image_url.trim())
-          .map((it) => ({
-            title: it.title.trim(),
-            image_url: it.image_url.trim(),
-            link_url: it.link_url.trim(),
-            placement: it.placement.trim() || "homepage",
-          })),
-      };
-    }
     if (activeSlug === "privacy" || activeSlug === "terms") {
       return { body: bodyText };
     }
@@ -214,7 +193,7 @@ export default function AdminCmsPage() {
   async function save() {
     if (!activeSlug) return;
     const content = buildContent();
-    if (content === null && activeSlug !== "faq" && activeSlug !== "testimonials" && activeSlug !== "privacy" && activeSlug !== "terms" && activeSlug !== "posts" && activeSlug !== "blog" && activeSlug !== "creatives" && activeSlug !== "banner" && activeSlug !== "banners") return;
+    if (content === null && activeSlug !== "faq" && activeSlug !== "testimonials" && activeSlug !== "privacy" && activeSlug !== "terms" && activeSlug !== "posts" && activeSlug !== "blog") return;
     const finalContent = content as Record<string, unknown>;
     setSaving(true);
     try {
@@ -261,7 +240,6 @@ export default function AdminCmsPage() {
       let seed: Record<string, unknown> = {};
       if (slug === "faq" || slug === "testimonials") seed = { items: [] };
       else if (slug === "posts" || slug === "blog") seed = { items: [] };
-      else if (slug === "creatives" || slug === "banner" || slug === "banners") seed = { items: [] };
       else if (slug === "privacy" || slug === "terms" || slug === "banner" || slug === "hero") seed = { body: "" };
       const res = await fetch("/api/v1/cms/admin", {
         method: "POST",
@@ -298,7 +276,6 @@ export default function AdminCmsPage() {
   const isStructuredFaq = activeSlug === "faq";
   const isTestimonials = activeSlug === "testimonials";
   const isPosts = activeSlug === "posts" || activeSlug === "blog";
-  const isCreatives = activeSlug === "creatives" || activeSlug === "banner" || activeSlug === "banners";
   const isBody = activeSlug === "privacy" || activeSlug === "terms";
 
   return (
@@ -309,13 +286,22 @@ export default function AdminCmsPage() {
             <i /> ADMIN / CMS
           </p>
           <h1>Content Management</h1>
-          <p className="text-muted" style={{ fontSize: 11, marginTop: 4, maxWidth: 640 }}>Manage homepage creatives, blog posts, FAQs and testimonials without code. Changes go live immediately.</p>
+          <p className="text-muted" style={{ fontSize: 11, marginTop: 4, maxWidth: 640 }}>Manage campaign ads, blog posts, FAQs and testimonials without code. Changes go live immediately. For homepage/agent banners use the Campaign Ads tab.</p>
         </div>
         <Link href="/dashboard/admin" className="btn btn-secondary">
           Back to Admin
         </Link>
       </div>
 
+      <nav className="tabs" style={{ marginBottom: "var(--space-4)" }}>
+        <button type="button" className={`tab ${tab === "sections" ? "active" : ""}`} onClick={() => setTab("sections")}>Sections</button>
+        <button type="button" className={`tab ${tab === "ads" ? "active" : ""}`} onClick={() => setTab("ads")}>Campaign Ads</button>
+      </nav>
+
+      {tab === "ads" ? (
+        <AdminCreatives />
+      ) : (
+      <>
       {/* Quick add */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: "var(--space-5)" }}>
         {QUICK_TYPES.map((t) => {
@@ -364,7 +350,7 @@ export default function AdminCmsPage() {
               </tr>
             </thead>
             <tbody>
-              {sections.map((s) => (
+              {sections.filter((s) => !RETIRED_CMS_SLUGS.includes(s.slug)).map((s) => (
                 <tr key={s.id} style={s.slug === activeSlug ? { background: "rgba(168,85,247,0.08)" } : undefined}>
                   <td className="clickable text-mono-sm" onClick={() => openSection(s)}>
                     {s.slug}
@@ -379,7 +365,7 @@ export default function AdminCmsPage() {
                   </td>
                 </tr>
               ))}
-              {sections.length === 0 && (
+              {sections.filter((s) => !RETIRED_CMS_SLUGS.includes(s.slug)).length === 0 && (
                 <tr>
                   <td colSpan={3} className="text-muted" style={{ textAlign: "center", padding: 16, fontSize: 12 }}>
                     No sections yet — use Quick add above or create custom below.
@@ -397,7 +383,7 @@ export default function AdminCmsPage() {
               <button className="btn btn-secondary btn-sm" onClick={createSection} disabled={creating}>
                 {creating ? "Creating..." : "Create custom section"}
               </button>
-              <span className="text-muted" style={{ fontSize: 10 }}>For advanced use — most teams use Quick add above. Slugs faq/testimonials/posts/creatives/privacy/terms are seeded.</span>
+              <span className="text-muted" style={{ fontSize: 10 }}>For advanced use — most teams use Quick add above. Slugs faq/testimonials/posts/privacy/terms are seeded. Banners live in the Campaign Ads tab.</span>
             </div>
           </div>
         </div>
@@ -479,28 +465,6 @@ export default function AdminCmsPage() {
                 </div>
               )}
 
-              {isCreatives && (
-                <div className="stack" style={{ gap: 12 }}>
-                  {creativeItems.length === 0 && <p className="text-muted" style={{ fontSize: 11 }}>No creatives yet — add a banner. Creatives are used on homepage / ads.</p>}
-                  {creativeItems.map((it, idx) => (
-                    <div key={idx} className="card" style={{ padding: 12, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                      <div className="stack" style={{ gap: 8 }}>
-                        <div className="stack-h" style={{ justifyContent: "space-between" }}>
-                          <span className="text-mono-sm" style={{ fontWeight: 700 }}>#{idx + 1}</span>
-                          <button className="btn btn-sm" onClick={() => setCreativeItems((prev) => prev.filter((_, i) => i !== idx))} style={{ fontSize: 10 }}>Remove</button>
-                        </div>
-                        <input className="input" value={it.title} onChange={(e) => setCreativeItems((prev) => prev.map((p, i) => (i === idx ? { ...p, title: e.target.value } : p)))} placeholder="Title — e.g. Summer banner" style={{ fontSize: 12 }} />
-                        <input className="input" value={it.image_url} onChange={(e) => setCreativeItems((prev) => prev.map((p, i) => (i === idx ? { ...p, image_url: e.target.value } : p)))} placeholder="Image URL — https://.../banner.jpg" style={{ fontSize: 12 }} />
-                        {it.image_url && <img src={it.image_url} alt="" style={{ maxWidth: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }} onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />}
-                        <input className="input" value={it.link_url} onChange={(e) => setCreativeItems((prev) => prev.map((p, i) => (i === idx ? { ...p, link_url: e.target.value } : p)))} placeholder="Link URL — e.g. https://.../promo" style={{ fontSize: 12 }} />
-                        <input className="input" value={it.placement} onChange={(e) => setCreativeItems((prev) => prev.map((p, i) => (i === idx ? { ...p, placement: e.target.value } : p)))} placeholder="Placement — e.g. homepage, hero, sidebar" style={{ fontSize: 12 }} />
-                      </div>
-                    </div>
-                  ))}
-                  <button className="btn btn-secondary btn-sm" onClick={() => setCreativeItems((prev) => [...prev, { title: "", image_url: "", link_url: "", placement: "homepage" }])}>+ Add creative</button>
-                </div>
-              )}
-
               {isBody && (
                 <div className="stack" style={{ gap: 8 }}>
                   <div className="stack-h" style={{ justifyContent: "space-between", alignItems: "center" }}>
@@ -517,7 +481,7 @@ export default function AdminCmsPage() {
                 </div>
               )}
 
-              {!isStructuredFaq && !isTestimonials && !isBody && !isPosts && !isCreatives && (
+              {!isStructuredFaq && !isTestimonials && !isBody && !isPosts && (
                 <textarea className="textarea" rows={14} value={contentText} onChange={(e) => setContentText(e.target.value)} style={{ fontFamily: "var(--mono)", fontSize: 12 }} placeholder='{"items": []}' />
               )}
 
@@ -525,12 +489,14 @@ export default function AdminCmsPage() {
                 <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>
                   {saving ? "Saving..." : "Save & Publish"}
                 </button>
-                <span className="text-muted" style={{ fontSize: 10 }}>{isStructuredFaq || isTestimonials || isBody || isPosts || isCreatives ? "Structured — no JSON needed. Changes go live immediately." : "Content must be valid JSON. Changes go live immediately."}</span>
+                <span className="text-muted" style={{ fontSize: 10 }}>{isStructuredFaq || isTestimonials || isBody || isPosts ? "Structured — no JSON needed. Changes go live immediately." : "Content must be valid JSON. Changes go live immediately."}</span>
               </div>
             </div>
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

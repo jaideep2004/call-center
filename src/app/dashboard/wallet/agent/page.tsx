@@ -50,6 +50,8 @@ function AgentWalletInner() {
   const user = session?.user;
 
   const [balance, setBalance] = useState(0);
+  const [allocated, setAllocated] = useState(0);
+  const [effective, setEffective] = useState(0);
   const [entries, setEntries] = useState<WalletEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [toppingUp, setToppingUp] = useState(false);
@@ -66,6 +68,8 @@ function AgentWalletInner() {
       if (res.ok) {
         const body = await res.json();
         setBalance(body.data?.balance_cents ?? 0);
+        setAllocated(body.data?.allocated_cents ?? 0);
+        setEffective(body.data?.effective_balance_cents ?? body.data?.balance_cents ?? 0);
       }
       setLoading(false);
     });
@@ -187,6 +191,11 @@ function AgentWalletInner() {
             <p className="text-muted" style={{ fontSize: 11 }}>Available Balance</p>
             <p style={{ font: "500 48px/1 var(--serif)", margin: "4px 0", letterSpacing: "-0.05em" }}>{formatCents(balance)}</p>
             <p className="text-mono-sm" style={{ marginTop: 4 }}>+{formatCents(thisPeriod)} this week</p>
+            {allocated > 0 && (
+              <p className="text-mono-sm" style={{ marginTop: 4, color: "var(--ink)" }}>
+                +{formatCents(allocated)} pool allocation · effective {formatCents(effective)} for call routing
+              </p>
+            )}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <a className="btn btn-sm" href="/dashboard/agents/subscription" style={{ whiteSpace: "nowrap" }}>View Subscriptions →</a>

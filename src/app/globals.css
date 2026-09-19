@@ -88,10 +88,17 @@ button {
 	display: contents;
 }
 .sidebar nav a {
+	display: flex;
+	align-items: center;
+	gap: 10px;
 	padding: 11px 10px;
 	border-left: 2px solid transparent;
 	font-size: 13px;
 	color: #a9a3bc;
+}
+.sidebar nav a .nav-ico {
+	flex-shrink: 0;
+	color: #6f6790;
 }
 .sidebar nav a b {
 	display: inline-block;
@@ -103,6 +110,9 @@ button {
 	border-left-color: var(--accent);
 	color: var(--ink);
 	background: var(--accent-active-bg);
+}
+.sidebar nav a.active .nav-ico {
+	color: var(--ink);
 }
 .sidebar nav a.admin-link {
 	border-left-color: #8a6a2f;
@@ -237,6 +247,96 @@ button {
 	border-radius: 50%;
 	background: var(--acid);
 	border: 2px solid var(--ground);
+}
+
+/* ── Sidebar collapse (desktop icon rail) ─────────────────── */
+.sidebar {
+	transition: width 220ms ease;
+}
+.sidebar-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+.sidebar-brand {
+	min-width: 0;
+}
+.sidebar-collapse-btn {
+	flex-shrink: 0;
+	width: 28px;
+	height: 28px;
+	display: grid;
+	place-items: center;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: transparent;
+	color: var(--muted);
+	font: 13px var(--mono);
+	cursor: pointer;
+	transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.sidebar-collapse-btn:hover {
+	background: rgba(255, 255, 255, 0.04);
+	color: var(--ink);
+	border-color: #463a63;
+}
+.sidebar--collapsed {
+	width: 64px;
+	min-width: 64px;
+}
+.sidebar--collapsed .sidebar-top {
+	justify-content: center;
+}
+.sidebar--collapsed .sidebar-brand {
+	display: inline-flex;
+	padding: 0 !important;
+}
+.sidebar--collapsed .sidebar-logo-full {
+	display: none !important;
+}
+.sidebar--collapsed .sidebar-logo-mark {
+	display: block !important;
+}
+.sidebar--collapsed .agency {
+	display: none;
+}
+.sidebar--collapsed nav a {
+	justify-content: center;
+	padding-left: 0;
+	padding-right: 0;
+	white-space: nowrap;
+	overflow: hidden;
+}
+.sidebar--collapsed nav a .nav-label {
+	display: none;
+}
+.sidebar--collapsed nav a b {
+	width: 31px;
+	flex-shrink: 0;
+}
+.sidebar--collapsed .nav-section-label {
+	overflow: hidden;
+	white-space: nowrap;
+	font-size: 0;
+}
+.sidebar--collapsed .operator-trigger div,
+.sidebar--collapsed .operator-trigger .chevron {
+	display: none;
+}
+.sidebar--collapsed .operator-trigger {
+	justify-content: center;
+}
+/* pop-out readable beside the narrow rail (aside keeps overflow visible) */
+.sidebar--collapsed .operator-dropdown {
+	left: 0;
+	right: auto;
+	width: 230px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.sidebar {
+		transition: none;
+	}
 }
 .console-main {
 	flex: 1;

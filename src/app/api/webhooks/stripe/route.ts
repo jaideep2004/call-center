@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe, getWebhookSecret } from "@/server/stripe";
 import { payments } from "@/server/repositories/payments";
-import { walletEntries, agentSubscriptions } from "@/server/repositories";
+import { walletEntries, agencyWallets, agentSubscriptions } from "@/server/repositories";
 
 export const runtime = "nodejs";
 
@@ -46,6 +46,33 @@ export async function POST(request: Request) {
         idempotency_key: `stripe_${session.id}`,
         provider_reference: paymentIntentId,
       });
+    } else if (session.metadata?.type === "agency_wallet_topup") {
+      // P1.4 agency pool top-up: same idempotency contract as the agent
+      // branch (payments.status guard + stripe_session idempotency key).
+      const payment = await payments.findBySessionId(session.id);
+      if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+      if (payment.status === "completed") return NextResponse.json({ received: true });
+
+      const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : "";
+      const amountCents = session.amount_total ?? payment.amount_cents;
+
+      await payments.markCompleted(payment.id, paymentIntentId);
+
+      await walletEntries.create({
+        agency_id: payment.agency_id,
+        type: "top_up",
+        amount_cents: amountCents,
+        currency: payment.currency,
+        idempotency_key: `stripe_${session.id}`,
+        provider_reference: paymentIntentId,
+      });
+      await agencyWallets.creditPool(payment.agency_id, amountCents);
+
+      // Best-effort: fresh pool money may unpause depleted offers now.
+      const { syncOfferWalletPauses } = await import("@/server/services/offer-wallet-sync");
+      void syncOfferWalletPauses(payment.agency_id).catch((e) =>
+        console.warn(`[stripe-webhook] post-credit sync failed: ${String(e).slice(0, 160)}`),
+      );
     } else if (session.metadata?.type === "subscription") {
       const agentId = session.metadata.agent_id;
       const planId = session.metadata.plan_id;

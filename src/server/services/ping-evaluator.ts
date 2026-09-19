@@ -1,5 +1,6 @@
 import { query, queryOne } from "@/server/db";
 import { normalizeE164 } from "@/domain/phone";
+import { effectiveBalanceSql } from "@/server/repositories/agency-wallets";
 
 export type PingRejectReason =
   | "unknown_campaign"
@@ -70,7 +71,9 @@ interface PingCampaignRow {
  * Checks in order:
  *  1. DID resolves to an active campaign (else unknown_campaign / campaign_paused)
  *  2. Caller state (3-digit NPA) is in the campaign's allowed states (else state_mismatch)
- *  3. An approved, available, not-busy agent exists whose states match (else no_agent_available)
+ *  3. An approved, available, not-busy agent exists whose states match AND who is
+ *     live for THIS campaign (else no_agent_available). Legacy: campaigns nobody
+ *     ever selected stay open (all agents pass the live gate).
  *
  * Latency: 1 JOIN query (phone + campaign) + 1 agent query. NPA lookup is an
  * in-memory cache. Target <300ms.
@@ -105,17 +108,56 @@ export async function evaluatePing(input: {
   }
 
   const priceCents = phone.effective_price_cents ?? 10;
-  const params: unknown[] = [phone.agency_id];
+  const agentId = await findRoutableAgentId({
+    agencyId: phone.agency_id,
+    campaignId: phone.campaign_id,
+    state,
+    priceCents,
+  });
+  if (!agentId) {
+    return { decision: "reject", reason: "no_agent_available", state, campaignId: phone.campaign_id };
+  }
+
+  return {
+    decision: "accept",
+    state,
+    campaignId: phone.campaign_id,
+    agencyId: phone.agency_id,
+    agentId,
+  };
+}
+
+/**
+ * Shared "routable agent exists" gate (ping-first + marketplace eligibility).
+ * One agent query: approved + available + not-busy + state match + wallet covers
+ * the price (or active subscription with allowance) + live for THIS campaign.
+ * Legacy: campaigns nobody ever selected stay open (all agents pass the live
+ * gate) — same rule as routeCall's post-filter.
+ */
+export async function findRoutableAgentId(input: {
+  agencyId: string;
+  campaignId: string;
+  state: string | null;
+  priceCents: number;
+  /**
+   * Skip the not-busy check. Used ONLY by the wallet sync job: a campaign
+   * whose agents are merely busy (mid-call) must not flap paused in
+   * Retreaver. Ping/route/eligibility always leave this false.
+   */
+  ignoreBusy?: boolean;
+}): Promise<string | null> {
+  const params: unknown[] = [input.agencyId];
   const clauses: string[] = [];
-  if (state) {
-    params.push(state);
+  if (input.state) {
+    params.push(input.state);
     clauses.push(`AND (COALESCE(array_length(a.states, 1), 0) = 0 OR $2 = ANY(a.states))`);
   }
-  // Call-readiness gate (client Q2): wallet covers the price OR an active
-  // subscription with remaining allowance. Unfunded agents are never ping targets.
-  params.push(priceCents);
+  // Call-readiness gate (client Q2): EFFECTIVE balance (personal ledger +
+  // agency-pool allocation, P1.4) covers the price OR an active subscription
+  // with remaining allowance. Unfunded agents are never ping targets.
+  params.push(input.priceCents);
   clauses.push(`AND (
-      (SELECT COALESCE(SUM(we.amount_cents), 0) FROM app.wallet_entries we WHERE we.agent_id = a.id) >= $${params.length}
+      ${effectiveBalanceSql("a")} >= $${params.length}
       OR EXISTS (
         SELECT 1 FROM app.agent_subscriptions s
         JOIN app.agent_plans p ON p.id = s.plan_id
@@ -125,6 +167,13 @@ export async function evaluatePing(input: {
       )
       OR $${params.length} <= 0
     )`);
+  const busyClause = input.ignoreBusy
+    ? ``
+    : `AND NOT EXISTS (
+         SELECT 1 FROM app.calls c
+         WHERE c.agent_id = a.id
+           AND c.state IN ('ringing','connecting','connected')
+       )`;
   const agent = await queryOne<{ id: string }>(
     `SELECT a.id
      FROM app.agents a
@@ -132,24 +181,17 @@ export async function evaluatePing(input: {
        AND a.approval_status = 'approved'
        AND a.availability = 'available'
        ${clauses.join("\n       ")}
-       AND NOT EXISTS (
-         SELECT 1 FROM app.calls c
-         WHERE c.agent_id = a.id
-           AND c.state IN ('ringing','connecting','connected')
+       AND (
+         NOT EXISTS (SELECT 1 FROM app.agent_campaign_selections WHERE campaign_id = $${params.length + 1})
+         OR EXISTS (
+           SELECT 1 FROM app.agent_campaign_selections s
+           WHERE s.agent_id = a.id AND s.campaign_id = $${params.length + 1} AND s.is_live = true
+         )
        )
+       ${busyClause}
      ORDER BY a.priority ASC, a.last_assigned_at ASC NULLS FIRST
      LIMIT 1`,
-    params,
+    [...params, input.campaignId],
   );
-  if (!agent) {
-    return { decision: "reject", reason: "no_agent_available", state, campaignId: phone.campaign_id };
-  }
-
-  return {
-    decision: "accept",
-    state,
-    campaignId: phone.campaign_id,
-    agencyId: phone.agency_id,
-    agentId: agent.id,
-  };
+  return agent?.id ?? null;
 }

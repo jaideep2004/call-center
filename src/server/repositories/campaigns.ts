@@ -9,6 +9,10 @@ export interface CampaignRow {
   status: string;
   routing_strategy: string;
   price_cents: number | null;
+  max_publisher_payout_cents: number | null;
+  min_publisher_payout_cents: number | null;
+  visibility: string;
+  is_exclusive: boolean;
   min_connected_seconds: number;
   buffer_seconds: number;
   allowed_endpoints: string[];
@@ -24,12 +28,15 @@ export interface CampaignRow {
   rtb_enabled: boolean;
   rtb_postback_key_encrypted: string | null;
   retreaver_cid: string | null;
+  /** Human-readable serial (CA-NNNN, DB default). UUID stays the PK. */
+  display_code: string | null;
 }
 
-/** Row returned by findManyWithBid — adds the effective price (override wins). */
+/** Row returned by findManyWithBid — adds the effective price/payout (override wins). */
 export interface CampaignWithBidRow extends CampaignRow {
   effective_price_cents: number | null;
   effective_payout_cents: number | null;
+  effective_max_payout_cents: number | null;
   has_bid_override: boolean;
 }
 
@@ -57,6 +64,10 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
     name: string;
     routing_strategy: string;
     price_cents?: number | null;
+    max_publisher_payout_cents?: number | null;
+    min_publisher_payout_cents?: number | null;
+    visibility?: string;
+    is_exclusive?: boolean;
     min_connected_seconds?: number;
     buffer_seconds?: number;
     record_calls?: boolean;
@@ -74,6 +85,10 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
       name: data.name,
       routing_strategy: data.routing_strategy,
       price_cents: data.price_cents ?? null,
+      max_publisher_payout_cents: data.max_publisher_payout_cents ?? null,
+      min_publisher_payout_cents: data.min_publisher_payout_cents ?? null,
+      visibility: data.visibility ?? "default",
+      is_exclusive: data.is_exclusive ?? false,
       min_connected_seconds: data.min_connected_seconds ?? 60,
       buffer_seconds: data.buffer_seconds ?? 30,
       record_calls: data.record_calls ?? true,
@@ -186,7 +201,8 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
       `SELECT
          c.*,
          COALESCE(bo.price_cents,  c.price_cents)  AS effective_price_cents,
-         COALESCE(bo.payout_cents, NULL)            AS effective_payout_cents,
+         COALESCE(bo.payout_cents, c.max_publisher_payout_cents) AS effective_payout_cents,
+         COALESCE(bo.payout_cents, c.max_publisher_payout_cents) AS effective_max_payout_cents,
          (bo.campaign_id IS NOT NULL)               AS has_bid_override
        FROM app.campaigns c
        LEFT JOIN app.bid_overrides bo ON bo.campaign_id = c.id

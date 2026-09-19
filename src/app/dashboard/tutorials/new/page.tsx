@@ -12,6 +12,10 @@ export default function NewTutorialPage() {
   const [videoUrl, setVideoUrl] = useState("");
   const [durationSeconds, setDurationSeconds] = useState("");
   const [tags, setTags] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [orderIndex, setOrderIndex] = useState("0");
+  const [published, setPublished] = useState(false);
+  const [required, setRequired] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +34,10 @@ export default function NewTutorialPage() {
           video_url: videoUrl || undefined,
           duration_seconds: durationSeconds ? parseInt(durationSeconds) : undefined,
           tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+          thumbnail_url: thumbnailUrl || undefined,
+          order_index: orderIndex ? parseInt(orderIndex) : 0,
+          published,
+          required,
         }),
       });
       if (res.ok) {
@@ -76,12 +84,30 @@ export default function NewTutorialPage() {
         </div>
         <div className="form-row">
           <div className="form-group" style={{ flex: 3 }}>
-            <label className="form-label">Video URL</label>
+            <label className="form-label">Video URL (MP4 file or YouTube link — YouTube plays embedded)</label>
             <input className="input" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://..." />
           </div>
           <div className="form-group" style={{ flex: 1 }}>
             <label className="form-label">Duration (sec)</label>
             <input className="input" type="number" value={durationSeconds} onChange={(e) => setDurationSeconds(e.target.value)} placeholder="120" />
+          </div>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Thumbnail URL (paste URL, or upload &lt;50MB MP4 / image via CMS)</label>
+          <input className="input" value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)} placeholder="https://..." />
+        </div>
+        <div className="form-row">
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">Order (manual sort)</label>
+            <input className="input" type="number" min={0} value={orderIndex} onChange={(e) => setOrderIndex(e.target.value)} placeholder="0" />
+          </div>
+          <div className="form-group" style={{ flex: 1, display: "flex", gap: 16, alignItems: "flex-end", paddingBottom: 10 }}>
+            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+              <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} /> Published
+            </label>
+            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+              <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} /> Required
+            </label>
           </div>
         </div>
         <div className="form-group">

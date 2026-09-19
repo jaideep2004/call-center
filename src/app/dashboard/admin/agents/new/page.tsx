@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Modal from "@/components/modal";
 import { showToast } from "@/lib/use-toast";
 import { useSkills } from "@/features/skills/use-skills";
 
@@ -264,8 +265,8 @@ export default function AdminNewAgentPage() {
         </div>
       </form>
       {showNewVertical && (
-        <div role="dialog" aria-modal="true" aria-label="New vertical" onClick={() => setShowNewVertical(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-          <form onSubmit={handleCreateVertical} onClick={(e) => e.stopPropagation()} className="card" style={{ width: "100%", maxWidth: 420, padding: "var(--space-6)" }}>
+        <Modal label="New vertical" onClose={() => setShowNewVertical(false)}>
+          <form onSubmit={handleCreateVertical} className="card" style={{ width: "min(420px, 100%)", padding: "var(--space-6)" }}>
             <h3 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-3)", letterSpacing: "-0.02em" }}>New vertical</h3>
             <p className="text-muted" style={{ fontSize: 12, margin: "0 0 var(--space-4)" }}>Add a vertical that will appear for agents and campaigns.</p>
             <div className="form-group">
@@ -277,7 +278,7 @@ export default function AdminNewAgentPage() {
               <button type="submit" className="btn btn-primary" disabled={creatingVertical || !newVerticalName.trim()} style={{ flex: 1 }}>{creatingVertical ? "Creating..." : "Create"}</button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
     </div>
   );

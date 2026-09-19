@@ -1,19 +1,23 @@
 # Docs Index
 
 ## Active (root)
-- `../README.md` — project overview, run steps, security rules
-- `../ROADMAP.md` — canonical execution plan (phases 0–3, DoD, pending pages)
+- `../ROADMAP.md` — canonical execution plan (phases, DoD, queue)
 - `../AGENTS.md` — agent instructions (do not move)
 
-## Plans (`docs/plans/`)
-- `DEVELOPMENT_LIFECYCLE.md` — historical phase-by-phase build tracker (Ringelo-inspired)
-- `PHASE_PLAN.md` — client's 16-requirement build plan
-- `ai-agent-plan.md` — AI agent call feedback + practice calls proposal
-- `ui-plan.md` — dashboard UI plan / design tokens
-- `UI_REBRAND_PLAN.md` — "Coverage Calls" rebrand plan (theme, fonts, homepage)
-- `StateWiseRouting.md` — caller-state routing & billing decisions
+## Testing
+- `MANUAL_TEST_FLOW.md` — the current manual test bible (all 3 dashboards, India calling, production flow)
 
-## Research (`docs/research/`)
+## Logs
+- `PROGRESS.md` — session log (append-only, newest at bottom)
+
+## Plans (`docs/plans/`) — specs & acceptance records
+- `RTB_MARKETPLACE_AND_CMS_PLAN.md` — marketplace + CMS build spec
+- `P1_5_ACCEPTANCE.md` — marketplace acceptance checklist
+- `StateWiseRouting.md` — caller-state routing & billing decisions
+- `PLAN_AUTH_NAV_MODERN_2026-09-09.md`, `PLAN_CLIENT_FEEDBACK_PLUS_2026-09-09.md` — completed-phase plans (history)
+- `script-framework-extracted.txt` — client Final Expense framework (script variables source)
+
+## Research (`docs/research/`) — reference only
 - `ringelo-research.md` — Ringelo platform design reference
 - `retreaver-research.md` — Retreaver integration research (full)
 - `retreaver-research-simple.md` — Retreaver integration research (summary)

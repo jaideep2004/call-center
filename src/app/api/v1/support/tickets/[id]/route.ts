@@ -1,5 +1,6 @@
 import { apiHandler, ok, fail } from "@/server/api-utils";
 import { supportTickets } from "@/server/repositories";
+import { notify } from "@/server/services/notify";
 import { z } from "zod";
 
 const replySchema = z.object({ body: z.string().min(1).max(10000) });
@@ -14,13 +15,28 @@ export const GET = apiHandler(async (req, { params, agencyId }) => {
   return ok({ ...ticket, replies });
 }, { resource: "support", action: "view" });
 
-export const POST = apiHandler(async (req, { params, agencyId, membership }) => {
+export const POST = apiHandler(async (req, { params, agencyId, membership, user }) => {
   const { id } = await params;
   if (!agencyId || !membership) return fail("Membership required", 403);
   const ticket = await supportTickets.findByIdForAgency(id, agencyId);
   if (!ticket) return fail("Ticket not found", 404);
   const { body } = replySchema.parse(await req.json());
   const reply = await supportTickets.addReply(id, membership.id, body);
+  // Best-effort inbox row for the other side (notify() never throws).
+  // Agency-scoped so both agent + admin inboxes and the nav badge update live.
+  const role = user?.role ?? "";
+  const author = role === "admin" || role === "super_admin" ? "Admin" : role === "manager" || role === "agency" ? "Manager" : "Agent";
+  await notify({
+    agencyId,
+    topic: "support.reply",
+    payload: {
+      message: `${author} replied to ticket "${ticket.subject}"`,
+      ticket_id: ticket.id,
+      subject: ticket.subject,
+      excerpt: body.slice(0, 140),
+      href: "/dashboard/support",
+    },
+  });
   return ok(reply, "Reply added");
 }, { resource: "support", action: "view" });
 

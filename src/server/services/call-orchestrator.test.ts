@@ -3,6 +3,7 @@ import { mockProvider } from "@/domain/telephony";
 
 const {
   updateStateMock, findByIdMock, findByProviderCallIdMock, createMock, cancelMock, enqueueRecordingMock, claimStateMock,
+  findAvailableMock, campaignFindByIdMock, findLiveAgentIdsMock,
 } = vi.hoisted(() => ({
   updateStateMock: vi.fn(),
   findByIdMock: vi.fn(),
@@ -11,6 +12,9 @@ const {
   cancelMock: vi.fn(),
   enqueueRecordingMock: vi.fn(),
   claimStateMock: vi.fn(),
+  findAvailableMock: vi.fn().mockResolvedValue([]),
+  campaignFindByIdMock: vi.fn().mockResolvedValue(null),
+  findLiveAgentIdsMock: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/server/db", () => ({
@@ -43,11 +47,17 @@ vi.mock("@/server/repositories", () => ({
   },
   agents: {
     findById: vi.fn().mockResolvedValue(null),
-    findAvailable: vi.fn().mockResolvedValue([]),
+    findAvailable: findAvailableMock,
     update: vi.fn(),
   },
-  campaigns: { findById: vi.fn().mockResolvedValue(null) },
+  campaigns: { findById: campaignFindByIdMock },
   bidOverrides: { findLatest: vi.fn().mockResolvedValue(null) },
+  agentCampaignSelections: {
+    findLiveAgentIds: findLiveAgentIdsMock,
+    getLiveCampaignIds: vi.fn().mockResolvedValue([]),
+    isLive: vi.fn().mockResolvedValue(false),
+    setLive: vi.fn(),
+  },
   phoneNumbers: { findByE164: vi.fn().mockResolvedValue(null), findByCampaign: vi.fn().mockResolvedValue(null) },
   memberships: {},
   recordings: { findByCallId: vi.fn().mockResolvedValue(null), create: vi.fn() },
@@ -283,6 +293,107 @@ describe("routeCall — idempotency under duplicate/redelivered jobs", () => {
       expect.objectContaining({ ring_started_at: expect.any(String) }),
       undefined,
     );
+  });
+});
+
+describe("routeCall — live-for-campaign gate (P1.2)", () => {
+  function liveAgent(id: string) {
+    return {
+      id,
+      agency_id: "agency-1",
+      membership_id: `mem-${id}`,
+      approval_status: "approved",
+      availability: "available",
+      priority: 1,
+      states: [],
+      zip_prefixes: [],
+      licenses: [],
+      skills: [],
+      endpoint_types: ["webrtc"],
+      last_assigned_at: null,
+      forwarding_number: null,
+      npn: null,
+      display_code: null,
+      is_busy: false,
+    };
+  }
+
+  function liveCampaign() {
+    return {
+      id: "campaign-1",
+      price_cents: 0, // wallet gate passes without funding rows
+      routing_strategy: "priority",
+      allowed_endpoints: ["webrtc", "pstn"],
+      target_states: [],
+      required_license: null,
+      required_skills: [],
+    };
+  }
+
+  it("only rings agents live for the campaign, never cross-campaign fill", async () => {
+    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
+    campaignFindByIdMock.mockResolvedValue(liveCampaign());
+    findAvailableMock.mockResolvedValue([liveAgent("agent-cold"), liveAgent("agent-live")]);
+    findLiveAgentIdsMock.mockResolvedValue(["agent-live"]);
+
+    const result = await routeCall("call-1");
+
+    expect(findLiveAgentIdsMock).toHaveBeenCalledWith("campaign-1", undefined);
+    // agent-cold is available but not live -> must never be selected
+    expect(result.selected).toBe("agent-live");
+  });
+
+  it("misses the call when nobody is live for the campaign", async () => {
+    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
+    campaignFindByIdMock.mockResolvedValue(liveCampaign());
+    findAvailableMock.mockResolvedValue([liveAgent("agent-1")]);
+    // someone selected this campaign before, but nobody is live now
+    findLiveAgentIdsMock.mockResolvedValue([]);
+
+    const result = await routeCall("call-1");
+
+    expect(result.selected).toBeNull();
+    expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-1" });
+  });
+
+  it("treats never-selected campaigns as open (legacy fallback)", async () => {
+    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
+    campaignFindByIdMock.mockResolvedValue(liveCampaign());
+    findAvailableMock.mockResolvedValue([liveAgent("agent-1")]);
+    findLiveAgentIdsMock.mockResolvedValue(null);
+
+    const result = await routeCall("call-1");
+
+    expect(result.selected).toBe("agent-1");
+  });
+
+  it("never routes exclusive campaigns openly (assignment required)", async () => {
+    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
+    campaignFindByIdMock.mockResolvedValue({ ...liveCampaign(), is_exclusive: true, visibility: "exclusive" });
+    findAvailableMock.mockResolvedValue([liveAgent("agent-1")]);
+    findLiveAgentIdsMock.mockResolvedValue(null);
+
+    const result = await routeCall("call-1");
+
+    expect(result.selected).toBeNull();
+    expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-1" });
+  });
+
+  it("funds routing eligibility from the effective balance (P1.4)", async () => {    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
+    campaignFindByIdMock.mockResolvedValue(liveCampaign());
+    findAvailableMock.mockResolvedValue([liveAgent("agent-1")]);
+    findLiveAgentIdsMock.mockResolvedValue(null);
+
+    await routeCall("call-1");
+
+    const { query: dbQuery } = await import("@/server/db");
+    const walletQueries = (dbQuery as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes("wallet_cents"),
+    );
+    expect(walletQueries.length).toBeGreaterThan(0);
+    for (const call of walletQueries as Array<[string]>) {
+      expect(call[0]).toContain("agency_wallet_allocations");
+    }
   });
 });
 

@@ -20,6 +20,7 @@ interface Agent {
   last_assigned_at: string | null;
   user_name: string;
   user_email: string;
+  display_code: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -132,7 +133,7 @@ function AgentsInner() {
     },
     {
       key: "user_name", header: "Name",
-      render: (a) => <Link href={`/dashboard/agents/${a.id}`} className="clickable" style={{ fontWeight: 500 }}>{a.user_name || a.membership_id.slice(0, 8)}</Link>,
+      render: (a) => <span><Link href={`/dashboard/agents/${a.id}`} className="clickable" style={{ fontWeight: 500 }}>{a.user_name || a.membership_id.slice(0, 8)}</Link>{a.display_code && <span className="text-mono-sm" style={{ marginLeft: 8, color: "var(--muted)", fontSize: 11 }}>{a.display_code}</span>}</span>,
     },
     { key: "user_email", header: "Email", render: (a) => <span className="text-mono-sm">{a.user_email}</span> },
     {

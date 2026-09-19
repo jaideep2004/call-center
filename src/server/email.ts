@@ -25,16 +25,20 @@ export async function sendEmail({
     console.warn("SMTP not configured — email not sent to", to);
     return;
   }
-  // Gmail SMTP rejects mismatched From domains unless alias is verified.
-  // For Gmail, we must send from the Gmail address itself; use EMAIL_FROM as replyTo for branding.
+  // Gmail SMTP rejects mismatched From domains unless the alias is verified.
+  // For Gmail, we must send from the Gmail address itself (display name stays
+  // branded); EMAIL_REPLY_TO controls the reply-to header so replies never
+  // surface a legacy address. With a proper domain SMTP (SendGrid/SES +
+  // SPF/DKIM), set EMAIL_FROM on your domain and no rewriting happens.
   const rawFrom = process.env.EMAIL_FROM || "Coverage Calls <noreply@coveragecalls.com>";
+  const replyToEnv = process.env.EMAIL_REPLY_TO || "";
   const smtpUser = process.env.SMTP_USER || "";
   const fromDomain = rawFrom.includes("<") ? rawFrom.match(/<[^@]+@([^>]+)>/)?.[1] : rawFrom.split("@")[1];
   const smtpDomain = smtpUser.split("@")[1];
   const isGmailMismatch =
     smtpUser.includes("@gmail.com") && fromDomain && smtpDomain && fromDomain !== smtpDomain;
   const from = isGmailMismatch ? `Coverage Calls <${smtpUser}>` : rawFrom;
-  const replyTo = isGmailMismatch ? rawFrom : undefined;
+  const replyTo = replyToEnv || (isGmailMismatch ? rawFrom : undefined);
   const appUrl = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://coveragecalls.com").replace(/\/$/, "");
   // Generate text version from html (simple strip) if not provided
   const textBody = text || html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().slice(0, 4000);
