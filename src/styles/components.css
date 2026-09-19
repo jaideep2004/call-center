@@ -483,12 +483,53 @@
 .softphone-overlay {
 	position: fixed;
 	inset: 0;
-	display: grid;
-	place-items: center;
 	z-index: var(--z-modal);
-	background: rgba(0, 0, 0, 0.5);
-	backdrop-filter: blur(4px);
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	padding: 24px;
+	pointer-events: none;
 	animation: softphone-fade-in 0.2s ease;
+}
+.softphone-overlay > * {
+	pointer-events: auto;
+}
+/* Script dock: pinned left, never under the call dialog */
+.softphone-script-dock {
+	width: 400px;
+	max-width: 38vw;
+	max-height: 72vh;
+	overflow: auto;
+	flex: none;
+}
+/* Call dialog: pinned right */
+.softphone-overlay .softphone-dialog {
+	margin-left: auto;
+	flex: none;
+}
+@media (max-width: 900px) {
+	.softphone-overlay {
+		flex-direction: column;
+		justify-content: flex-end;
+		align-items: stretch;
+		padding: 12px;
+		gap: 12px;
+	}
+	.softphone-overlay .softphone-dialog {
+		margin-left: 0;
+		order: -1;
+		min-width: 0;
+		width: 100%;
+		max-width: 100%;
+		padding: var(--space-5) var(--space-5);
+	}
+	.softphone-script-dock {
+		width: 100%;
+		max-width: 100%;
+		max-height: 30vh;
+	}
 }
 @keyframes softphone-fade-in {
 	from { opacity: 0; }
@@ -699,6 +740,87 @@
 	font: 11px var(--mono);
 	color: #e89b79;
 	text-align: center;
+}
+/* Minimize / expand buttons shared by call + script panels */
+.softphone-min-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	flex: none;
+	border-radius: 8px;
+	border: 1px solid var(--line);
+	background: transparent;
+	color: var(--muted);
+	cursor: pointer;
+	transition: all var(--transition-fast);
+}
+.softphone-min-btn:hover {
+	color: var(--ink);
+	border-color: rgba(168, 85, 247, 0.45);
+	box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+}
+/* Minimized call chip: floating pill, bottom-right above the WebRTC badge */
+.softphone-pill {
+	position: fixed;
+	right: 16px;
+	bottom: 52px;
+	z-index: 10001;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	max-width: min(440px, calc(100vw - 32px));
+	padding: 8px 10px 8px 12px;
+	border-radius: 999px;
+	background: linear-gradient(145deg, #2a1a4d 0%, #170c2b 100%);
+	border: 1px solid rgba(168, 85, 247, 0.35);
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 24px rgba(168, 85, 247, 0.1);
+	font: 11px var(--mono);
+	color: var(--ink);
+}
+.softphone-pill-dot {
+	width: 8px;
+	height: 8px;
+	flex: none;
+	border-radius: 50%;
+	background: var(--acid);
+	animation: softphone-breathe 1.5s ease-in-out infinite;
+}
+.softphone-pill-text {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* Minimized script chip: floating restore button, bottom-left */
+.softphone-script-chip {
+	position: fixed;
+	left: 16px;
+	bottom: 16px;
+	z-index: 10001;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	max-width: min(360px, calc(100vw - 32px));
+	padding: 9px 14px;
+	border-radius: 12px;
+	background: linear-gradient(145deg, #2a1a4d 0%, #170c2b 100%);
+	border: 1px solid rgba(168, 85, 247, 0.35);
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+	font: 600 11px var(--mono);
+	color: var(--ink);
+	cursor: pointer;
+}
+.softphone-script-chip:hover {
+	border-color: var(--acid);
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(168, 85, 247, 0.2);
+}
+.softphone-script-chip-dot {
+	width: 8px;
+	height: 8px;
+	flex: none;
+	border-radius: 50%;
+	background: var(--acid);
 }
 .text-muted {
 	color: var(--muted);

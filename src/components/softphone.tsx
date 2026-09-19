@@ -7,6 +7,7 @@ import { formatTimer } from "@/lib/format";
 import { useTelnyxWebRTC } from "@/lib/use-telnyx-webrtc";
 import { renderScriptTemplate } from "@/server/services/script-renderer";
 import { showToast } from "@/lib/use-toast";
+import { Minus, Expand } from "lucide-react";
 
 interface IncomingCall {
   callId: string;
@@ -80,6 +81,17 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   const [holding, setHolding] = useState(false);
   const [isRecording, setIsRecording] = useState(true);
   const [showScriptModal, setShowScriptModal] = useState(false);
+  // Minimize: collapse panels to floating chips so the agent can work in
+  // other dashboard tabs mid-call. Layout persists across dashboard pages.
+  const [callMinimized, setCallMinimized] = useState(false);
+  const [scriptMinimized, setScriptMinimized] = useState(false);
+  // Speaker (remote-audio output) volume. Applied to #remoteMedia below.
+  const [volume, setVolume] = useState(0.9);
+
+  useEffect(() => {
+    const el = document.getElementById("remoteMedia") as HTMLAudioElement | null;
+    if (el) el.volume = volume;
+  }, [volume, callState]);
 
   useEffect(() => {
     if (!agentId) return;
@@ -128,13 +140,14 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     });
   })();
 
-  // Auto-open script modal on ringing when script available (4.2.2)
+  // Script stays docked (left) on ringing — the overlay no longer blurs the
+  // page and the script never auto-covers the call dialog (right). The
+  // expanded modal opens only on demand via View script / Expand / Script.
   useEffect(() => {
-    if (callState === "ringing" && renderedScript) {
-      setShowScriptModal(true);
-    }
     if (callState === "idle" || callState === "ended") {
       setShowScriptModal(false);
+      setCallMinimized(false);
+      setScriptMinimized(false);
       setIsHeld(false);
       setShowDialer(false);
       setDialDigits("");
@@ -142,7 +155,7 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
       setNotes([]);
       setIsRecording(true);
     }
-  }, [callState, renderedScript]);
+  }, [callState]);
 
   // fetch notes when connected
   useEffect(() => {
@@ -414,23 +427,24 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
               </div>
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "var(--mono)", background: "rgba(168,85,247,0.06)", border: "1px solid var(--line)", borderRadius: 8, padding: 16 }}>{renderedScript}</div>
-            <p style={{ fontSize: 10, color: "var(--muted)", marginTop: 10 }}>Script auto-opened on ringing. Close to see call controls.</p>
+            <p style={{ fontSize: 10, color: "var(--muted)", marginTop: 10 }}>Call controls stay visible on the right while you read.</p>
           </div>
         </div>
       )}
       <div className="softphone-overlay">
-      {(renderedScript || scriptError) && callState !== "ended" && !showScriptModal && (
-        <div style={{ position: "fixed", left: 16, bottom: 16, zIndex: 9998, maxWidth: 560, width: "calc(100% - 120px)" }}>
-          <div className="card" style={{ padding: "var(--space-4)", maxHeight: 340, overflow: "auto" }}>
+      {(renderedScript || scriptError) && callState !== "ended" && !showScriptModal && !scriptMinimized && (
+        <div className="softphone-script-dock">
+          <div className="card" style={{ padding: "var(--space-4)" }}>
             {scriptError ? (
               <p className="text-muted" style={{ fontSize: 11 }}>Script unavailable — no script found for this campaign.</p>
             ) : script ? (
               <>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
                   <strong style={{ fontSize: 12, color: "var(--acid)" }}>{script.title}</strong>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <span className="badge" style={{ fontSize: 9 }}>{script.category}</span>
                     <button className="btn btn-sm btn-ghost" onClick={() => setShowScriptModal(true)} style={{ fontSize: 9, padding: "2px 6px" }}>Expand</button>
+                    <button className="softphone-min-btn" onClick={() => setScriptMinimized(true)} aria-label="Minimize script panel" title="Minimize"><Minus size={14} /></button>
                   </div>
                 </div>
                 <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", fontFamily: "var(--mono)" }}>{renderedScript}</div>
@@ -439,7 +453,14 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
           </div>
         </div>
       )}
-      <div className={`softphone-dialog ${callState}`}>
+      {scriptMinimized && (renderedScript || scriptError) && callState !== "ended" && (
+        <button className="softphone-script-chip" onClick={() => setScriptMinimized(false)} aria-label="Restore script panel">
+          <span className="softphone-script-chip-dot" />
+          <span className="softphone-pill-text">{script?.title ?? "Script"}</span>
+          <span style={{ color: "var(--acid)", fontSize: 10 }}>Restore ↑</span>
+        </button>
+      )}
+      <div className={`softphone-dialog ${callState}`} style={callMinimized ? { display: "none" } : undefined}>
         {callState !== "ended" && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", padding: "4px 0" }}>
             <span style={{ fontSize: 9, color: "var(--muted)", display: "flex", alignItems: "center", gap: 4 }}>
@@ -450,6 +471,7 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
               {isHeld && <span className="badge badge-warning" style={{ fontSize: 9 }}>ON HOLD</span>}
               {webrtc.isMuted && <span className="badge badge-danger" style={{ fontSize: 9 }}>MUTED</span>}
               {isRecording && callState === "connected" && <span className="badge" style={{ fontSize: 9, background: "rgba(239,68,68,0.15)", borderColor: "rgba(239,68,68,0.4)", color: "#ef4444" }}>● REC</span>}
+              <button className="softphone-min-btn" onClick={() => setCallMinimized(true)} aria-label="Minimize call panel" title="Minimize"><Minus size={14} /></button>
             </span>
           </div>
         )}
@@ -487,6 +509,7 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
               </button>
             </div>
             {renderedScript && <button className="btn btn-sm btn-ghost" onClick={() => setShowScriptModal(true)} style={{ marginTop: 8, fontSize: 11 }}>View script</button>}
+            <p style={{ marginTop: 6, fontSize: 10, color: "var(--muted)" }}>Mute · Speaker · Dialer appear here after you accept.</p>
           </>
         )}
 
@@ -536,6 +559,12 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
                 {isRecording ? "● REC" : "○ REC"}
               </button>
             </div>
+            {/* Speaker: remote-audio output volume */}
+            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 10, color: "var(--muted)", whiteSpace: "nowrap" }}>Speaker</span>
+              <input type="range" min={0} max={1} step={0.05} value={volume} onChange={(e) => setVolume(Number(e.target.value))} style={{ flex: 1, accentColor: "var(--acid)" }} aria-label="Speaker volume" />
+              <span style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", minWidth: 34, textAlign: "right" }}>{Math.round(volume * 100)}%</span>
+            </div>
             {showDialer && (
               <div style={{ width: "100%", background: "rgba(0,0,0,0.25)", border: "1px solid var(--line)", borderRadius: 8, padding: 10 }}>
                 <div style={{ fontFamily: "var(--mono)", fontSize: 16, textAlign: "center", minHeight: 22, letterSpacing: 2, color: "var(--acid)", borderBottom: "1px solid var(--line)", paddingBottom: 6, marginBottom: 8 }}>{dialDigits || "—"}</div>
@@ -582,6 +611,28 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
 
         {error && <p className="softphone-error">{error}</p>}
       </div>
+      {/* Minimized call chip: live status + key actions, survives dashboard navigation */}
+      {callMinimized && callState !== "ended" && (
+        <div className="softphone-pill" role="status" aria-label={callState === "ringing" ? "Incoming call minimized" : "Active call minimized"}>
+          <span className="softphone-pill-dot" />
+          <span className="softphone-pill-text">
+            {callState === "ringing"
+              ? `Incoming · ${formatPhone(incoming?.fromHash ?? "")}`
+              : callState === "connecting"
+                ? "Connecting…"
+                : `${formatTimer(elapsed)} · ${formatPhone(incoming?.fromHash ?? "")}`}
+          </span>
+          {callState === "ringing" ? (
+            <>
+              <button className="btn btn-sm btn-primary" onClick={accept} style={{ fontSize: 10, padding: "4px 10px" }}>Accept</button>
+              <button className="btn btn-sm btn-secondary" onClick={reject} style={{ fontSize: 10, padding: "4px 10px" }}>Reject</button>
+            </>
+          ) : (
+            <button className="btn btn-sm btn-secondary" onClick={hangup} style={{ fontSize: 10, padding: "4px 10px" }}>Hang Up</button>
+          )}
+          <button className="softphone-min-btn" onClick={() => setCallMinimized(false)} aria-label="Expand call panel" title="Expand"><Expand size={14} /></button>
+        </div>
+      )}
       <audio id="remoteMedia" autoPlay />
     </div>
     </>
