@@ -89,10 +89,12 @@ export async function requeueStuckRoutingCalls(options: {
   const limit = options.limit ?? 25;
 
   const result = await pool.query<StuckRoutingRow>(
+    // NOTE: app.calls has no updated_at/created_at — age is measured from
+    // started_at (call creation). NULL started_at means "just now" (never stale).
     `SELECT id, provider, provider_call_id, routing_snapshot
      FROM app.calls
-     WHERE state = 'routing' AND updated_at < now() - ($1 * interval '1 second')
-     ORDER BY updated_at ASC
+     WHERE state = 'routing' AND COALESCE(started_at, now()) < now() - ($1 * interval '1 second')
+     ORDER BY COALESCE(started_at, now()) ASC
      LIMIT $2`,
     [maxAgeSeconds, limit],
   );

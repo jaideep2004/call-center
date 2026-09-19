@@ -160,6 +160,19 @@ describe("requeueStuckRoutingCalls", () => {
       expect.arrayContaining([90, 25]),
     );
   });
+
+  it("measures stuck age from started_at (calls has no updated_at column)", async () => {
+    (db.pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+
+    await requeueStuckRoutingCalls();
+
+    const sweep = (db.pool.query as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([sql]: unknown[]) => String(sql).includes("state = 'routing'"),
+    );
+    expect(sweep).toBeTruthy();
+    expect(String(sweep?.[0])).toContain("started_at");
+    expect(String(sweep?.[0])).not.toContain("updated_at");
+  });
 });
 
 describe("runCallMaintenance", () => {
