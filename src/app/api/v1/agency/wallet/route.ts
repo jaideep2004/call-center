@@ -1,4 +1,5 @@
 import { apiHandler, ok, fail } from "@/server/api-utils";
+import { getAppBaseUrl } from "@/server/app-url";
 import { validate, agencyPoolCheckoutSchema, agencyPoolEnabledSchema } from "@/server/validate";
 import { agencyWallets } from "@/server/repositories";
 import { getStripe } from "@/server/stripe";
@@ -34,9 +35,10 @@ export const POST = apiHandler(async (req, context) => {
   if (!agencyId) return fail("Agency required", 403);
   const body = validate(agencyPoolCheckoutSchema, await req.json());
 
-  const origin = new URL(req.url).origin;
-  const successUrl = body.success_url || `${origin}/dashboard/wallet/pool?payment=success`;
-  const cancelUrl = body.cancel_url || `${origin}/dashboard/wallet/pool?payment=cancelled`;
+  // Env-first base URL: req origin is wrong behind proxies/tunnels.
+  const base = getAppBaseUrl(new URL(req.url).origin);
+  const successUrl = body.success_url || `${base}/dashboard/wallet/pool?payment=success`;
+  const cancelUrl = body.cancel_url || `${base}/dashboard/wallet/pool?payment=cancelled`;
 
   const session = await (await getStripe()).checkout.sessions.create({
     mode: "payment",

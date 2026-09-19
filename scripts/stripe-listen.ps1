@@ -32,16 +32,13 @@ $proc = Start-Process -FilePath $exe `
     -RedirectStandardOutput $outFile -RedirectStandardError $errFile `
     -PassThru -WindowStyle Hidden
 
-Start-Sleep -Seconds 12
+Start-Sleep -Seconds 5
 
-# Check both stdout and stderr files for the whsec
-$whsec = @(
-    Select-String -Path $outFile -Pattern 'whsec_[A-Za-z0-9]+' -AllMatches
-    Select-String -Path $errFile -Pattern 'whsec_[A-Za-z0-9]+' -AllMatches
-).Matches.Value
-
-if (-not $whsec) {
-    # Fallback: regex on both files
+# Poll for the whsec (CLI can be slow: version check + "Getting ready..."
+# precede the secret line, so a fixed short sleep misses it).
+$whsec = $null
+for ($i = 0; $i -lt 15 -and -not $whsec; $i++) {
+    Start-Sleep -Seconds 3
     $combined = (Get-Content $outFile -Raw -ErrorAction SilentlyContinue) + (Get-Content $errFile -Raw -ErrorAction SilentlyContinue)
     $whsec = ([regex]::Match($combined, 'whsec_[A-Za-z0-9]+')).Value
 }
@@ -50,6 +47,7 @@ if (-not $whsec) {
     Write-Host "X  Could not capture webhook signing secret. Output:" -ForegroundColor Red
     Get-Content $outFile -ErrorAction SilentlyContinue
     Write-Host "err:"; Get-Content $errFile -ErrorAction SilentlyContinue | Select-Object -First 10
+    Write-Host "Hint: if the log shows a login/auth error, run '& `"$exe`" login' once, then re-run this script." -ForegroundColor Yellow
     Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
     exit 1
 }

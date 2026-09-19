@@ -1,5 +1,6 @@
 import { apiHandler, ok, fail } from "@/server/api-utils";
 import { getStripe } from "@/server/stripe";
+import { getAppBaseUrl } from "@/server/app-url";
 import { agentPlans, agents } from "@/server/repositories";
 import { payments } from "@/server/repositories/payments";
 import { z } from "zod";
@@ -24,9 +25,10 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
   const agent = await agents.findByMembershipId(membership.id);
   if (!agent) return fail("Agent profile not found", 404);
 
-  const origin = new URL(req.url).origin;
-  const successUrl = `${origin}/dashboard/agents/subscription?subscribe=success`;
-  const cancelUrl = `${origin}/dashboard/agents/subscription?subscribe=cancelled`;
+  // Env-first base URL: req origin is wrong behind proxies/tunnels.
+  const base = getAppBaseUrl(new URL(req.url).origin);
+  const successUrl = `${base}/dashboard/agents/subscription?subscribe=success`;
+  const cancelUrl = `${base}/dashboard/agents/subscription?subscribe=cancelled`;
 
   const session = await (await getStripe()).checkout.sessions.create({
     mode: "payment",

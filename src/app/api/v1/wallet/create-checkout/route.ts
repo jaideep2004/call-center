@@ -1,5 +1,6 @@
 import { apiHandler, ok } from "@/server/api-utils";
 import { getStripe } from "@/server/stripe";
+import { getAppBaseUrl } from "@/server/app-url";
 import { payments } from "@/server/repositories/payments";
 import { z } from "zod";
 
@@ -14,9 +15,10 @@ export const POST = apiHandler(async (req, context) => {
   const agencyId = context.agencyId;
   if (!agencyId) return ok(null, "Agency not found");
 
-  const origin = new URL(req.url).origin;
-  const successUrl = body.success_url || `${origin}/dashboard/wallet?payment=success`;
-  const cancelUrl = body.cancel_url || `${origin}/dashboard/wallet?payment=cancelled`;
+  // Env-first base URL: req origin is wrong behind proxies/tunnels.
+  const base = getAppBaseUrl(new URL(req.url).origin);
+  const successUrl = body.success_url || `${base}/dashboard/wallet?payment=success`;
+  const cancelUrl = body.cancel_url || `${base}/dashboard/wallet?payment=cancelled`;
 
   const session = await (await getStripe()).checkout.sessions.create({
     mode: "payment",

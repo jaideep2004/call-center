@@ -1,5 +1,6 @@
 import { retreaver } from "@/domain/providers/retreaver";
 import { campaigns, phoneNumbers, agencies } from "@/server/repositories";
+import { getAppBaseUrl } from "@/server/app-url";
 
 export const BUYER_TIMER_SECONDS = 10;
 export const SALE_TIMER_SECONDS = 15;
@@ -7,7 +8,7 @@ export const SALE_TIMER_SECONDS = 15;
 export function retreaverWebhookUrl(): string {
   const token = process.env.RETREAVER_WEBHOOK_SECRET;
   if (!token) throw new Error("RETREAVER_WEBHOOK_SECRET is required to deploy campaigns");
-  const base = (process.env.APP_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:30001").replace(/\/+$/, "");
+  const base = getAppBaseUrl();
   return `${base}/api/webhooks/retreaver?token=${encodeURIComponent(token)}`;
 }
 

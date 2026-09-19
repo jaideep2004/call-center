@@ -111,6 +111,21 @@ describe("agency pool wallet API (P1.4)", () => {
     expect(body.data).toMatchObject({ url: "https://pay/pool", sessionId: "cs_pool_1" });
   });
 
+  it("POST uses APP_BASE_URL for Stripe redirect URLs (never req origin)", async () => {
+    const saved = process.env.APP_BASE_URL;
+    process.env.APP_BASE_URL = "https://coveragecalls.com";
+    try {
+      const res = await walletRoute.POST(req("POST", { amount_cents: 5000 }), ctx);
+      expect(res.status).toBe(200);
+      const [args] = checkoutCreateMock.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect(args.success_url).toBe("https://coveragecalls.com/dashboard/wallet/pool?payment=success");
+      expect(args.cancel_url).toBe("https://coveragecalls.com/dashboard/wallet/pool?payment=cancelled");
+    } finally {
+      if (saved === undefined) delete process.env.APP_BASE_URL;
+      else process.env.APP_BASE_URL = saved;
+    }
+  });
+
   it("PUT allocates within the pool and re-syncs pauses", async () => {
     findAgentMock.mockResolvedValue({ id: "agent-1", agency_id: "agency-1" });
     getPoolMock.mockResolvedValue({ agency_id: "agency-1", balance_cents: 5000, enabled: true });
