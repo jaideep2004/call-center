@@ -62,23 +62,25 @@ export class LeadRepository extends BaseRepository<LeadRow> {
   async findManyWithFilters(params: LeadFilterParams) {
     const { agencyId, search, sortBy = "created_at", order = "desc", page = 1, limit = 25, status, source, assignedAgentId, startDate, endDate } = params;
     const offset = (page - 1) * limit;
-    const where: string[] = ["agency_id = $1", "deleted_at IS NULL"];
+    // All columns qualified with l. — the JOINs below bring in app.calls /
+    // app.dispositions which share column names (agency_id, ...).
+    const where: string[] = ["l.agency_id = $1", "l.deleted_at IS NULL"];
     const values: unknown[] = [agencyId];
     let idx = 1;
 
-    if (search) { values.push(`%${search}%`); where.push(`(email_hash::text LIKE $${++idx} OR phone_hash::text LIKE $${idx})`); }
-    if (status) { values.push(status); where.push(`status = $${++idx}`); }
-    if (source) { values.push(source); where.push(`source = $${++idx}`); }
-    if (assignedAgentId) { values.push(assignedAgentId); where.push(`assigned_agent_id = $${++idx}`); }
-    if (startDate) { values.push(startDate); where.push(`created_at >= $${++idx}`); }
-    if (endDate) { values.push(endDate); where.push(`created_at <= $${++idx}`); }
+    if (search) { values.push(`%${search}%`); where.push(`(l.email_hash::text LIKE $${++idx} OR l.phone_hash::text LIKE $${idx})`); }
+    if (status) { values.push(status); where.push(`l.status = $${++idx}`); }
+    if (source) { values.push(source); where.push(`l.source = $${++idx}`); }
+    if (assignedAgentId) { values.push(assignedAgentId); where.push(`l.assigned_agent_id = $${++idx}`); }
+    if (startDate) { values.push(startDate); where.push(`l.created_at >= $${++idx}`); }
+    if (endDate) { values.push(endDate); where.push(`l.created_at <= $${++idx}`); }
 
     const allowedSort = ["created_at", "updated_at", "source", "status", "email_hash"];
     const safeSort = allowedSort.includes(sortBy) ? sortBy : "created_at";
     const safeOrder = order === "asc" ? "ASC" : "DESC";
 
     const countRow = await queryOne<{ count: number }>(
-      `SELECT COUNT(*)::int as count FROM app.leads WHERE ${where.join(" AND ")}`,
+      `SELECT COUNT(*)::int as count FROM app.leads l WHERE ${where.join(" AND ")}`,
       values,
     );
     const total = countRow?.count ?? 0;
@@ -90,7 +92,7 @@ export class LeadRepository extends BaseRepository<LeadRow> {
        FROM app.leads l
        LEFT JOIN app.calls lc ON lc.id = l.call_id
        LEFT JOIN app.dispositions ld ON ld.call_id = lc.id
-       WHERE ${where.join(" AND ")} ORDER BY ${safeSort} ${safeOrder} LIMIT $${idx + 1} OFFSET $${idx + 2}`,
+       WHERE ${where.join(" AND ")} ORDER BY l.${safeSort} ${safeOrder} LIMIT $${idx + 1} OFFSET $${idx + 2}`,
       [...values, limit, offset],
     );
 

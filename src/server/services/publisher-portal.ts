@@ -44,6 +44,10 @@ export async function getPortalOverview(publisherId: string): Promise<PortalOver
     [publisherId],
   );
 
+  // Assigned campaigns MUST list even with zero calls — otherwise a newly
+  // assigned publisher sees an empty dashboard. Traffic stats LEFT JOIN on
+  // top; join-table + legacy publisher_id are both honored (single row per
+  // campaign for this publisher, so no fan-out in the aggregates).
   const campaigns = await query<{
     campaign_id: string | null;
     campaign_name: string | null;
@@ -56,9 +60,11 @@ export async function getPortalOverview(publisherId: string): Promise<PortalOver
             COUNT(r.*)::text as calls,
             COUNT(r.*) FILTER (WHERE r.payout_cents > 0)::text as qualified_calls,
             COALESCE(SUM(r.payout_cents), 0)::text as payout_cents
-     FROM app.retreaver_calls r
-     LEFT JOIN app.campaigns c ON c.id = r.campaign_id
-     WHERE r.publisher_id = $1 AND r.status = 'finished'
+     FROM app.campaigns c
+     LEFT JOIN app.campaign_publishers cp ON cp.campaign_id = c.id AND cp.publisher_id = $1
+     LEFT JOIN app.retreaver_calls r ON r.campaign_id = c.id AND r.publisher_id = $1 AND r.status = 'finished'
+     WHERE c.deleted_at IS NULL AND c.status = 'active'
+       AND (cp.publisher_id IS NOT NULL OR c.publisher_id = $1)
      GROUP BY c.id, c.name, c.price_cents
      ORDER BY payout_cents DESC`,
     [publisherId],

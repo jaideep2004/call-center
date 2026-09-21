@@ -30,6 +30,9 @@ export abstract class BaseRepository<T> {
   /** Set true for tables with a deleted_at column (soft-delete): lists then
    * hide deleted rows. Tables without the column must leave this false. */
   protected skipDeleted = false;
+  /** Default ORDER BY when the caller passes no sort. Tables without a
+   * created_at column (e.g. memberships) must override this. */
+  protected defaultSort = "created_at";
 
   fullTable(): string {
     return `${this.schema}.${this.table}`;
@@ -90,7 +93,7 @@ export abstract class BaseRepository<T> {
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const safeSort = sortBy && IDENTIFIER_RE.test(sortBy) ? sortBy : null;
     const safeOrder = order === "asc" || order === "desc" ? order : "desc";
-    const orderClause = safeSort ? `ORDER BY ${safeSort} ${safeOrder}` : "ORDER BY created_at DESC";
+    const orderClause = safeSort ? `ORDER BY ${safeSort} ${safeOrder}` : `ORDER BY ${this.defaultSort} DESC`;
 
     const countResult = await queryOne<{ count: string }>(
       `SELECT COUNT(*) as count FROM ${this.fullTable()} ${where}`,

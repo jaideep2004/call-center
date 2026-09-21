@@ -120,6 +120,41 @@ describe("getPortalOverview", () => {
     expect(overview.stats).toEqual({ total_calls: 0, qualified_calls: 0, payout_cents: 0 });
     expect(overview.campaigns).toEqual([]);
   });
+
+  it("lists assigned campaigns even with zero calls (join-sourced, not traffic-sourced)", async () => {
+    (repos.publishers.findById as ReturnType<typeof vi.fn>).mockResolvedValue(publisher);
+    (db.queryOne as ReturnType<typeof vi.fn>).mockResolvedValue({
+      total_calls: "0",
+      qualified_calls: "0",
+      payout_cents: "0",
+    });
+    (db.query as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        campaign_id: "camp-9",
+        campaign_name: "Medicare Short Buffer - 30 Seconds",
+        price_cents: "1600",
+        calls: "0",
+        qualified_calls: "0",
+        payout_cents: "0",
+      },
+    ]);
+    const overview = await getPortalOverview("pub-1");
+    expect(overview.campaigns).toEqual([
+      {
+        campaign_id: "camp-9",
+        campaign_name: "Medicare Short Buffer - 30 Seconds",
+        price_cents: 1600,
+        calls: 0,
+        qualified_calls: 0,
+        payout_cents: 0,
+      },
+    ]);
+    // The campaign list must come from assignments (join + legacy), not traffic.
+    const sql = (db.query as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(sql).toContain("app.campaign_publishers");
+    expect(sql).toContain("c.publisher_id = $1");
+    expect(sql).toContain("c.deleted_at IS NULL");
+  });
 });
 
 describe("getPortalCalls", () => {

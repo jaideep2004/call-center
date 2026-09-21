@@ -13,6 +13,8 @@ export interface MembershipRow {
 export class MembershipRepository extends BaseRepository<MembershipRow> {
   protected schema = "app";
   protected table = "memberships";
+  // No created_at on this table — default list order must not reference it.
+  protected defaultSort = "id";
 
   async findByUserAndAgency(userId: string, agencyId: string): Promise<MembershipRow | null> {
     return queryOne<MembershipRow>(

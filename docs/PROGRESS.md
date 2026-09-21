@@ -221,6 +221,20 @@
 - Broke / TODO: none. Deploy + retest late-pickup bridge on live.
 - Tests: `npm run typecheck` clean · `npm test` 655 passed | 5 skipped (82 files, +4 funding, +5 bridge-retry).
 
+## 2026-09-21 - assistant - LIVE LIST 500s (memberships sort + leads ambiguity)
+- Did: (1) `column created_at does not exist` — base findMany defaulted ORDER BY created_at, but app.memberships has no such column (hit via admin Users page) → new overridable defaultSort, memberships sorts by id. (2) `agency_id is ambiguous` — leads filtered list JOINs calls/dispositions sharing the name → all columns qualified l.* in count + select + sort.
+- Decisions: fixed at repo layer (all callers inherit); also caught+reverted my own accidental safeOrder clobber via git diff review.
+- Broke / TODO: none. Deploy + reopen Users/Leads pages to confirm.
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npm run typecheck` clean · `npm test` 657 passed | 5 skipped (83 files, +2 list-query-safety).
+
+## 2026-09-21 - assistant - PUBLISHER EMPTY DASHBOARD
+- Did: root-caused — portal campaign list was built ONLY from retreaver_calls rows, so assigned-but-quiet campaigns never appeared. getPortalOverview now LEFT JOINs assignments (join-table + legacy) with traffic stats on top; verified live: jai publisher's overview returns Medicare Short Buffer with 0s.
+- Decisions: zero-stat rows list (not hidden); deleted/non-active campaigns excluded; single-row-per-campaign joins so aggregates can't fan out.
+- Broke / TODO: none. Deploy + refresh publisher dashboard to confirm.
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npm run typecheck` clean · `npm test` 658 passed | 5 skipped (83 files, +1 portal zero-call listing).
+
 ## 2026-09-21 - assistant - PAYMENTS FIX + SECURITY AUDIT
 - Did: new 0059 adds missing agent_id/plan_id to app.payments (agent top-up 500 root-caused: code wrote columns no migration ever created); applied live, verified 59/59 recorded + columns present. Security audit: all webhooks verified (Telnyx Ed25519→401, Stripe constructEvent→401, Retreaver token fail-closed, gateway Bearer + prod-closed + session sockets), zero NEXT_PUBLIC secrets, layout role-redirects on all dashboards, XSS-safe markdown (escapes first, https-only links).
 - Decisions: nullable FKs on payments (pool top-ups carry neither); no code changes from audit — posture is solid.
