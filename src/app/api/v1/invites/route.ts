@@ -1,4 +1,5 @@
 import { apiHandler, ok, created, fail } from "@/server/api-utils";
+import { getAppBaseUrl } from "@/server/app-url";
 import { recruitmentInvites } from "@/server/repositories";
 import { validate, createInviteSchema } from "@/server/validate";
 import { sendEmail } from "@/server/email";
@@ -24,7 +25,9 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
     sub_agency_id: null,
   });
 
-  const origin = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  // Env-first: the invite link must point at production even when the admin
+  // clicks from localhost or behind a tunnel/proxy.
+  const origin = getAppBaseUrl(new URL(req.url).origin);
   const inviteLink = `${origin}/register?invite=${token}`;
 
   // App invite (not agency-scoped): the invitee joins Coverage Calls, creates

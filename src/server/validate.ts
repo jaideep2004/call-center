@@ -451,6 +451,9 @@ export const createPhoneNumberSchema = z.object({
   number: phoneSchema,
   campaign_id: z.string().min(1),
   provider: z.string().min(1).default("telnyx"),
+  // Platform admin only: target agency for the new number. Non-admins always
+  // use their own agency (any value they send is ignored).
+  agency_id: z.string().min(1).optional(),
 });
 
 /** Move a DID between campaigns, or null to park it unassigned (0051). */

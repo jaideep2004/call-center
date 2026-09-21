@@ -200,3 +200,17 @@
 - Broke / TODO: none. Note: restart dev so the new template serves (stale modules serve old HTML).
 - Next: client UAT per MANUAL_TEST_FLOW.
 - Tests: `npm run typecheck` clean · `npm test` 637 passed | 5 skipped (78 files, +6 soft-delete-lists).
+
+## 2026-09-21 - assistant - EMAIL LINK ORIGIN + BROKEN INLINE STYLES
+- Did: (1) publisher + agent invite links now env-first via getAppBaseUrl (was raw req origin → localhost links on VPS). (2) Root-caused unstyled emails: FONT constant used double quotes ("Segoe UI") inside style="..." attributes, terminating the attribute in every client and dropping all later declarations (colors, decoration) — switched to single quotes in email-templates.ts + notify.ts.
+- Decisions: invite routes keep req origin only as last-resort fallback; no template structure change needed once quotes fixed.
+- Broke / TODO: none. VPS must pull + rebuild + restart for both fixes to serve; verify logo file deployed at /images/coveragecallsfinal.png if header logo still missing.
+- Next: client re-tests invite email on live.
+- Tests: `npm run typecheck` clean · `npm test` 640 passed | 5 skipped (79 files, +2 invite-origin, +1 quote-guard).
+
+## 2026-09-21 - assistant - PER-CAMPAIGN TRACKING NUMBERS
+- Did: new "Tracking numbers" card on campaign RTB & Numbers tab (list + admin-only add/unassign, campaign pre-scoped); phone-numbers API is now admin-aware (GET ?campaign_id + platform-wide list, POST accepts agency_id for admin, PATCH cross-agency for admin, heads stay scoped); new findAllByCampaign/findAll repo methods.
+- Decisions: per your call, numbers live on the campaign page only — settings phone-numbers untouched; add/unassign UI is admin-only (API settings:manage already restricted it); unassign parks as spare, never deletes.
+- Broke / TODO: none.
+- Next: client adds Telnyx DIDs per campaign on live, then test-call routing.
+- Tests: `npm run typecheck` clean · `npm test` 646 passed | 5 skipped (80 files, +5 phone-numbers, +1 admin-scope).

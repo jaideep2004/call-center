@@ -11,16 +11,18 @@ export const runtime = "nodejs";
  * findByCampaign), so they can never receive or route traffic.
  */
 export const PATCH = apiHandler(async (req, context) => {
-  const agencyId = context.agencyId;
-  if (!agencyId) return fail("Agency required", 403);
+  const isAdmin = context.user?.role === "admin";
+  // Admin operates cross-agency; heads are confined to their own agency.
+  const agencyId = isAdmin ? undefined : (context.agencyId ?? undefined);
+  if (!isAdmin && !agencyId) return fail("Agency required", 403);
   const { id } = await context.params;
   const body = validate(updatePhoneNumberSchema, await req.json());
   const number = await phoneNumbers.findById(id, agencyId).catch(() => null);
-  if (!number) return fail("Phone number not found in your agency", 404);
+  if (!number) return fail("Phone number not found", 404);
   if (body.campaign_id) {
     const campaign = await campaigns.findById(body.campaign_id, agencyId).catch(() => null);
-    if (!campaign) return fail("Campaign not found in your agency", 404);
+    if (!campaign) return fail("Campaign not found", 404);
   }
-  const row = await phoneNumbers.reassign(id, body.campaign_id, agencyId);
+  const row = await phoneNumbers.reassign(id, body.campaign_id, number.agency_id);
   return ok(row, body.campaign_id ? "Number moved" : "Number unassigned");
 }, { resource: "settings", action: "manage" });

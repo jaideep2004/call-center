@@ -1,11 +1,14 @@
 import { apiHandler, ok } from "@/server/api-utils";
+import { getAppBaseUrl } from "@/server/app-url";
 import { createPortalInvite } from "@/server/services/publisher-portal";
 import { sendEmail } from "@/server/email";
 import { EMAIL_SUBJECTS, publisherInviteEmail } from "@/server/email-templates";
 
 export const POST = apiHandler(async (req, { params }) => {
   const { id } = await params;
-  const origin = new URL(req.url).origin;
+  // Env-first base URL: req origin is wrong behind proxies/tunnels and on
+  // localhost admin sessions — invite links must always point at production.
+  const origin = getAppBaseUrl(new URL(req.url).origin);
   const result = await createPortalInvite(id, origin);
 
   try {

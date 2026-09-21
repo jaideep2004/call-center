@@ -25,7 +25,7 @@ interface LayoutOptions {
   footerNote?: string;
 }
 
-const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 const BG = "#F4F2FB";
 const CARD = "#FFFFFF";
 const BORDER = "#E5E7EB";

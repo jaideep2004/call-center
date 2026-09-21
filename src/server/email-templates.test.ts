@@ -120,6 +120,19 @@ describe("brand header", () => {
     expect(html).not.toContain("background:#000");
   });
 
+  it("never puts double quotes inside style attributes (breaks email rendering)", () => {
+    // A `"` inside style="..." terminates the attribute in email clients,
+    // silently dropping every declaration after it (colors, decoration).
+    // Font names must use single quotes.
+    const html = emailLayout({
+      preheader: "p",
+      bodyHtml: "<p>Hi</p>",
+      cta: { label: "Go", href: "https://app.example.com/x" },
+    });
+    expect(html).not.toContain('"Segoe UI"');
+    expect(html).toContain("'Segoe UI'");
+  });
+
   it("styles the CTA anchor itself (white, bold, tracked) with padding on the cell", () => {
     const html = emailLayout({
       preheader: "p",

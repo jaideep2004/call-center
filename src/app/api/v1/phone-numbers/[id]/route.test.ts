@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const findNumberMock = vi.hoisted(() => vi.fn(async () => ({ id: "num-1", campaign_id: "camp-old" })));
+const findNumberMock = vi.hoisted(() => vi.fn(async () => ({ id: "num-1", agency_id: "agency-1", campaign_id: "camp-old" })));
 const reassignMock = vi.hoisted(() => vi.fn(async (_id: string, cid: string | null) => ({ id: "num-1", campaign_id: cid })));
 const findCampaignMock = vi.hoisted(() => vi.fn(async () => ({ id: "camp-new" })));
 
@@ -8,6 +8,8 @@ vi.mock("@/server/repositories", () => ({
   phoneNumbers: { findById: findNumberMock, reassign: reassignMock },
   campaigns: { findById: findCampaignMock },
 }));
+
+let ctxRole = "agent";
 
 vi.mock("@/server/api-utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/server/api-utils")>();
@@ -18,7 +20,7 @@ vi.mock("@/server/api-utils", async (importOriginal) => {
         try {
           return await handler(req, {
             ...(ctx as object),
-            user: { id: "u-1", role: "admin" },
+            user: { id: "u-1", role: ctxRole },
             agencyId: "agency-1",
             membership: { id: "m-1" },
           });
@@ -46,6 +48,7 @@ function patch(body?: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  ctxRole = "agent";
 });
 
 describe("PATCH /api/v1/phone-numbers/[id] (move / unassign)", () => {
@@ -82,5 +85,13 @@ describe("PATCH /api/v1/phone-numbers/[id] (move / unassign)", () => {
     const res = await patch({ campaign_id: "" });
     expect(res.status).toBe(422);
     expect(reassignMock).not.toHaveBeenCalled();
+  });
+
+  it("admin operates unscoped across agencies", async () => {
+    ctxRole = "admin";
+    const res = await patch({ campaign_id: "camp-new" });
+    expect(res.status).toBe(200);
+    expect(findNumberMock).toHaveBeenCalledWith("num-1", undefined);
+    expect(findCampaignMock).toHaveBeenCalledWith("camp-new", undefined);
   });
 });

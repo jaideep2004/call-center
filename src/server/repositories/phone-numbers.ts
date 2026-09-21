@@ -1,5 +1,5 @@
 import { BaseRepository } from "./base";
-import { queryOne } from "@/server/db";
+import { query, queryOne } from "@/server/db";
 import type { PoolClient } from "pg";
 
 export interface PhoneNumberRow {
@@ -32,6 +32,15 @@ export class PhoneNumberRepository extends BaseRepository<PhoneNumberRow> {
     );
   }
 
+  /** Every number on a campaign (for the per-campaign manager). Agency scope optional (admin = all). */
+  async findAllByCampaign(campaignId: string, agencyId?: string): Promise<PhoneNumberRow[]> {
+    return query<PhoneNumberRow>(
+      `SELECT * FROM app.phone_numbers WHERE campaign_id = $1${agencyId ? " AND agency_id = $2" : ""}
+       ORDER BY e164 ASC`,
+      agencyId ? [campaignId, agencyId] : [campaignId],
+    );
+  }
+
   async findById(id: string, agencyId?: string, client?: PoolClient): Promise<PhoneNumberRow> {
     return super.findById(id, agencyId, client);
   }
@@ -44,6 +53,23 @@ export class PhoneNumberRepository extends BaseRepository<PhoneNumberRow> {
       pagination: { page: 1, limit: 1000 },
     });
     return rows;
+  }
+
+  /** Platform view (admin): every agency's numbers, agency name joined. */
+  async findAll(): Promise<Array<PhoneNumberRow & { agency_name: string | null }>> {
+    const { rows } = await super.findMany({
+      sortBy: "e164",
+      order: "asc",
+      pagination: { page: 1, limit: 1000 },
+    });
+    if (rows.length === 0) return [];
+    const agencyIds = [...new Set(rows.map((r) => r.agency_id))];
+    const names = await query<{ id: string; name: string }>(
+      `SELECT id, name FROM app.agencies WHERE id = ANY($1::uuid[])`,
+      [agencyIds],
+    );
+    const byId = new Map(names.map((a) => [a.id, a.name]));
+    return rows.map((r) => ({ ...r, agency_name: byId.get(r.agency_id) ?? null }));
   }
 
   /** Move a number between campaigns, or null to park it as spare inventory. */

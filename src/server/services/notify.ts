@@ -13,7 +13,7 @@ interface NotifyOptions {
   emailHtml?: string;
 }
 
-const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
 
 function notificationEmailHtml(title: string, message: string, href?: string): string {
   const cta = href ? { label: "View in dashboard", href } : undefined;

@@ -8,6 +8,7 @@ import { useSkills } from "@/features/skills/use-skills";
 
 interface CampaignDetail {
   id: string;
+  agency_id: string;
   name: string;
   status: string;
   routing_strategy: string;
@@ -84,6 +85,74 @@ function CampaignDetailInner() {
   >([]);
   const [numbersLoading, setNumbersLoading] = useState(false);
 
+  // Tracking (Telnyx) numbers attached to THIS campaign — the per-campaign
+  // replacement for Settings → Phone Numbers. Admin-managed (settings:manage).
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [trackingNumbers, setTrackingNumbers] = useState<
+    { id: string; e164: string; provider: string; status: string }[]
+  >([]);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [newNumber, setNewNumber] = useState("");
+  const [addingNumber, setAddingNumber] = useState(false);
+  const [unassigningId, setUnassigningId] = useState<string | null>(null);
+
+  async function loadTrackingNumbers() {
+    setTrackingLoading(true);
+    try {
+      const res = await fetch(`/api/v1/phone-numbers?campaign_id=${id}`);
+      if (res.ok) {
+        const body = await res.json();
+        setTrackingNumbers(body.data ?? []);
+      }
+    } catch {}
+    setTrackingLoading(false);
+  }
+
+  async function addTrackingNumber() {
+    const e164 = newNumber.trim();
+    if (!e164 || !campaign) return;
+    setAddingNumber(true);
+    try {
+      const res = await fetch("/api/v1/phone-numbers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ number: e164, campaign_id: id, provider: "telnyx", agency_id: campaign.agency_id }),
+      });
+      const body = await res.json();
+      if (res.ok) {
+        setTrackingNumbers((prev) => [...prev, body.data]);
+        setNewNumber("");
+        showToast("Number added to this campaign", "success");
+      } else {
+        showToast(body.message ?? "Failed to add number", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    }
+    setAddingNumber(false);
+  }
+
+  async function unassignTrackingNumber(numberId: string) {
+    setUnassigningId(numberId);
+    try {
+      const res = await fetch(`/api/v1/phone-numbers/${numberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaign_id: null }),
+      });
+      if (res.ok) {
+        setTrackingNumbers((prev) => prev.filter((n) => n.id !== numberId));
+        showToast("Number unassigned (kept as spare)", "success");
+      } else {
+        const body = await res.json();
+        showToast(body.message ?? "Failed to unassign", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    }
+    setUnassigningId(null);
+  }
+
   const [bidOverride, setBidOverride] = useState<{
     price_cents: number | null;
     payout_cents: number | null;
@@ -99,6 +168,20 @@ function CampaignDetailInner() {
     qs.set("tab", key);
     router.push(`/dashboard/campaigns/${id}?${qs.toString()}`, { scroll: false });
   }
+
+  useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setIsAdmin(body.data?.user?.role === "admin");
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "rtb") loadTrackingNumbers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   useEffect(() => {
     fetch(`/api/v1/campaigns/${id}/bid`).then(async (res) => {
@@ -1026,6 +1109,78 @@ function CampaignDetailInner() {
                 <p className='text-muted' style={{ fontSize: 12, margin: 0 }}>
                   Deploy to Retreaver or run the campaign sync to link this campaign first.
                 </p>
+              )}
+            </section>
+            <section className='card' style={{ padding: "var(--space-6)" }}>
+              <h2
+                style={{
+                  font: "500 18px var(--serif)",
+                  margin: "0 0 6px",
+                  letterSpacing: "-0.03em",
+                }}>
+                Tracking numbers
+              </h2>
+              <p className='text-muted' style={{ fontSize: 12, margin: "0 0 var(--space-4)" }}>
+                Telnyx DIDs that route inbound calls to this campaign. Inbound only matches active numbers.
+              </p>
+              {trackingLoading ? (
+                <div className='stack' style={{ gap: 8 }}>
+                  <div className='skeleton skeleton-text' />
+                  <div className='skeleton skeleton-text' />
+                </div>
+              ) : trackingNumbers.length === 0 ? (
+                <p className='text-muted' style={{ fontSize: 12, margin: 0 }}>
+                  No tracking numbers on this campaign yet{isAdmin ? " — add the first one below." : "."}
+                </p>
+              ) : (
+                <div className="data-table-wrap"><table className='data-table'>
+                  <thead>
+                    <tr>
+                      <th>Number</th>
+                      <th>Provider</th>
+                      <th>Status</th>
+                      {isAdmin && <th />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trackingNumbers.map((n) => (
+                      <tr key={n.id}>
+                        <td className='text-mono-sm' style={{ fontWeight: 500 }}>{n.e164}</td>
+                        <td className='text-mono-sm'>{n.provider}</td>
+                        <td><span className='badge badge-success' style={{ fontSize: 10 }}>{n.status}</span></td>
+                        {isAdmin && (
+                          <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                            <button
+                              className='quiet-button'
+                              style={{ fontSize: 12 }}
+                              disabled={unassigningId === n.id}
+                              onClick={() => unassignTrackingNumber(n.id)}>
+                              {unassigningId === n.id ? "…" : "Unassign"}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              )}
+              {isAdmin && (
+                <div className='stack-h' style={{ gap: 8, marginTop: "var(--space-4)", flexWrap: "wrap" }}>
+                  <input
+                    className='input'
+                    value={newNumber}
+                    onChange={(e) => setNewNumber(e.target.value)}
+                    placeholder='+15551234567'
+                    style={{ maxWidth: 200 }}
+                    aria-label='New tracking number'
+                  />
+                  <button
+                    className='btn btn-primary btn-sm'
+                    onClick={addTrackingNumber}
+                    disabled={addingNumber || !newNumber.trim()}>
+                    {addingNumber ? <span className='spinner' /> : "Add number"}
+                  </button>
+                </div>
               )}
             </section>
           </div>
