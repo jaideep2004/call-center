@@ -4,6 +4,7 @@ import { validate, updateAgentSchema, updateOwnAgentSchema } from "@/server/vali
 import { hasPermission } from "@/server/services/permission-data";
 import { assertValidSkills } from "@/server/services/skills.service";
 import { sendAgentApproved } from "@/server/services/action-emails";
+import { canGoOnline } from "@/server/services/agent-funding";
 import { queryOne } from "@/server/db";
 
 export const GET = apiHandler(async (req, { params }) => {
@@ -23,12 +24,18 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
       return fail("You can only update your own agent profile", 403);
     }
     const body = validate(updateOwnAgentSchema, await req.json());
+    if (body.availability === "available" && !(await canGoOnline(id))) {
+      return fail("Top up your wallet or activate a subscription plan before going online — unfunded agents can't take calls", 422);
+    }
     const updated = await agents.update(id, body);
     return ok(updated, "Agent updated");
   }
   const body = validate(updateAgentSchema, await req.json());
   if (body.skills) {
     body.skills = await assertValidSkills(body.skills);
+  }
+  if ((body as { availability?: string }).availability === "available" && !(await canGoOnline(id))) {
+    return fail("Agent has no funds or active plan — top up the wallet or activate a subscription before setting them online", 422);
   }
   const agent = await agents.update(id, body, agencyId ?? undefined);
   // Best-effort approval email + inbox row (never blocks the update).

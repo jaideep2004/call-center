@@ -788,50 +788,53 @@ export async function acceptCall(callId: string) {
   const agentCallId = call.provider_agent_call_id;
   console.log(`[acceptCall] call=${callId.slice(0,8)} state=${call.state} agentCallId=${agentCallId?.slice(0,12)??"null"} provider_call_id=${call.provider_call_id.slice(0,12)}`);
   if (agentCallId) {
-    try {
-      console.log(`[acceptCall] bridging agent=${agentCallId.slice(0,12)} to caller=${call.provider_call_id.slice(0,12)}`);
-      const bridgeStart = Date.now();
-      await provider.bridge({ callId: call.provider_call_id, providerAttemptId: agentCallId });
-      console.log(`[acceptCall] bridge succeeded in ${Date.now() - bridgeStart}ms (accept total ${Date.now() - startedAt}ms)`);
-    } catch (e: any) {
-      const msg = String(e?.message ?? e);
-      const isNotAnsweredYet = msg.includes("90034") || msg.includes("not been answered") || msg.includes("Call not answered");
-      if (isNotAnsweredYet) {
-        console.warn(`[acceptCall] bridge not ready (agent not answered yet) for ${callId.slice(0,8)} — retrying after answer...`);
-        // For WebRTC: the SDK answer may still be in-flight. Wait briefly and retry once.
-        // Also try to answer the agent leg via Call Control in case SDK hasn't.
-        try { await provider.answer({ callId: agentCallId }); } catch {}
-        await new Promise((r) => setTimeout(r, 800));
-        try {
-          await provider.bridge({ callId: call.provider_call_id, providerAttemptId: agentCallId });
-          console.log(`[acceptCall] bridge retry succeeded for ${callId.slice(0,8)}`);
-        } catch (e2: any) {
-          console.error(`[acceptCall] bridge RETRY FAILED for call=${callId.slice(0,8)}: ${e2?.message ?? e2}`);
-          try { await provider.cancel({ providerAttemptId: call.provider_call_id }); } catch {}
-          try { await provider.cancel({ providerAttemptId: agentCallId }); } catch {}
-          await calls.updateState(call.id, "missed", call.agency_id, { ended_at: new Date().toISOString() });
-          if (call.agent_id) {
-            const agent = await agents.findById(call.agent_id).catch(() => null);
-            if (agent?.membership_id) {
-              publishCallEvent(agent.membership_id, "call:ended", { callId: call.id });
-            }
-          }
-          return null;
-        }
-      } else {
-        console.error(`[acceptCall] bridge FAILED for call=${callId.slice(0,8)} after ${Date.now() - startedAt}ms: ${msg}`);
-        // One of the legs is gone (e.g. originator cancelled) — hang up both and finalize as missed.
-        try { await provider.cancel({ providerAttemptId: call.provider_call_id }); } catch {}
-        try { await provider.cancel({ providerAttemptId: agentCallId }); } catch {}
-        await calls.updateState(call.id, "missed", call.agency_id, { ended_at: new Date().toISOString() });
-        if (call.agent_id) {
-          const agent = await agents.findById(call.agent_id).catch(() => null);
-          if (agent?.membership_id) {
-            publishCallEvent(agent.membership_id, "call:ended", { callId: call.id });
-          }
-        }
-        return null;
+    // The agent leg is OUTBOUND from Telnyx's view (we dialed the agent), so
+    // only the agent's device can answer it — a server-side answer() always
+    // 422s (90102) and is pure noise. Instead, bridge in a bounded wait loop:
+    // the agent may pick up seconds after clicking Accept (late popup), and a
+    // single 800ms retry was too short. ~8s of retries stays well under the
+    // ring timeout; afterwards the call goes down the normal missed path.
+    const BRIDGE_ATTEMPTS = 8;
+    let bridged = false;
+    let lastErr: string | null = null;
+    for (let attempt = 1; attempt <= BRIDGE_ATTEMPTS && !bridged; attempt++) {
+      try {
+        if (attempt > 1) console.log(`[acceptCall] bridge attempt ${attempt}/${BRIDGE_ATTEMPTS} for ${callId.slice(0, 8)}`);
+        else console.log(`[acceptCall] bridging agent=${agentCallId.slice(0, 12)} to caller=${call.provider_call_id.slice(0, 12)}`);
+        const bridgeStart = Date.now();
+        await provider.bridge({ callId: call.provider_call_id, providerAttemptId: agentCallId });
+        console.log(`[acceptCall] bridge succeeded in ${Date.now() - bridgeStart}ms (accept total ${Date.now() - startedAt}ms)`);
+        bridged = true;
+      } catch (e: any) {
+        const msg = String(e?.message ?? e);
+        lastErr = msg;
+        const isNotAnsweredYet = msg.includes("90034") || msg.includes("not been answered") || msg.includes("Call not answered");
+        if (!isNotAnsweredYet) break; // leg gone or other fatal — straight to missed path
+        // Refresh: if either side ended while we wait, stop retrying.
+        call = await calls.findById(callId).catch(() => null) ?? call;
+        if (!call || call.state === "ended" || call.state === "missed" || call.state === "failed" || call.state === "cancelled") break;
+        await new Promise((r) => setTimeout(r, 1000));
       }
+    }
+    if (!bridged) {
+      const msg = lastErr ?? "unknown bridge error";
+      const isNotAnsweredYet = msg.includes("90034") || msg.includes("not been answered") || msg.includes("Call not answered");
+      if (!isNotAnsweredYet) {
+        console.error(`[acceptCall] bridge FAILED for call=${callId.slice(0, 8)} after ${Date.now() - startedAt}ms: ${msg}`);
+      } else {
+        console.warn(`[acceptCall] agent never answered for call=${callId.slice(0, 8)} after ${BRIDGE_ATTEMPTS}s of retries — marking missed`);
+      }
+      // One of the legs is gone (e.g. originator cancelled) — hang up both and finalize as missed.
+      try { await provider.cancel({ providerAttemptId: call.provider_call_id }); } catch {}
+      try { await provider.cancel({ providerAttemptId: agentCallId }); } catch {}
+      await calls.updateState(call.id, "missed", call.agency_id, { ended_at: new Date().toISOString() });
+      if (call.agent_id) {
+        const agent = await agents.findById(call.agent_id).catch(() => null);
+        if (agent?.membership_id) {
+          publishCallEvent(agent.membership_id, "call:ended", { callId: call.id });
+        }
+      }
+      return null;
     }
   } else {
     console.error(`[acceptCall] no agent leg for call=${callId.slice(0,8)} — hanging up caller`);

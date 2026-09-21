@@ -6,12 +6,12 @@ import { useState, useRef, useEffect } from "react";
 import {
   BarChart3, Bell, BookOpen, Building2, Calendar, CalendarPlus, Disc, FileText,
   GraduationCap, Landmark, Layers, LayoutDashboard, LayoutTemplate, LifeBuoy,
-  Lightbulb, Megaphone, Phone, PhoneCall, Radio, Receipt, Scale, Settings,
+  Lightbulb, LogOut, Megaphone, Phone, PhoneCall, PhoneOff, Radio, Receipt, Scale, Settings,
   Shield, SlidersHorizontal, TrendingUp, UserPlus, Users, Wallet, Dot,
   type LucideIcon,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import { useToast } from "@/lib/use-toast";
+import { showToast, useToast } from "@/lib/use-toast";
 import { useSocket } from "@/lib/use-socket";
 import Softphone from "@/components/softphone";
 import "@/styles/dashboard.css";
@@ -176,6 +176,80 @@ function NotificationBell({ membershipId }: { membershipId: string | null }) {
   );
 }
 
+/**
+ * Sticky top-right action cluster beside the bell (all dashboards): logout
+ * for everyone, Go Online/Offline for agents only. Surfaces the funding-gate
+ * 422 message when an unfunded agent tries to go online.
+ */
+function TopActions({
+  showOnline,
+  agentId,
+  agentAvailability,
+  availToggling,
+  onToggleAvailability,
+  onSignOut,
+}: {
+  showOnline: boolean;
+  agentId: string | null;
+  agentAvailability: string;
+  availToggling: boolean;
+  onToggleAvailability: () => void;
+  onSignOut: () => void;
+}) {
+  const online = agentAvailability === "available";
+  const pill: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 9999,
+    height: 36,
+    padding: "0 12px",
+    fontSize: 11,
+    fontWeight: 700,
+    background: "rgba(168,85,247,0.10)",
+    border: "1px solid var(--line)",
+    color: "var(--ink)",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+  return (
+    <div style={{ position: "fixed", top: 14, right: 60, zIndex: 9000, display: "flex", gap: 8 }}>
+      {showOnline && (
+        <button
+          type="button"
+          onClick={onToggleAvailability}
+          disabled={availToggling || !agentId}
+          title={online ? "Go offline" : "Go online and start receiving calls"}
+          aria-label={online ? "Go offline" : "Go online"}
+          style={{ ...pill, borderColor: online ? "var(--green)" : "var(--line)" }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: online ? "var(--green)" : "var(--muted)",
+              boxShadow: online ? "0 0 6px var(--green)" : "none",
+            }}
+          />
+          {online ? <PhoneOff size={13} aria-hidden /> : <Phone size={13} aria-hidden />}
+          {availToggling ? "…" : online ? "Online" : "Go Online"}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onSignOut}
+        title="Log out"
+        aria-label="Log out"
+        style={{ ...pill, width: 36, padding: 0, justifyContent: "center" }}
+      >
+        <LogOut size={15} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 const agentNav = [
   { label: "Command", href: "/dashboard", icon: "01" },
   { label: "Take Calls", href: "/dashboard/take-calls", icon: "01b" },
@@ -284,6 +358,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [agentAvailability, setAgentAvailability] = useState<string>("offline");
   const [availToggling, setAvailToggling] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Shared availability toggle (sidebar dropdown + sticky top-bar button).
+  // Surfaces the funding-gate 422 so unfunded agents learn why they can't go online.
+  async function toggleAvailability() {
+    if (!agentId || availToggling) return;
+    setAvailToggling(true);
+    const next = agentAvailability === "available" ? "offline" : "available";
+    try {
+      const res = await fetch(`/api/v1/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ availability: next }),
+      });
+      if (res.ok) {
+        setAgentAvailability(next);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        showToast(body.message ?? "Failed to update availability", "error");
+      }
+    } catch {
+      showToast("Network error updating availability", "error");
+    }
+    setAvailToggling(false);
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -506,18 +604,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       className="btn btn-sm"
                       style={{ marginLeft: "auto", fontSize: 10 }}
                       disabled={availToggling || !agentId}
-                      onClick={async () => {
-                        if (!agentId || availToggling) return;
-                        setAvailToggling(true);
-                        const next = agentAvailability === "available" ? "offline" : "available";
-                        const res = await fetch(`/api/v1/agents/${agentId}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ availability: next }),
-                        });
-                        if (res.ok) setAgentAvailability(next);
-                        setAvailToggling(false);
-                      }}
+                      onClick={toggleAvailability}
                     >
                       {availToggling ? "..." : agentAvailability === "available" ? "Go Offline" : "Go Online"}
                     </button>
@@ -538,6 +625,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </section>
       {/* Layout-level bell: fixed top-right in ALL three dashboards. */}
       {user && <NotificationBell membershipId={membershipId} />}
+      {user && (
+        <TopActions
+          showOnline={!isAdmin && !isPublisher}
+          agentId={agentId}
+          agentAvailability={agentAvailability}
+          availToggling={availToggling}
+          onToggleAvailability={toggleAvailability}
+          onSignOut={handleSignOut}
+        />
+      )}
       {!isAdmin && !isPublisher && <Softphone membershipId={membershipId} agentId={agentId} />}
       {toasts.length > 0 && (
         <div style={{ position: "fixed", bottom: "var(--space-6)", right: "var(--space-6)", display: "flex", flexDirection: "column", gap: 8, zIndex: 9999 }}>

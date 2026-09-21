@@ -18,6 +18,9 @@ function StripeIntegrationCard() {
   const [showWebhook, setShowWebhook] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  // Null = never verified this session. The badge is green ONLY after a live
+  // API ping succeeds — key presence alone is not proof of connectivity.
+  const [verified, setVerified] = useState<boolean | null>(null);
 
   const refresh = () => {
     fetch("/api/v1/settings/stripe").then(async (res) => {
@@ -53,6 +56,8 @@ function StripeIntegrationCard() {
       if (res.ok) {
         setSecretKey("");
         setWebhookSecret("");
+        // PUT verifies server-side; adopt the result (null = unverified).
+        setVerified(body.data?.verified === true ? true : body.data?.verified === false ? false : null);
         refresh();
       }
     } catch {
@@ -65,20 +70,18 @@ function StripeIntegrationCard() {
   async function testConnection() {
     setTesting(true);
     try {
-      const res = await fetch("/api/v1/settings/stripe", { method: "GET" });
-      if (res.ok) {
-        const body = await res.json();
-        const s = body.data as StripeStatus | null;
-        if (s?.configured) {
-          showToast(`Stripe: connected via ${s.source === "db" ? "admin-set key" : "env"}${s.webhook_configured ? " + webhook" : " (webhook missing)"}`, "success");
-        } else {
-          showToast("Stripe not connected — add keys and click Save & Connect", "warning");
-        }
+      const res = await fetch("/api/v1/settings/stripe", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.data?.verified) {
+        setVerified(true);
+        showToast("Stripe verified — live API responded", "success");
       } else {
-        showToast("Test connection — coming soon (no verify endpoint yet)", "info");
+        setVerified(false);
+        showToast(body.message ?? "Stripe verification failed — check the key", "error");
       }
     } catch {
-      showToast("Test connection — coming soon", "info");
+      setVerified(false);
+      showToast("Network error verifying Stripe", "error");
     } finally {
       setTesting(false);
     }
@@ -91,8 +94,12 @@ function StripeIntegrationCard() {
           <h2 className="settings-card-title">Stripe Integration</h2>
           <p className="settings-card-sub">Live or test keys from Stripe Dashboard → Developers → API keys. Stored encrypted, never displayed again.</p>
         </div>
-        <span className={`badge ${status?.configured ? "badge-success" : "badge-danger"}`} style={{ whiteSpace:"nowrap" }}>
-          {status?.configured ? `Connected (${status.source === "db" ? "admin-set" : "env"})` : "Not connected"}
+        <span className={`badge ${verified === true ? "badge-success" : "badge-danger"}`} style={{ whiteSpace:"nowrap" }} title={verified === true ? "Live API ping succeeded" : "Not verified against the live Stripe API"}>
+          {verified === true
+            ? `Connected — verified (${status?.source === "db" ? "admin-set" : "env"} key)`
+            : status?.configured
+              ? "Keys saved — not verified"
+              : "Not connected"}
         </span>
       </div>
       <p className="text-muted" style={{ fontSize: 11, margin:"12px 0 0", border:"1px solid var(--line)", borderRadius:9, padding:"8px 10px", background:"rgba(255,255,255,.02)", fontFamily:"var(--mono)" }}>

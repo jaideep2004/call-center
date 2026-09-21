@@ -650,8 +650,30 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
       </div>
       {/* Minimized call chip: live status + key actions, survives dashboard navigation */}
       {callMinimized && callState !== "ended" && (
-        <div className="softphone-pill" role="status" aria-label={callState === "ringing" ? "Incoming call minimized" : "Active call minimized"}>
-          <span className="softphone-pill-dot" />
+        <div
+          className="softphone-pill"
+          role="status"
+          aria-label={callState === "ringing" ? "Incoming call minimized" : "Active call minimized"}
+          style={{
+            background: "rgba(20,12,40,0.92)",
+            border: `1px solid ${callState === "ringing" ? "var(--amber)" : callState === "connected" ? "var(--green)" : "var(--line)"}`,
+            boxShadow: "0 8px 28px rgba(0,0,0,0.45)",
+          }}
+        >
+          <span
+            className="softphone-pill-dot"
+            aria-hidden
+            style={{
+              background:
+                callState === "connected" ? "var(--green)"
+                : callState === "ringing" ? "var(--amber)"
+                : "var(--cyan)",
+              boxShadow:
+                callState === "connected" ? "0 0 8px var(--green)"
+                : callState === "ringing" ? "0 0 8px var(--amber)"
+                : "0 0 8px var(--cyan)",
+            }}
+          />
           <span className="softphone-pill-text">
             {callState === "ringing"
               ? `Incoming · ${formatPhone(incoming?.fromHash ?? "")}`

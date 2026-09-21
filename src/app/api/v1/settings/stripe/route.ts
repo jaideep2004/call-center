@@ -52,3 +52,23 @@ export const DELETE = apiHandler(async (_req, { user }) => {
   invalidateStripeCache();
   return ok({ cleared: true }, "Database keys cleared — falling back to environment");
 }, { resource: "settings", action: "manage" });
+
+/**
+ * POST verify: ping the live Stripe API (balance.retrieve) with the
+ * currently configured key (DB or env). The badge is only "Connected" after
+ * this succeeds — key presence alone proves nothing.
+ */
+export const POST = apiHandler(async (_req, { user }) => {
+  if (!requirePlatform(user?.role)) return fail("Platform admin required", 403);
+  try {
+    const stripeModule = await import("@/server/stripe");
+    const balance = await (await stripeModule.getStripe()).balance.retrieve();
+    return ok(
+      { verified: true, livemode: (balance as { livemode?: boolean }).livemode ?? null },
+      "Stripe verified — API responded",
+    );
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return fail(`Stripe verification failed: ${msg.slice(0, 160)}`, 502);
+  }
+}, { resource: "settings", action: "manage" });

@@ -204,7 +204,13 @@ export const telnyxProvider: TelephonyProvider = {
     try {
       await (client.calls.actions as any).hangup(providerAttemptId);
     } catch (err: any) {
-      if (err?.status !== 404) throw err;
+      const msg = String(err?.message ?? "");
+      // 404 = already gone; 422 "already ended" = other leg hung up first.
+      // Both are benign at teardown — swallowing keeps no-answer/missed paths quiet.
+      const alreadyGone = err?.status === 404
+        || msg.includes("already ended")
+        || msg.includes("no longer active");
+      if (!alreadyGone) throw err;
     }
   },
 

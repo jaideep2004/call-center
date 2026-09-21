@@ -214,3 +214,16 @@
 - Broke / TODO: none.
 - Next: client adds Telnyx DIDs per campaign on live, then test-call routing.
 - Tests: `npm run typecheck` clean · `npm test` 646 passed | 5 skipped (80 files, +5 phone-numbers, +1 admin-scope).
+
+## 2026-09-21 - assistant - FUNDING GATE + HEADER ACTIONS + BRIDGE WAIT + STRIPE VERIFY
+- Did: (1) Go Online now requires funding (effective balance > 0 OR active plan) — enforced 422 in agents PATCH self + managed paths, toast surfaces reason in layout + take-calls. (2) Sticky top-right cluster beside bell: logout (all) + Online toggle (agents). (3) WebRTC pill: status dot (green/amber/cyan) + dark backing. (4) Stripe badge green only after live balance.retrieve ping (new POST verify; save adopts server verdict). (5) acceptCall bridge wait loop: removed bogus server answer() on outbound leg, 8×1s bounded retries, stops when call ends; Telnyx cancel swallows already-ended 422.
+- Decisions: gate threshold is any positive funding (routing already enforces per-campaign price); no auto-offline on depletion (out of scope).
+- Broke / TODO: none. Deploy + retest late-pickup bridge on live.
+- Tests: `npm run typecheck` clean · `npm test` 655 passed | 5 skipped (82 files, +4 funding, +5 bridge-retry).
+
+## 2026-09-21 - assistant - PAYMENTS FIX + SECURITY AUDIT
+- Did: new 0059 adds missing agent_id/plan_id to app.payments (agent top-up 500 root-caused: code wrote columns no migration ever created); applied live, verified 59/59 recorded + columns present. Security audit: all webhooks verified (Telnyx Ed25519→401, Stripe constructEvent→401, Retreaver token fail-closed, gateway Bearer + prod-closed + session sockets), zero NEXT_PUBLIC secrets, layout role-redirects on all dashboards, XSS-safe markdown (escapes first, https-only links).
+- Decisions: nullable FKs on payments (pool top-ups carry neither); no code changes from audit — posture is solid.
+- Broke / TODO: none.
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npm run typecheck` clean · full suite re-run pending.
