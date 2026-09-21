@@ -2,6 +2,7 @@ import { apiHandler, ok, created, paginated } from "@/server/api-utils";
 import { agents, memberships } from "@/server/repositories";
 import { validate, createAgentSchema, paginationSchema, searchSchema, sortSchema } from "@/server/validate";
 import { assertValidSkills } from "@/server/services/skills.service";
+import { sendAgentWelcome } from "@/server/services/action-emails";
 
 export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
@@ -54,5 +55,7 @@ export const POST = apiHandler(async (req, context) => {
     skills: await assertValidSkills(body.skills),
     npn: body.npn,
   });
+  // Best-effort welcome email + inbox row (never blocks creation).
+  void sendAgentWelcome({ agencyId, membershipId, agentId: agent.id });
   return created(agent);
 }, { resource: "agents", action: "create" });

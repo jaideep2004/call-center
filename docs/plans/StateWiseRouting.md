@@ -108,5 +108,5 @@ That's everything — once we have these 7 answers, we can finalize the logic an
 - Pricing: per campaign (not flat $1). Three knobs: campaign price, publisher payout, admin bid adjustments (manual, no schedule).
 - Routing eligibility gate: agent balance >= campaign price, else skip. Prepaid agents first, postpaid only if no prepaid eligible.
 - Fees: prepaid = "Software Access" (monthly, adjustable), postpaid = "Dialer Fee" ($50/mo default, adjustable per agent).
-- Invoicing: auto-generate postpaid invoice every Monday; admin reviews and manually sends to agency. Manual controls: block / terminate / pause agent.
+- Invoicing: auto-generate postpaid invoice every Monday AND auto-email it to the agency (head + active agents); admin keeps manual charge / waive / pause controls.
 - Caller state: 3-digit area code (NPA) -> state. Mismatch with campaign allowed states -> reject ping with reason. Ping-first always; never self-hangup.

@@ -26,10 +26,8 @@ async function apiGet(path, cookie){
 }
 
 const cases = [
-  {email:'jaisidhu2004@gmail.com', role:'super_admin', expect:{'/api/v1/calls?limit=1':200, '/api/v1/reports/summary':200, '/api/v1/campaigns?limit=1':200, '/api/v1/agents?limit=1':200, '/api/v1/publishers':200}},
+  {email:'jaisidhu2004@gmail.com', role:'admin', expect:{'/api/v1/calls?limit=1':200, '/api/v1/reports/summary':200, '/api/v1/campaigns?limit=1':200, '/api/v1/agents?limit=1':200, '/api/v1/publishers':200}},
   {email:'gdshosting@gmail.com', role:'agent', expect:{'/api/v1/calls?limit=1':200, '/api/v1/reports/summary':200, '/api/v1/campaigns?limit=1':200, '/api/v1/publishers':403}},
-  {email:'manager.test@relayline.test', role:'manager', expect:{'/api/v1/calls?limit=1':200, '/api/v1/agents?limit=1':200, '/api/v1/publishers':200, '/api/v1/campaigns?limit=1':403}},
-  {email:'finance.test@relayline.test', role:'finance', expect:{'/api/v1/calls?limit=1':200, '/api/v1/reports/summary':200, '/api/v1/agents?limit=1':403}},
   {email:'publisher.test@relayline.test', role:'publisher', expect:{'/api/v1/calls?limit=1':403, '/api/v1/publishers':200}},
 ];
 

@@ -4,7 +4,7 @@ import { ForbiddenError, ConflictError } from "@/server/errors";
 import { validate, updateCallSchema } from "@/server/validate";
 import { assertTransition, type CallState } from "@/domain/calls";
 
-const PLATFORM_ROLES = ["super_admin", "admin"];
+const PLATFORM_ROLES = ["admin"];
 
 function scopeFor(context: { agencyId?: string | null; user?: { role?: string } }): string | undefined {
   const scope = context.agencyId ?? undefined;

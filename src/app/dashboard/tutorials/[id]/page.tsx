@@ -43,7 +43,7 @@ export default function TutorialDetailPage() {
       if (!res.ok) return;
       const body = await res.json();
       const role = body.data?.user?.role ?? body.data?.role;
-      setCanManage(role === "agency" || role === "manager" || role === "admin" || role === "super_admin" || role === "finance");
+      setCanManage(role === "admin");
     }).catch(() => {});
   }, [id]);
 

@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { formatCents } from "@/lib/format";
+import { showToast } from "@/lib/use-toast";
 
 const Charts = dynamic(() => import("@/components/reports-charts"), { ssr: false });
 
@@ -32,6 +33,42 @@ function ReportsInner() {
   const [duration, setDuration] = useState<DurationPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(initialDays);
+  const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
+
+  // Phase 3 (point 7): same fetch+blob+toast pattern as calls/leads — the old
+  // <a download> silently saved error JSON as a file.
+  async function handleExport(format: "csv" | "xlsx") {
+    if (exporting) return;
+    setExporting(format);
+    try {
+      const res = await fetch(`/api/v1/reports/export/calls?format=${format}`);
+      if (!res.ok) {
+        let msg = `Export failed (${res.status})`;
+        try {
+          const body = (await res.json()) as { message?: string };
+          if (body?.message) msg = body.message;
+        } catch {}
+        showToast(msg, "error");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? `report-export-${Date.now()}.${format}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`${format.toUpperCase()} downloaded`, "success");
+    } catch {
+      showToast("Export failed - network error", "error");
+    } finally {
+      setExporting(null);
+    }
+  }
 
   useEffect(() => {
     async function fetchAll() {
@@ -79,8 +116,8 @@ function ReportsInner() {
             </select>
           </div>
           <div className="filter-bar__segment">
-            <a className="btn btn-ghost btn-sm" href="/api/v1/reports/export/calls" download>CSV</a>
-            <a className="btn btn-ghost btn-sm" href="/api/v1/reports/export/calls?format=xlsx" download>Excel</a>
+            <button className="btn btn-ghost btn-sm" onClick={() => handleExport("csv")} disabled={exporting !== null}>{exporting === "csv" ? "Exporting…" : "CSV"}</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => handleExport("xlsx")} disabled={exporting !== null}>{exporting === "xlsx" ? "Exporting…" : "Excel"}</button>
           </div>
         </div>
       </div>

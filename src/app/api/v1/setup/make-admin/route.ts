@@ -19,7 +19,7 @@ export const POST = apiHandler(async (req, context) => {
   // endpoint is locked (fail closed) so the first registered user can never
   // self-promote. With the token it must be provided via the x-setup-token
   // header (server-to-server, e.g. curl). In development the endpoint only
-  // works until the first super admin exists — after that it is locked.
+  // works until the first admin exists — after that it is locked.
   const expectedToken = process.env.SETUP_TOKEN;
   if (process.env.NODE_ENV === "production" && !expectedToken) {
     throw new ForbiddenError("Setup is locked — SETUP_TOKEN not configured");
@@ -30,14 +30,14 @@ export const POST = apiHandler(async (req, context) => {
     }
   } else {
     const admins = await query<{ id: string }>(
-      "SELECT id FROM app.memberships WHERE role = 'super_admin' AND status = 'active' LIMIT 1",
+      "SELECT id FROM app.memberships WHERE role = 'admin' AND status = 'active' LIMIT 1",
     );
     const callerIsAdmin = await queryOne<{ id: string }>(
-      "SELECT id FROM app.memberships WHERE user_id = $1 AND role = 'super_admin' AND status = 'active' LIMIT 1",
+      "SELECT id FROM app.memberships WHERE user_id = $1 AND role = 'admin' AND status = 'active' LIMIT 1",
       [userId],
     );
     if (admins.length > 0 && !callerIsAdmin) {
-      throw new ForbiddenError("Setup is locked — a super admin already exists");
+      throw new ForbiddenError("Setup is locked — an admin already exists");
     }
   }
 
@@ -49,7 +49,7 @@ export const POST = apiHandler(async (req, context) => {
     "SELECT id FROM app.memberships WHERE user_id = $1 AND agency_id = $2",
     [userId, agencyId],
   );
-  const finalRole = body.role ?? "super_admin";
+  const finalRole = body.role ?? "admin";
   if (existing.length > 0) {
     await query("UPDATE app.memberships SET role = $1, status = 'active' WHERE id = $2", [finalRole, existing[0].id]);
   } else {

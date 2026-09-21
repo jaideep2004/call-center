@@ -103,6 +103,25 @@ export function requirePermission(role: string | undefined, resource: Resource, 
   }
 }
 
+/**
+ * Agency-head elevation (Phase 5): heads are agents, so role-only checks
+ * would lock them out of their own agency's pool/profile/members/QA.
+ * A head passes any check inside their own agency; everyone else falls back
+ * to the matrix. Platform-only routes (publishers, CMS, users, system
+ * settings) keep matrix-only guards and never call this.
+ */
+export function requireHeadOr(
+  context: Partial<AuthContext>,
+  resource: Resource,
+  action: Action,
+): void {
+  if (context.isHead) {
+    if (!context.agencyId) throw new ForbiddenError("Agency scope required");
+    return;
+  }
+  requirePermission(context.user?.role, resource, action);
+}
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -115,6 +134,10 @@ export interface AuthContext {
   session: { id: string };
   agencyId: string | null;
   membership: { id: string; agency_id: string; role: string } | null;
+  /** True when the membership heads its agency (head_membership_id). Agency
+   * heads are agents — this flag (not a role) elevates them per-request via
+   * requireHeadOr, always confined to their own agency. */
+  isHead: boolean;
 }
 
 type RouteParams = { params: Promise<Record<string, string>> };
@@ -127,6 +150,8 @@ interface ApiHandlerOptions {
   auth?: boolean;
   resource?: Resource;
   action?: Action;
+  /** Allow an agency head (an agent elevated by head_membership_id) to pass this guard. */
+  allowHead?: boolean;
 }
 
 async function resolveAuth(headers: Headers): Promise<AuthContext | null> {
@@ -153,7 +178,7 @@ async function resolveAuth(headers: Headers): Promise<AuthContext | null> {
     // Publisher linkage is source of truth: if a publisher row is linked via user_id,
     // treat the user as publisher regardless of stale user.role (handles invite accept race).
     // Also auto-claim unlinked publisher that matches email (admin created publisher before user registered).
-    if (role !== "super_admin" && role !== "admin") {
+    if (role !== "admin") {
       const pubLink = await queryOne<{ id: string }>(
         `SELECT id FROM app.publishers WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1`,
         [session.user.id],
@@ -182,7 +207,21 @@ async function resolveAuth(headers: Headers): Promise<AuthContext | null> {
       session: session.session,
       agencyId: membership?.agency_id ?? null,
       membership,
+      isHead: false,
     };
+    // Headship: the membership recorded as its agency's head. Wrapped so a
+    // DB without the column (pre-migration) fails closed to non-head.
+    if (membership) {
+      try {
+        const head = await queryOne<{ one: number }>(
+          `SELECT 1 AS one FROM app.agencies WHERE id = $1 AND head_membership_id = $2`,
+          [membership.agency_id, membership.id],
+        );
+        ctx.isHead = !!head;
+      } catch {
+        ctx.isHead = false;
+      }
+    }
     if (cacheKey) authCache.set(cacheKey, { ctx, expiry: Date.now() + AUTH_CACHE_TTL_MS });
     return ctx;
   } catch {
@@ -191,7 +230,7 @@ async function resolveAuth(headers: Headers): Promise<AuthContext | null> {
 }
 
 export function apiHandler(handler: ApiHandler, options: ApiHandlerOptions = {}): ApiHandler {
-  const { auth = true, resource, action } = options;
+  const { auth = true, resource, action, allowHead = false } = options;
   return async (req, context) => {
     try {
       let authCtx: Partial<AuthContext> = {};
@@ -201,7 +240,10 @@ export function apiHandler(handler: ApiHandler, options: ApiHandlerOptions = {})
         if (!resolved) throw new AuthError();
         authCtx = resolved;
         if (resource && action) {
-          requirePermission(resolved.user.role, resource, action);
+          const isElevatedHead = allowHead && resolved.isHead;
+          if (!isElevatedHead) {
+            requirePermission(resolved.user.role, resource, action);
+          }
         }
       }
 

@@ -2,7 +2,7 @@ import { apiHandler, ok, fail, created } from "@/server/api-utils";
 import { query, queryOne } from "@/server/db";
 import { agents } from "@/server/repositories";
 
-function isAdmin(user: any) { return user && (user.role === "admin" || user.role === "super_admin"); }
+function isAdmin(user: any) { return user && user.role === "admin"; }
 
 // GET /api/v1/onboarding/bookings — admin sees all, agent sees own
 export const GET = apiHandler(async (req, context: any) => {

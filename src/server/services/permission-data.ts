@@ -1,4 +1,4 @@
-export type Role = "super_admin" | "admin" | "agency" | "manager" | "finance" | "agent" | "publisher";
+export type Role = "admin" | "agent" | "publisher";
 
 export type Resource =
   | "agents" | "leads" | "calls" | "wallet" | "revenue"
@@ -13,31 +13,14 @@ export type Action =
   | "recharge" | "withdraw" | "accept";
 
 export const permissionMatrix: Record<Role, Partial<Record<Resource, Action[]>>> = {
-  super_admin: {
-    agents: ["manage"], leads: ["manage"], calls: ["manage"], wallet: ["manage"],
-    revenue: ["view"], reports: ["manage"], cms: ["manage"], settings: ["manage"],
-    support: ["manage"], membership: ["manage"], affiliate: ["manage"], agency: ["manage"], users: ["manage"],
-    features: ["manage"], skills: ["manage"], publishers: ["manage"],
-  },
+  // Three roles only (Phase 5): platform admin, agent (agency heads are
+  // agents whose membership is the agency's head_membership_id — elevated
+  // per-request via context.isHead, never via a separate role), publisher.
   admin: {
     agents: ["manage"], leads: ["manage"], calls: ["manage"], wallet: ["manage"],
     revenue: ["view"], reports: ["manage"], cms: ["manage"], settings: ["manage"],
-    support: ["manage"], membership: ["manage"], affiliate: ["manage"], agency: ["view"], users: ["view"],
+    support: ["manage"], membership: ["manage"], affiliate: ["manage"], agency: ["view", "manage"], users: ["manage"],
     features: ["manage"], skills: ["manage"], publishers: ["manage"],
-  },
-  agency: {
-    agents: ["manage"], leads: ["manage"], calls: ["manage"], wallet: ["manage"],
-    revenue: ["view"], reports: ["view"], membership: ["view"], support: ["manage"], settings: ["view"],
-    features: ["view", "create"], skills: ["view"], publishers: ["view"], agency: ["manage"], users: ["manage"],
-  },
-  manager: {
-    agents: ["view"], leads: ["assign", "view"], calls: ["monitor", "view"],
-    wallet: ["view"], revenue: ["view"], reports: ["view"], support: ["view"],
-    features: ["view", "create"], skills: ["view"], publishers: ["view"],
-  },
-  finance: {
-    wallet: ["view"], revenue: ["view"], reports: ["view"], calls: ["view"],
-    features: ["view", "create"], skills: ["view"], publishers: ["view"],
   },
   agent: {
     agents: ["view", "update"], leads: ["view"], calls: ["view", "accept", "update"], wallet: ["view", "recharge"],

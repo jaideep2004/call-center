@@ -1,7 +1,7 @@
 import { apiHandler, ok, created, fail } from "@/server/api-utils";
-import { recruitmentInvites, agencies, memberships } from "@/server/repositories";
+import { recruitmentInvites } from "@/server/repositories";
 import { validate, createInviteSchema } from "@/server/validate";
-import { sendEmail, smtpConfigured } from "@/server/email";
+import { sendEmail } from "@/server/email";
 import { EMAIL_SUBJECTS, agencyInviteEmail } from "@/server/email-templates";
 import crypto from "node:crypto";
 
@@ -27,12 +27,12 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
   const origin = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   const inviteLink = `${origin}/register?invite=${token}`;
 
-  const agency = await agencies.findById(membership.agency_id).catch(() => null);
-
+  // App invite (not agency-scoped): the invitee joins Coverage Calls, creates
+  // their own agency, and adds their team under it.
   await sendEmail({
     to: body.invitee_email,
     subject: EMAIL_SUBJECTS.agencyInvite,
-    html: agencyInviteEmail(inviteLink, agency?.name),
+    html: agencyInviteEmail(inviteLink),
   });
 
   return created(invite, "Invite created");

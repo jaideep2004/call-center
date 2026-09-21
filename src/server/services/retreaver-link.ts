@@ -115,4 +115,42 @@ async function linkPair(callId: string, retreaverId: string) {
     `UPDATE app.calls SET retreaver_call_id = $1 WHERE id = $2 AND retreaver_call_id IS NULL`,
     [retreaverId, callId],
   );
+  // Phase 2.2: the linked app call's campaign is authoritative (set from the
+  // DID at creation) — adopt it when the Retreaver row never resolved one.
+  await pool.query(
+    `UPDATE app.retreaver_calls r SET campaign_id = c.campaign_id
+      FROM app.calls c
+      WHERE r.id = $1 AND r.campaign_id IS NULL AND c.id = $2`,
+    [retreaverId, callId],
+  );
+}
+
+/**
+ * Phase 2.2 repair sweep. Rows ingested before a publisher's afid (or a
+ * campaign's cid) was provisioned resolve NULL at ingest and the forward
+ * sync window never revisits them. This re-resolves NULL attributions from
+ * the stored raw payload (afid/cid travel in raw_redacted since this phase):
+ * publisher by afid, campaign by Retreaver cid. Bounded to recent rows,
+ * NULL-targeted, idempotent — safe on the 5-min link tick.
+ */
+export async function backfillAttribution(sinceDays = 7): Promise<{ publishers: number; campaigns: number }> {
+  const pub = await pool.query(
+    `UPDATE app.retreaver_calls r SET publisher_id = p.id
+      FROM app.publishers p
+      WHERE r.publisher_id IS NULL
+        AND p.deleted_at IS NULL AND p.afid IS NOT NULL
+        AND r.raw_redacted->>'afid' = p.afid
+        AND r.created_at > NOW() - ($1 * INTERVAL '1 day')`,
+    [sinceDays],
+  );
+  const camp = await pool.query(
+    `UPDATE app.retreaver_calls r SET campaign_id = c.id
+      FROM app.campaigns c
+      WHERE r.campaign_id IS NULL
+        AND c.retreaver_cid IS NOT NULL
+        AND r.raw_redacted->>'cid' = c.retreaver_cid
+        AND r.created_at > NOW() - ($1 * INTERVAL '1 day')`,
+    [sinceDays],
+  );
+  return { publishers: pub.rowCount ?? 0, campaigns: camp.rowCount ?? 0 };
 }

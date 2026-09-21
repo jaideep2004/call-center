@@ -6,7 +6,7 @@ import { selectAgent } from "@/domain/routing";
 import { assertTransition, isTerminal } from "@/domain/calls";
 import { calculateBilling } from "@/server/services/billing";
 import { publishCallEvent } from "@/lib/event-bridge";
-import { hashPhone } from "@/domain/phone";
+import { hashPhone, normalizeE164 } from "@/domain/phone";
 import { callerStateFromNumber, resolveNpaState } from "@/server/services/ping-evaluator";
 import { enqueueRouteCall, isAsyncRoutingEnabled } from "@/server/services/route-queue";
 import { enqueueFinalizeCall } from "@/server/services/finalize-queue";
@@ -67,40 +67,25 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
         console.error(`[processProviderEvent] no provider for early-answer: ${e?.message ?? e}`);
       }
 
-      // Resolve agency and campaign from the destination phone number
+      // Resolve agency and campaign from the destination phone number.
+      // Fail closed on unknown/inactive DIDs — never route to a random
+      // agency/campaign (mis-attribution bills the wrong client).
       let agencyId: string | null = null;
       let campaignId: string | null = null;
       if (event.to) {
-        const phone = await phoneNumbers.findByE164(event.to, client);
+        const normalizedTo = normalizeE164(event.to) ?? event.to;
+        const phone = await phoneNumbers.findByE164(normalizedTo, client);
         if (phone) {
           agencyId = phone.agency_id;
           campaignId = phone.campaign_id;
-        } else {
-          console.warn(`[processProviderEvent] unknown DID ${event.to.slice(0,12)}..., falling back to first active phone`);
-          // Fallback: first active ASSIGNED phone (unassigned spares never route)
-          const fallback = await client.query(`SELECT agency_id, campaign_id FROM app.phone_numbers WHERE status='active' AND campaign_id IS NOT NULL LIMIT 1`);
-          if (fallback.rows[0]) {
-            agencyId = fallback.rows[0].agency_id;
-            campaignId = fallback.rows[0].campaign_id;
-          }
         }
       }
       if (!agencyId || !campaignId) {
-        // Still no match — use first agency/campaign so webhook never 400s on UUID
-        const fallback = await client.query(`SELECT agency_id, campaign_id FROM app.phone_numbers WHERE status='active' AND campaign_id IS NOT NULL LIMIT 1`);
-        if (fallback.rows[0]) {
-          agencyId = fallback.rows[0].agency_id;
-          campaignId = fallback.rows[0].campaign_id;
-        } else {
-          const ag = await client.query(`SELECT id FROM app.agencies LIMIT 1`);
-          const camp = await client.query(`SELECT id FROM app.campaigns LIMIT 1`);
-          if (ag.rows[0] && camp.rows[0]) {
-            agencyId = ag.rows[0].id;
-            campaignId = camp.rows[0].id;
-          } else {
-            throw new Error(`No phone/agency/campaign to route DID ${event.to ?? "unknown"}`);
-          }
-        }
+        // Unknown DID, inactive number, or spare-pool inventory (campaign_id
+        // NULL): reject. The webhook layer turns this into a 400 with no call
+        // row, so the publisher gets a machine-readable rejection instead of
+        // a call silently billed to the wrong agency.
+        throw new Error(`Unknown or unassigned DID ${event.to ?? "unknown"} — rejected, no fallback routing`);
       }
       // narrowed to string after the throws above
       const resolvedAgencyId = agencyId as string;
@@ -393,6 +378,12 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
         available: a.availability === "available",
         busy: a.is_busy ?? false,
         walletEligible: priceCents <= 0 || walletFunded || hasSub,
+        // Phase 3.2 verdict: no schedule data model exists (no working hours
+        // or timezone on agents/campaigns), so there is nothing real to check
+        // here. The gate itself IS wired in domain/routing (scheduleOpen=false
+        // rejects outside_schedule) — when a schedule source lands, compute it
+        // here. Until then the Go Online/offline toggle + live-for-campaign
+        // selection are the enforcement. Never invent fake hours.
         scheduleOpen: true,
         tier: walletFunded ? 1 : 2,
         states: a.states,

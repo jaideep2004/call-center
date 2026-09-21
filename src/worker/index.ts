@@ -2,7 +2,7 @@ import "dotenv/config";
 import { PgBoss } from "pg-boss";
 import { routeCall, finalizeCall } from "@/server/services/call-orchestrator";
 import { syncRetreaverCalls } from "@/server/services/retreaver";
-import { linkRetreaverCalls } from "@/server/services/retreaver-link";
+import { linkRetreaverCalls, backfillAttribution } from "@/server/services/retreaver-link";
 import { expireStaleRtbReservations } from "@/server/services/retreaver-rtb";
 import { syncOfferWalletPauses } from "@/server/services/offer-wallet-sync";
 import { runCallMaintenance } from "@/server/services/call-cleanup";
@@ -118,7 +118,9 @@ async function main() {
     for (const job of jobs) {
       try {
         const { linked } = await linkRetreaverCalls();
-        console.info(JSON.stringify({ event: "retreaver_linked", jobId: job.id, linked }));
+        // Phase 2.2: repair rows ingested before afid/cid provisioning.
+        const backfilled = await backfillAttribution().catch(() => ({ publishers: 0, campaigns: 0 }));
+        console.info(JSON.stringify({ event: "retreaver_linked", jobId: job.id, linked, backfilled }));
       } catch (error) {
         console.error(JSON.stringify({ event: "retreaver_link_failed", jobId: job.id, error: String(error) }));
       }
@@ -186,8 +188,8 @@ async function main() {
   await boss.work("generate-weekly-invoices", { localConcurrency: 1 }, async (jobs) => {
     for (const job of jobs) {
       try {
-        const { invoices: created, feesIncluded } = await generateWeeklyInvoices();
-        console.info(JSON.stringify({ event: "weekly_invoices_generated", jobId: job.id, created, feesIncluded }));
+        const { invoices: created, feesIncluded, emailsSent } = await generateWeeklyInvoices();
+        console.info(JSON.stringify({ event: "weekly_invoices_generated", jobId: job.id, created, feesIncluded, emailsSent }));
       } catch (error) {
         console.error(JSON.stringify({ event: "weekly_invoices_failed", jobId: job.id, error: String(error) }));
       }

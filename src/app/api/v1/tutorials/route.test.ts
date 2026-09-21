@@ -54,8 +54,8 @@ describe("GET /api/v1/tutorials role split (P2.2)", () => {
     expect(body.data).toEqual([{ id: "t-live" }]);
   });
 
-  it("managers see everything including drafts", async () => {
-    sessionRole = "agency";
+  it("admins see everything including drafts", async () => {
+    sessionRole = "admin";
     const res = await get("/api/v1/tutorials");
     expect(res.status).toBe(200);
     expect(findAllMock).toHaveBeenCalledWith("agency-1");

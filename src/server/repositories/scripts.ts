@@ -16,6 +16,7 @@ export interface ScriptRow {
 export class ScriptRepository extends BaseRepository<ScriptRow> {
   protected schema = "app";
   protected table = "scripts";
+  protected skipDeleted = true;
 
   async findByAgency(agencyId: string): Promise<ScriptRow[]> {
     const { rows } = await super.findMany({

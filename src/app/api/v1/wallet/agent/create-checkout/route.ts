@@ -2,6 +2,7 @@ import { apiHandler, ok, fail } from "@/server/api-utils";
 import { getStripe } from "@/server/stripe";
 import { getAppBaseUrl } from "@/server/app-url";
 import { payments } from "@/server/repositories/payments";
+import { stripeFeeCents } from "@/lib/format";
 import { agents } from "@/server/repositories";
 import { z } from "zod";
 
@@ -29,19 +30,33 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
   const successUrl = body.success_url || `${base}/dashboard/wallet/agent?payment=success`;
   const cancelUrl = body.cancel_url || `${base}/dashboard/wallet/agent?payment=cancelled`;
 
+  // Phase 4 (point 3): net credit + separate 3% fee line item (see wallet/create-checkout).
+  const creditCents = body.amount_cents;
+  const feeCents = stripeFeeCents(creditCents);
+
   const session = await (await getStripe()).checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
-    line_items: [{
-      price_data: {
-        currency: "usd",
-        product_data: { name: "Agent Wallet Top-Up" },
-        unit_amount: body.amount_cents,
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: { name: "Agent Wallet Top-Up" },
+          unit_amount: creditCents,
+        },
+        quantity: 1,
       },
-      quantity: 1,
-    }],
+      ...(feeCents > 0 ? [{
+        price_data: {
+          currency: "usd",
+          product_data: { name: "Stripe payment processing fee (3%)" },
+          unit_amount: feeCents,
+        },
+        quantity: 1 as const,
+      }] : []),
+    ],
     client_reference_id: agent.id,
-    metadata: { type: "agent_wallet_topup", agent_id: agent.id, agency_id: agencyId },
+    metadata: { type: "agent_wallet_topup", agent_id: agent.id, agency_id: agencyId, credit_cents: String(creditCents), fee_cents: String(feeCents) },
     success_url: successUrl,
     cancel_url: cancelUrl,
   });
@@ -50,8 +65,9 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
     agency_id: agencyId,
     agent_id: agent.id,
     stripe_session_id: session.id,
-    amount_cents: body.amount_cents,
+    amount_cents: creditCents,
+    fee_cents: feeCents,
   });
 
-  return ok({ url: session.url, sessionId: session.id });
+  return ok({ url: session.url, sessionId: session.id, credit_cents: creditCents, fee_cents: feeCents, charged_cents: creditCents + feeCents });
 }, { resource: "wallet", action: "recharge" });

@@ -93,9 +93,9 @@ async function reset() {
 
     console.log('\nDone. Next per MANUAL_TEST_FLOW:');
     console.log(' 1. npm run dev  (ensure 30001)');
-    console.log(' 2. Register super_admin via UI, then:');
+    console.log(' 2. Register admin via UI, then:');
     console.log('    SELECT id FROM public."user" WHERE email = \'your@email\';');
-    console.log('    curl -X POST http://localhost:30001/api/v1/setup/make-admin -H "Content-Type: application/json" -d \'{"user_id":"<uuid>","role":"super_admin"}\'');
+    console.log('    curl -X POST http://localhost:30001/api/v1/setup/make-admin -H "Content-Type: application/json" -d \'{"user_id":"<uuid>","role":"admin"}\'');
     console.log(' 3. Or run existing seed if you want full wipe: npm run seed -- --yes (destroys publishers/campaigns too)');
   } catch (e) {
     await client.query('ROLLBACK').catch(()=>{});

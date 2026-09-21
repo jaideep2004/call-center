@@ -6,6 +6,10 @@ import {
   resetPasswordEmail,
   agencyInviteEmail,
   publisherInviteEmail,
+  agentWelcomeEmail,
+  agentApprovedEmail,
+  memberAddedEmail,
+  weeklyInvoiceEmail,
   EMAIL_SUBJECTS,
 } from "./email-templates";
 
@@ -69,18 +73,14 @@ describe("resetPasswordEmail", () => {
 });
 
 describe("agencyInviteEmail", () => {
-  it("includes the invite link and agency name", () => {
-    const html = agencyInviteEmail("https://app.example.com/register?invite=abc123", "Acme Insurance");
+  it("invites to the app (not a specific agency) with the register link", () => {
+    const html = agencyInviteEmail("https://app.example.com/register?invite=abc123");
     expect(html).toContain("register?invite=abc123");
-    expect(html).toContain("Acme Insurance");
+    expect(html).toContain("join <strong");
+    expect(html).toContain("Coverage Calls");
+    expect(html).not.toContain("join an agency");
     expect(html).toContain("Create your account");
     expect(html).toContain("expires in 7 days");
-  });
-
-  it("escapes the agency name", () => {
-    const html = agencyInviteEmail("https://app.example.com/register?invite=abc", `<b>Evil</b>`);
-    expect(html).not.toContain("<b>Evil</b>");
-    expect(html).toContain("&lt;b&gt;Evil&lt;/b&gt;");
   });
 });
 
@@ -100,5 +100,75 @@ describe("subjects", () => {
     expect(EMAIL_SUBJECTS.reset).toContain("Reset");
     expect(EMAIL_SUBJECTS.agencyInvite).toContain("invited");
     expect(EMAIL_SUBJECTS.publisherInvite).toContain("portal");
+    expect(EMAIL_SUBJECTS.agentWelcome).toContain("Welcome");
+    expect(EMAIL_SUBJECTS.agentApproved).toContain("approved");
+    expect(EMAIL_SUBJECTS.memberAdded).toContain("added");
+  });
+});
+
+describe("brand header", () => {
+  it("renders the logo on violet, never on white, with no black surfaces", () => {
+    const html = emailLayout({ preheader: "p", bodyHtml: "<p>Hi</p>" });
+    // white wordmark sits on the violet gradient header
+    expect(html).toContain("linear-gradient(135deg, #7C3AED");
+    expect(html).toContain("coveragecallsfinal.png");
+    // tagline is pure white on the violet header
+    expect(html).toContain("color: #FFFFFF; font-size: 11px;");
+    // Outlook fallback is violet, not black
+    expect(html).toContain('bgcolor="#5B21B6"');
+    expect(html).not.toContain("#000000");
+    expect(html).not.toContain("background:#000");
+  });
+
+  it("styles the CTA anchor itself (white, bold, tracked) with padding on the cell", () => {
+    const html = emailLayout({
+      preheader: "p",
+      bodyHtml: "<p>Hi</p>",
+      cta: { label: "Create your account", href: "https://app.example.com/register?invite=abc" },
+    });
+    const anchor = html.match(/<a href="https:\/\/app\.example\.com[^>]*>Create your account<\/a>/)?.[0] ?? "";
+    expect(anchor).toContain("color: #FFFFFF");
+    expect(anchor).toContain("font-weight: 800");
+    expect(anchor).toContain("letter-spacing: 0.02em");
+    expect(anchor).not.toContain("padding:");
+  });
+});
+
+describe("agent lifecycle emails", () => {
+  it("welcome mail names the agency and links Take Calls", () => {
+    const html = agentWelcomeEmail("https://app.example.com/dashboard/take-calls", "Acme", "Arjun");
+    expect(html).toContain("Acme");
+    expect(html).toContain("Arjun");
+    expect(html).toContain("/dashboard/take-calls");
+    expect(html).toContain("approves your profile");
+  });
+
+  it("approval mail tells the agent to go online", () => {
+    const html = agentApprovedEmail("https://app.example.com/dashboard/take-calls", "Acme");
+    expect(html).toContain("Acme");
+    expect(html).toContain("Online");
+    expect(html).toContain("/dashboard/take-calls");
+  });
+
+  it("member-added mail escapes the agency name", () => {
+    const html = memberAddedEmail("https://app.example.com/dashboard", `<b>Evil</b>`);
+    expect(html).not.toContain("<b>Evil</b>");
+    expect(html).toContain("&lt;b&gt;Evil&lt;/b&gt;");
+  });
+
+  it("invoice mail shows reference, total, and breakdown", () => {
+    const html = weeklyInvoiceEmail({
+      agencyName: "Acme",
+      invoiceRef: "IN-0007",
+      totalCents: 7500,
+      feeCount: 3,
+      dialerCents: 5000,
+      softwareCents: 2500,
+      dashboardUrl: "https://app.example.com/dashboard/wallet",
+    });
+    expect(html).toContain("IN-0007");
+    expect(html).toContain("$75.00");
+    expect(html).toContain("Dialer Fees $50.00");
+    expect(html).toContain("Software Access $25.00");
   });
 });

@@ -15,7 +15,7 @@ interface Membership {
   status: string;
 }
 
-const ROLE_OPTIONS = ["super_admin", "admin", "agency", "manager", "finance", "agent"];
+const ROLE_OPTIONS = ["admin", "agent"];
 const PAGE_SIZE = 10;
 
 function MembersInner() {
@@ -27,6 +27,8 @@ function MembersInner() {
 
   const [members, setMembers] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
+  // Admin is platform-level: this agency-scoped tab redirects to the platform view.
+  const [roleChecked, setRoleChecked] = useState(false);
   const [searchInput, setSearchInput] = useState(initialQ);
   const [debouncedQ, setDebouncedQ] = useState(initialQ);
   const [roleFilter, setRoleFilter] = useState(initialRole);
@@ -34,6 +36,18 @@ function MembersInner() {
   const hasMounted = useRef(false);
 
   useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        const r = body.data?.publisherId || body.data?.publisher?.id ? "publisher" : body.data?.user?.role;
+        if (r === "admin") { router.replace("/dashboard/settings"); return; }
+      }
+      setRoleChecked(true);
+    }).catch(() => setRoleChecked(true));
+  }, [router]);
+
+  useEffect(() => {
+    if (!roleChecked) return;
     fetch("/api/v1/memberships").then(async (res) => {
       if (res.ok) {
         const body = await res.json();
@@ -154,7 +168,7 @@ function MembersInner() {
           </select>
         </div>
       </div>
-      {loading ? (
+      {!roleChecked || loading ? (
         <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>{members.length === 0 ? "No members found. Invite colleagues from your agency." : `No members match "${debouncedQ}".`}</p></div>

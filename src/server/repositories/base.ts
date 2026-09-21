@@ -27,6 +27,9 @@ const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 export abstract class BaseRepository<T> {
   protected abstract table: string;
   protected abstract schema: string;
+  /** Set true for tables with a deleted_at column (soft-delete): lists then
+   * hide deleted rows. Tables without the column must leave this false. */
+  protected skipDeleted = false;
 
   fullTable(): string {
     return `${this.schema}.${this.table}`;
@@ -80,6 +83,9 @@ export abstract class BaseRepository<T> {
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
+
+    // Soft-deleted rows never list (delete = hide, never destroy).
+    if (this.skipDeleted) conditions.push(`deleted_at IS NULL`);
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const safeSort = sortBy && IDENTIFIER_RE.test(sortBy) ? sortBy : null;

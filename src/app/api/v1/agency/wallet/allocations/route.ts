@@ -1,4 +1,4 @@
-import { apiHandler, ok, fail } from "@/server/api-utils";
+import { apiHandler, ok, fail, requireHeadOr } from "@/server/api-utils";
 import { validate, agencyAllocationSchema } from "@/server/validate";
 import { agencyWallets, agents } from "@/server/repositories";
 import { syncOfferWalletPauses } from "@/server/services/offer-wallet-sync";
@@ -11,6 +11,7 @@ export const runtime = "nodejs";
  * so allocations grant routing eligibility without minting money.
  */
 export const PUT = apiHandler(async (req, context) => {
+  requireHeadOr(context, "agency", "manage");
   const agencyId = context.agencyId;
   if (!agencyId) return fail("Agency required", 403);
   const body = validate(agencyAllocationSchema, await req.json());
@@ -40,4 +41,4 @@ export const PUT = apiHandler(async (req, context) => {
     console.warn(`[allocations] post-write sync failed: ${String(e).slice(0, 160)}`),
   );
   return ok(row, "Allocation updated");
-}, { resource: "agency", action: "manage" });
+}, { resource: "agency", action: "manage", allowHead: true });

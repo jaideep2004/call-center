@@ -114,9 +114,20 @@ export const GET = apiHandler(async (req, context) => {
     } catch {}
   }
 
-  // Enrich rows with assignment metadata
+  // Enrich rows with assignment metadata.
+  // Phase 4 (point 2): agents must never see publisher payouts — strip every
+  // payout field the query returns (effective + min/max). The Browse UI only
+  // renders the buyer price; this closes the API leak.
   const enriched = filtered.map((c) => {
-    const entry = assignmentMap.get(c.id);
+    const {
+      effective_payout_cents: _stripped1,
+      effective_max_payout_cents: _stripped2,
+      max_publisher_payout_cents: _stripped3,
+      min_publisher_payout_cents: _stripped4,
+      ...payoutFree
+    } = c as unknown as Record<string, unknown>;
+    void _stripped1; void _stripped2; void _stripped3; void _stripped4;
+    const entry = assignmentMap.get((c as { id: string }).id);
     const hasAny = !!entry && (entry.agencyCount > 0 || entry.agentCount > 0);
     const isAssigned = assignedToMeSet.has(c.id);
     let assignment_status: "Assigned" | "Open" | "Not assigned";
@@ -124,7 +135,7 @@ export const GET = apiHandler(async (req, context) => {
     else if (!hasAny) assignment_status = "Open";
     else assignment_status = "Not assigned";
     return {
-      ...c,
+      ...payoutFree,
       assigned_agency_count: entry?.agencyCount ?? 0,
       assigned_agent_count: entry?.agentCount ?? 0,
       assignment_status,

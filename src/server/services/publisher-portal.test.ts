@@ -17,6 +17,9 @@ vi.mock("@/server/repositories", () => ({
     create: vi.fn(),
     accept: vi.fn(),
   },
+  memberships: {
+    updateStatus: vi.fn(),
+  },
 }));
 
 const db = await import("@/server/db");
@@ -233,5 +236,39 @@ describe("acceptPortalInvite", () => {
       .mockResolvedValueOnce({ id: "membership-1" });
     (repos.publishers.findByUserId as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     await expect(acceptPortalInvite("token-1", "user-1")).rejects.toThrow("part of an agency");
+  });
+
+  it("switches an agency member to publisher with explicit confirmation (Phase 2.1)", async () => {
+    (repos.publisherInvites.findByToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      publisher_id: "pub-1", status: "pending", expires_at: "2099-01-01T00:00:00Z",
+    });
+    (db.queryOne as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ id: "pub-1", name: "Acme Media", user_id: null, deleted_at: null })
+      .mockResolvedValueOnce({ role: "agent" })
+      .mockResolvedValueOnce({ id: "membership-1" });
+    (repos.publishers.findByUserId as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (repos.memberships.updateStatus as ReturnType<typeof vi.fn>).mockResolvedValue({ id: "membership-1" });
+    (repos.publishers.linkUser as ReturnType<typeof vi.fn>).mockResolvedValue(publisher);
+    (repos.publisherInvites.accept as ReturnType<typeof vi.fn>).mockResolvedValue({ status: "accepted" });
+
+    const result = await acceptPortalInvite("token-1", "user-1", { switchFromAgency: true });
+
+    expect(repos.memberships.updateStatus).toHaveBeenCalledWith("membership-1", "suspended");
+    expect(repos.publishers.linkUser).toHaveBeenCalledWith("pub-1", "user-1");
+    expect(result.switchedAgency).toBe(true);
+  });
+
+  it("never switches silently — flag required (Phase 2.1)", async () => {
+    (repos.publisherInvites.findByToken as ReturnType<typeof vi.fn>).mockResolvedValue({
+      publisher_id: "pub-1", status: "pending", expires_at: "2099-01-01T00:00:00Z",
+    });
+    (db.queryOne as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ id: "pub-1", user_id: null, deleted_at: null })
+      .mockResolvedValueOnce({ role: "agent" })
+      .mockResolvedValueOnce({ id: "membership-1" });
+    (repos.publishers.findByUserId as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+    await expect(acceptPortalInvite("token-1", "user-1", {})).rejects.toThrow("SWITCH_REQUIRED");
+    expect(repos.memberships.updateStatus).not.toHaveBeenCalled();
   });
 });

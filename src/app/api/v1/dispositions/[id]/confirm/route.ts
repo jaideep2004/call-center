@@ -1,12 +1,13 @@
-import { apiHandler, ok, fail } from "@/server/api-utils";
+import { apiHandler, ok, fail, requireHeadOr } from "@/server/api-utils";
 import { dispositions, dispositionPayouts, calls, agencies } from "@/server/repositories";
 import { transaction } from "@/server/db";
 
-export const PATCH = apiHandler(async (req, { params, membership, agencyId, user }) => {
+export const PATCH = apiHandler(async (req, { params, membership, agencyId, user, isHead }) => {
+  requireHeadOr({ membership, agencyId, user, isHead }, "calls", "manage");
   const { id } = await params;
   if (!membership) return fail("Admin membership required", 403);
   const scope = agencyId ?? undefined;
-  if (!scope && !["super_admin", "admin"].includes(user?.role ?? "")) return fail("Agency scope required", 403);
+  if (!scope && user?.role !== "admin") return fail("Agency scope required", 403);
 
   const disposition = scope
     ? await dispositions.findByIdForAgency(id, scope)
@@ -64,4 +65,4 @@ export const PATCH = apiHandler(async (req, { params, membership, agencyId, user
   });
 
   return ok({ disposition_id: id, payout_cents: amountCents, commission_cents: commissionCents }, "Disposition confirmed");
-}, { resource: "calls", action: "manage" });
+});

@@ -9,6 +9,9 @@ export interface InvoiceRow {
   status: string;
   /** Human-readable serial (IN-NNNN, DB default). UUID stays the PK. */
   display_code: string | null;
+  /** Auto-delivery tracking (0058): set once the weekly invoice email succeeds. */
+  sent_at: string | null;
+  sent_to: string[] | null;
   created_at: string;
 }
 

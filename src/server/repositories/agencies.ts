@@ -20,6 +20,7 @@ export interface AgencyRow {
 export class AgencyRepository extends BaseRepository<AgencyRow> {
   protected schema = "app";
   protected table = "agencies";
+  protected skipDeleted = true;
 
   async findBySlug(slug: string): Promise<AgencyRow | null> {
     return queryOne<AgencyRow>(

@@ -28,6 +28,7 @@ export interface CallRow {
 export class CallRepository extends BaseRepository<CallRow> {
   protected schema = "app";
   protected table = "calls";
+  protected skipDeleted = true;
 
   async findById(id: string, agencyId?: string, client?: PoolClient): Promise<CallRow> {
     return super.findById(id, agencyId, client);

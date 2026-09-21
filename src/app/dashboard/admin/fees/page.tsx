@@ -287,7 +287,7 @@ function AdminFeesInner() {
 
       <p className="text-muted" style={{ fontSize: 11, maxWidth: 640 }}>
         Postpaid agents: <strong>Dialer Fee</strong> (plan price, adjustable). Prepaid agents: <strong>Software Access</strong> (adjustable per agent). Weekly
-        invoices are generated every Monday and must be sent to the agency manually.
+        invoices are generated every Monday and emailed to the agency automatically.
       </p>
 
       <div className="filter-bar">

@@ -5,7 +5,7 @@ import { queryOne } from "@/server/db";
 export const POST = apiHandler(async (req, { params, agencyId, user }) => {
   const { id } = await params;
   const scope = agencyId ?? undefined;
-  if (!scope && !["super_admin", "admin"].includes(user?.role ?? "")) return fail("Agency scope required", 403);
+  if (!scope && user?.role !== "admin") return fail("Agency scope required", 403);
 
   const fee = scope
     ? await agentFees.findByIdForAgency(id, scope)

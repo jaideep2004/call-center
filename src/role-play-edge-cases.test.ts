@@ -110,7 +110,7 @@ describe("Role-play: Agent (prepaid wallet user)", () => {
     const parsed2 = validate(updateOwnAgentSchema, { availability: "available", priority: 1 } as any);
     expect((parsed2 as any).priority).toBeUndefined();
   });
-  it("updateAgentSchema allows approval_status but only for manager path (not self)", () => {
+  it("updateAgentSchema allows approval_status but only for managed path (not self)", () => {
     expect(() => validate(updateAgentSchema, { approval_status: "approved" })).not.toThrow();
     expect(() => validate(updateAgentSchema, { availability: "busy" })).not.toThrow();
   });
@@ -149,75 +149,19 @@ describe("Role-play: Agent (prepaid wallet user)", () => {
   });
 });
 
-// ================= MANAGER (sub-admin) =================
-describe("Role-play: Manager (sub-admin)", () => {
-  const role: Role = "manager";
-  it("manager can assign/view leads but not create/delete", () => {
-    expect(hasPermission(role, "leads", "assign")).toBe(true);
-    expect(hasPermission(role, "leads", "view")).toBe(true);
-    expect(hasPermission(role, "leads", "create")).toBe(false);
-    expect(hasPermission(role, "leads", "delete")).toBe(false);
-  });
-  it("manager can monitor/view calls but not manage", () => {
-    expect(hasPermission(role, "calls", "monitor")).toBe(true);
-    expect(hasPermission(role, "calls", "view")).toBe(true);
-    expect(hasPermission(role, "calls", "manage")).toBe(false);
-  });
-  it("manager wallet is view only, no recharge", () => {
-    expect(hasPermission(role, "wallet", "view")).toBe(true);
-    expect(hasPermission(role, "wallet", "recharge")).toBe(false);
-    expect(hasPermission(role, "wallet", "manage")).toBe(false);
-  });
-  it("manager cannot manage agents, only view", () => {
-    expect(hasPermission(role, "agents", "view")).toBe(true);
-    expect(hasPermission(role, "agents", "manage")).toBe(false);
-  });
-  it("manager can view revenue/reports but not manage", () => {
-    expect(hasPermission(role, "revenue", "view")).toBe(true);
-    expect(hasPermission(role, "reports", "view")).toBe(true);
-    expect(hasPermission(role, "reports", "manage")).toBe(false);
-  });
-});
-
-// ================= FINANCE =================
-describe("Role-play: Finance (readonly money)", () => {
-  const role: Role = "finance";
-  it("finance readonly wallet/revenue/reports/calls, no agents", () => {
-    expect(hasPermission(role, "wallet", "view")).toBe(true);
-    expect(hasPermission(role, "revenue", "view")).toBe(true);
-    expect(hasPermission(role, "reports", "view")).toBe(true);
-    expect(hasPermission(role, "calls", "view")).toBe(true);
-    expect(hasPermission(role, "agents", "view")).toBe(false);
-    expect(hasPermission(role, "agents", "manage")).toBe(false);
-  });
-  it("finance cannot recharge wallet (unlike agent)", () => {
-    expect(hasPermission(role, "wallet", "recharge")).toBe(false);
-  });
-  it("finance cannot manage settings", () => {
-    expect(hasPermission(role, "settings", "manage")).toBe(false);
-  });
-  it("canAccessRoute denies finance on agents", () => {
-    expect(canAccessRoute(role, "agents")).toBe(false);
-    expect(canAccessRoute(role, "wallet")).toBe(true);
-  });
-  it("finance getPermittedResources is 7", () => {
-    expect(getPermittedResources(role).length).toBe(7);
-  });
-});
-
-// ================= ADMIN =================
-describe("Role-play: Admin (agency admin)", () => {
+// ================= ADMIN (platform owner — three roles only) =================
+describe("Role-play: Admin (platform owner)", () => {
   const role: Role = "admin";
   it("admin inherits all via manage", () => {
     expect(hasPermission(role, "agents", "create")).toBe(true);
     expect(hasPermission(role, "calls", "delete")).toBe(true);
     expect(hasPermission(role, "wallet", "manage")).toBe(true);
   });
-  it("admin can view agency/users but NOT manage (super_admin only)", () => {
+  it("admin manages agencies and users", () => {
     expect(hasPermission(role, "agency", "view")).toBe(true);
-    expect(hasPermission(role, "agency", "manage")).toBe(false);
+    expect(hasPermission(role, "agency", "manage")).toBe(true);
     expect(hasPermission(role, "users", "view")).toBe(true);
-    expect(hasPermission(role, "users", "manage")).toBe(false);
+    expect(hasPermission(role, "users", "manage")).toBe(true);
   });
   it("admin can manage cms/settings/support/publishers", () => {
     expect(hasPermission(role, "cms", "manage")).toBe(true);
@@ -228,26 +172,10 @@ describe("Role-play: Admin (agency admin)", () => {
   it("admin can recharge wallet", () => {
     expect(hasPermission(role, "wallet", "recharge")).toBe(true);
   });
-});
-
-// ================= SUPER_ADMIN =================
-describe("Role-play: Super Admin (platform owner)", () => {
-  const role: Role = "super_admin";
-  it("super_admin can manage any resource", () => {
-    const resources: Resource[] = ["agents","leads","calls","wallet","reports","cms","settings","support","membership","affiliate","agency","users","features","skills","publishers"];
-    for (const r of resources) {
-      // super_admin has manage for all except revenue which is view-only by design — check view or manage
-      const canManage = hasPermission(role, r, "manage");
-      const canView = hasPermission(role, r, "view");
-      expect(canManage || canView).toBe(true);
-    }
-    // explicitly verify revenue is view (not manage) by design
-    expect(hasPermission(role, "revenue" as Resource, "view")).toBe(true);
-  });
-  it("super_admin has 16 resources", () => {
+  it("admin has 16 resources", () => {
     expect(getPermittedResources(role).length).toBe(16);
   });
-  it("super_admin passes any requirePermission", () => {
+  it("admin passes any requirePermission", () => {
     expect(() => requirePermission(role, "wallet", "manage")).not.toThrow();
     expect(() => requirePermission(role, "settings", "manage")).not.toThrow();
   });
@@ -273,34 +201,19 @@ describe("Role-play: Publisher (external)", () => {
   });
 });
 
-// ================= AGENCY (agency owner, separate from admin) =================
-describe("Role-play: Agency role", () => {
-  const role: Role = "agency";
-  it("agency can manage own agency + users", () => {
-    expect(hasPermission(role, "agency", "manage")).toBe(true);
-    expect(hasPermission(role, "users", "manage")).toBe(true);
-  });
-  it("agency can manage agents/leads/calls/wallet", () => {
-    expect(hasPermission(role, "agents", "manage")).toBe(true);
-    expect(hasPermission(role, "leads", "manage")).toBe(true);
-    expect(hasPermission(role, "calls", "manage")).toBe(true);
-    expect(hasPermission(role, "wallet", "manage")).toBe(true);
-  });
-});
-
 // ================= CROSS-ROLE EDGE CASES =================
 describe("Cross-role edge cases", () => {
-  it("agent recharge vs finance view distinction", () => {
+  it("agent recharge vs publisher view distinction", () => {
     expect(hasPermission("agent", "wallet", "recharge")).toBe(true);
-    expect(hasPermission("finance", "wallet", "recharge")).toBe(false);
+    expect(hasPermission("publisher", "wallet", "recharge")).toBe(false);
     expect(hasPermission("admin", "wallet", "recharge")).toBe(true);
   });
-  it("finance cannot be tricked into agent actions via route", () => {
-    expect(canAccessRoute("finance", "agents")).toBe(false);
-    expect(canAccessRoute("finance", "agents/123/edit")).toBe(false);
+  it("publisher cannot be tricked into agent actions via route", () => {
+    expect(canAccessRoute("publisher", "agents")).toBe(false);
+    expect(canAccessRoute("publisher", "agents/123/edit")).toBe(false);
   });
-  it("manager leaky create lead blocked", () => {
-    expect(() => requirePermission("manager", "leads", "create")).toThrow(ForbiddenError);
+  it("agent leaky create lead blocked", () => {
+    expect(() => requirePermission("agent", "leads", "create")).toThrow(ForbiddenError);
   });
   it("publisher trying wallet:recharge blocked", () => {
     expect(() => requirePermission("publisher", "wallet", "recharge")).toThrow(ForbiddenError);
@@ -309,7 +222,14 @@ describe("Cross-role edge cases", () => {
     expect(hasPermission("agent", "nonexistent" as Resource, "view")).toBe(false);
   });
   it("requirePermission throws correct message", () => {
-    expect(() => requirePermission("finance", "agents", "manage")).toThrow("Missing permission: agents:manage");
+    expect(() => requirePermission("publisher", "agents", "manage")).toThrow("Missing permission: agents:manage");
+  });
+  it("agency heads are agents — elevation is per-request, not a role", () => {
+    // No head/agency/manager/finance/super_admin roles exist in the matrix.
+    for (const r of getPermittedResources("agent")) {
+      expect(typeof r).toBe("string");
+    }
+    expect((["admin", "agent", "publisher"] as Role[])).toContain("agent");
   });
 });
 

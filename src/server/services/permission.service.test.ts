@@ -4,7 +4,7 @@ import { ForbiddenError } from "@/server/errors";
 
 describe("assertPermission", () => {
   it("does not throw when permission is granted", () => {
-    expect(() => assertPermission("super_admin", "agents", "manage")).not.toThrow();
+    expect(() => assertPermission("admin", "agents", "manage")).not.toThrow();
   });
 
   it("does not throw when role has manage access", () => {
@@ -12,7 +12,7 @@ describe("assertPermission", () => {
   });
 
   it("throws ForbiddenError when permission is missing", () => {
-    expect(() => assertPermission("finance", "agents", "view")).toThrow(ForbiddenError);
+    expect(() => assertPermission("publisher", "agents", "view")).toThrow(ForbiddenError);
   });
 
   it("includes resource, action, and role in error message", () => {

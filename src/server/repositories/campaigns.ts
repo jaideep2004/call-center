@@ -43,6 +43,7 @@ export interface CampaignWithBidRow extends CampaignRow {
 export class CampaignRepository extends BaseRepository<CampaignRow> {
   protected schema = "app";
   protected table = "campaigns";
+  protected skipDeleted = true;
 
   async findById(id: string, agencyId?: string, client?: PoolClient): Promise<CampaignRow> {
     return super.findById(id, agencyId, client);

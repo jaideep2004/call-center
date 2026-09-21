@@ -8,6 +8,8 @@ export interface PaymentRow {
   stripe_session_id: string;
   stripe_payment_intent_id: string | null;
   amount_cents: number;
+  /** Net wallet credit. The Stripe processing fee passed to the user. */
+  fee_cents: number;
   currency: string;
   status: string;
   created_at: string;
@@ -21,12 +23,13 @@ export class PaymentRepository {
     plan_id?: string;
     stripe_session_id: string;
     amount_cents: number;
+    fee_cents?: number;
     currency?: string;
   }): Promise<PaymentRow> {
     const row = await queryOne<PaymentRow>(
-      `INSERT INTO app.payments (agency_id, agent_id, plan_id, stripe_session_id, amount_cents, currency)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [data.agency_id, data.agent_id ?? null, data.plan_id ?? null, data.stripe_session_id, data.amount_cents, data.currency ?? "usd"],
+      `INSERT INTO app.payments (agency_id, agent_id, plan_id, stripe_session_id, amount_cents, fee_cents, currency)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [data.agency_id, data.agent_id ?? null, data.plan_id ?? null, data.stripe_session_id, data.amount_cents, data.fee_cents ?? 0, data.currency ?? "usd"],
     );
     return row!;
   }

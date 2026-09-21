@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import { query, queryOne } from "@/server/db";
-import { publishers, publisherInvites } from "@/server/repositories";
+import { publishers, publisherInvites, memberships } from "@/server/repositories";
 import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
 
 export interface PortalOverview {
@@ -207,7 +207,11 @@ export async function createPortalInvite(
   return { link: `${origin}/register?invite=${token}`, email: publisher.email, name: publisher.name };
 }
 
-export async function acceptPortalInvite(token: string, userId: string) {
+export async function acceptPortalInvite(
+  token: string,
+  userId: string,
+  opts: { switchFromAgency?: boolean } = {},
+) {
   const invite = await publisherInvites.findByToken(token);
   if (!invite) throw new NotFoundError("Invite not found");
   if (invite.status !== "pending") throw new ConflictError("Invite already used");
@@ -233,7 +237,23 @@ export async function acceptPortalInvite(token: string, userId: string) {
     "SELECT id FROM app.memberships WHERE user_id = $1 AND status = 'active' LIMIT 1",
     [userId],
   );
-  if (membership) throw new ConflictError("This account is already part of an agency");
+  // Phase 2.1: agency members can never link silently (single-membership
+  // invariant). Explicit switch only: the caller confirms leaving the agency,
+  // we end the membership first, then link. Without the flag the 409 tells
+  // the UI to offer the "leave agency and switch" button.
+  let switchedAgency = false;
+  if (membership) {
+    if (!opts.switchFromAgency) {
+      throw new ConflictError(
+        "This account is already part of an agency — leave the agency first, or switch to a publisher account (SWITCH_REQUIRED)",
+      );
+    }
+    // CHECK constraint on memberships.status is ('invited','active','suspended'):
+    // 'suspended' is the deactivated state (resolveAuth + routing only honor
+    // 'active'), so a switched user is fully cut off from the old agency.
+    await memberships.updateStatus(membership.id, "suspended");
+    switchedAgency = true;
+  }
 
   await query(`UPDATE "user" SET role = 'publisher' WHERE id = $1`, [userId]);
   const linked = await publishers.linkUser(publisher.id, userId);
@@ -250,5 +270,6 @@ export async function acceptPortalInvite(token: string, userId: string) {
       fixed_price_cents: linked.fixed_price_cents,
       retreaver_status: linked.retreaver_status,
     },
+    switchedAgency,
   };
 }

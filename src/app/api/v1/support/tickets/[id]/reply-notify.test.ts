@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const findTicketMock = vi.hoisted(() => vi.fn(async (): Promise<{ id: string; agency_id: string; subject: string } | null> => ({ id: "t-1", agency_id: "agency-1", subject: "Login broken" })));
 const addReplyMock = vi.hoisted(() => vi.fn(async () => ({ id: "r-1", ticket_id: "t-1" })));
 const notifyMock = vi.hoisted(() => vi.fn(async (_opts: unknown) => undefined));
+const membershipEmailMock = vi.hoisted(() => vi.fn(async () => "requester@example.com"));
 
 vi.mock("@/server/repositories", () => ({
   supportTickets: { findByIdForAgency: findTicketMock, addReply: addReplyMock },
@@ -10,6 +11,10 @@ vi.mock("@/server/repositories", () => ({
 
 vi.mock("@/server/services/notify", () => ({
   notify: notifyMock,
+}));
+
+vi.mock("@/server/services/action-emails", () => ({
+  membershipEmail: membershipEmailMock,
 }));
 
 let sessionRole = "agent";
@@ -64,6 +69,7 @@ describe("POST support reply -> inbox notification", () => {
       expect.objectContaining({
         agencyId: "agency-1",
         topic: "support.reply",
+        emailTo: "requester@example.com",
         payload: expect.objectContaining({ ticket_id: "t-1", subject: "Login broken" }),
       }),
     );

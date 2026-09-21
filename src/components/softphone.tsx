@@ -87,6 +87,17 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   const [scriptMinimized, setScriptMinimized] = useState(false);
   // Speaker (remote-audio output) volume. Applied to #remoteMedia below.
   const [volume, setVolume] = useState(0.9);
+  // Auto-pickup (client billing concern): answer the moment a call rings so
+  // the publisher's billable clock starts with an agent on the line, not a
+  // ringing phone. Default ON; per-agent toggle persisted locally. Manual
+  // Accept/Reject stay available regardless.
+  const [autoAnswer, setAutoAnswer] = useState<boolean>(() => {
+    try { return localStorage.getItem("cc-auto-answer") !== "off"; } catch { return true; }
+  });
+  const autoAcceptedRef = useRef<string | null>(null);
+  useEffect(() => {
+    try { localStorage.setItem("cc-auto-answer", autoAnswer ? "on" : "off"); } catch {}
+  }, [autoAnswer]);
 
   useEffect(() => {
     const el = document.getElementById("remoteMedia") as HTMLAudioElement | null;
@@ -154,6 +165,7 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
       setNoteBody("");
       setNotes([]);
       setIsRecording(true);
+      autoAcceptedRef.current = null;
     }
   }, [callState]);
 
@@ -293,12 +305,29 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   const reject = useCallback(async () => {
     if (!incoming) return;
     setError(null);
+    autoAcceptedRef.current = incoming.callId;
     webrtc.hangup();
     await fetch(`/api/v1/calls/${incoming.callId}/reject`, { method: "POST" });
     setCallState("idle");
     setIncoming(null);
     setActiveCallId(null);
   }, [incoming, webrtc]);
+
+  // Auto-pickup: fire accept() once per ringing call while enabled. The ref
+  // guard makes it idempotent across re-renders and StrictMode double-effects.
+  // Covers both socket ringing and the polling fallback (both set `incoming`).
+  useEffect(() => {
+    if (!autoAnswer || !incoming || callState !== "ringing") return;
+    if (autoAcceptedRef.current === incoming.callId) return;
+    autoAcceptedRef.current = incoming.callId;
+    addDebug("Auto-pickup ON — answering immediately (publisher bills from answer)");
+    try {
+      const el = document.getElementById("remoteMedia") as HTMLAudioElement | null;
+      const p = el?.play?.() as unknown as Promise<void> | undefined;
+      p?.catch?.(() => { addDebug("Audio autoplay blocked — click anywhere to enable audio"); });
+    } catch { /* audio unlock is best-effort */ }
+    void accept();
+  }, [autoAnswer, incoming, callState, accept, addDebug]);
 
   const hangup = useCallback(async () => {
     const id = activeCallId || incoming?.callId;
@@ -467,6 +496,14 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: webrtc.isReady ? "var(--green)" : "var(--red)" }} />
               {webrtc.isReady ? "WebRTC" : "Connecting..."}
             </span>
+            <button
+              onClick={() => setAutoAnswer((v) => !v)}
+              title={autoAnswer ? "Auto-pickup is ON — calls answer immediately (click to turn off)" : "Auto-pickup is OFF — you must Accept each call manually (click to turn on)"}
+              aria-pressed={autoAnswer}
+              style={{ fontSize: 9, padding: "2px 8px", borderRadius: 999, border: `1px solid ${autoAnswer ? "var(--green)" : "var(--line)"}`, background: "transparent", color: autoAnswer ? "var(--green)" : "var(--muted)", cursor: "pointer" }}
+            >
+              Auto {autoAnswer ? "ON" : "OFF"}
+            </button>
             <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {isHeld && <span className="badge badge-warning" style={{ fontSize: 9 }}>ON HOLD</span>}
               {webrtc.isMuted && <span className="badge badge-danger" style={{ fontSize: 9 }}>MUTED</span>}

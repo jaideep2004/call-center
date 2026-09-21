@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo, useRef } from "react";
+import { Suspense, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
@@ -86,13 +86,13 @@ function NotificationsInner() {
     router.replace(qs ? `?${qs}` : "?", { scroll: false });
   }, [debouncedQ, page, router, searchParams]);
 
-  async function markRead(id: string) {
+  const markRead = useCallback(async (id: string) => {
     const res = await fetch(`/api/v1/notifications/${id}`, { method: "PATCH" });
     if (res.ok) {
       setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, dispatched_at: new Date().toISOString() } : n));
       showToast("Notification marked as read", "success");
     }
-  }
+  }, []);
 
   async function markAllRead() {
     try {
@@ -114,13 +114,14 @@ function NotificationsInner() {
   const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
   const unread = filtered.filter((n) => !n.dispatched_at).length;
 
-  const columns: Column<Notification>[] = [
+  // Memoized so DataTable doesn't re-render every row on each keystroke/socket tick.
+  const columns: Column<Notification>[] = useMemo(() => [
     { key: "topic", header: "Topic", render: (n) => <span className={`badge ${TOPIC_COLORS[n.topic] ?? TOPIC_COLORS.default}`}>{n.topic}</span> },
     { key: "payload", header: "Payload", render: (n) => <span className="text-mono-sm" style={{ fontSize: 11, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", display: "inline-block", whiteSpace: "nowrap" }} title={JSON.stringify(n.payload)}>{JSON.stringify(n.payload)}</span> },
     { key: "occurred_at", header: "When", render: (n) => <time className="text-mono-sm" style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>{new Date(n.occurred_at).toLocaleString()}</time> },
     { key: "dispatched_at", header: "Status", render: (n) => !n.dispatched_at ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--cyan)", display: "inline-block" }} title="Unread" /> : <span className="badge">read</span> },
     { key: "actions", header: "", className: "actions-cell", render: (n) => !n.dispatched_at ? <button className="btn btn-sm btn-secondary" style={{ whiteSpace: "nowrap" }} onClick={() => markRead(n.id)}>Mark read</button> : null },
-  ];
+  ], [markRead]);
 
   if (loading) return <div className="dashboard-page"><div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div></div>;
 

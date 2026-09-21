@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { authClient } from "@/lib/auth-client";
-import { formatCents } from "@/lib/format";
+import { formatCents, stripeFeeCents } from "@/lib/format";
 import { showToast } from "@/lib/use-toast";
 
 interface Allocation {
@@ -25,9 +24,19 @@ interface AgentRow {
 }
 
 export default function PoolWalletPage() {
-  const { data: session } = authClient.useSession();
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  const isHead = role === "agency" || role === "admin" || role === "super_admin";
+  // Phase 5: heads are agents — headship comes from /api/v1/me (isHead),
+  // not the role string. Platform admins keep access via the API guard.
+  const [isHead, setIsHead] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setIsHead(body.data?.isHead === true);
+        setIsAdmin(body.data?.user?.role === "admin");
+      }
+    }).catch(() => {});
+  }, []);
 
   const [data, setData] = useState<PoolData | null>(null);
   const [agents, setAgents] = useState<AgentRow[]>([]);
@@ -90,9 +99,10 @@ export default function PoolWalletPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount_cents: Math.round(topUpAmount * 100) }),
       });
-      const body = await res.json().catch(() => ({} as { url?: string; message?: string }));
-      if (res.ok && body.url) {
-        window.location.href = body.url;
+      // Phase 4: ok() wraps as {data:{url}} — the old body.url read always missed.
+      const body = await res.json().catch(() => ({} as { data?: { url?: string }; message?: string }));
+      if (res.ok && body.data?.url) {
+        window.location.href = body.data.url;
       } else {
         showToast(body.message ?? "Failed to start checkout", "error");
       }
@@ -136,7 +146,7 @@ export default function PoolWalletPage() {
     );
   }
 
-  if (!isHead) {
+  if (!isHead && !isAdmin) {
     return (
       <div className="dashboard-page">
         <section className="card card--spacious">
@@ -187,6 +197,17 @@ export default function PoolWalletPage() {
             {toppingUp ? "Redirecting…" : "Top up via card"}
           </button>
         </div>
+        {(() => {
+          const credit = Math.round(Number(topUpAmount) * 100);
+          if (!Number.isFinite(credit) || credit < 100) return null;
+          const fee = stripeFeeCents(credit);
+          return (
+            <p className="text-mono-sm" style={{ fontSize: 11, margin: "8px 0 0", color: "var(--muted)" }}>
+              {formatCents(credit)} credit + {formatCents(fee)} Stripe fee (3%) = {formatCents(credit + fee)} charged
+            </p>
+          );
+        })()}
+        <p className="text-muted" style={{ fontSize: 11, marginTop: 6 }}>A 3% Stripe payment processing fee applies to the top-up amount.</p>
       </section>
 
       <section className="card card--spacious" aria-labelledby="alloc-title" style={{ marginTop: 16 }}>

@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const findLeadMock = vi.hoisted(() => vi.fn(async (): Promise<{ id: string; assigned_agent_id: string | null }> => ({ id: "lead-1", assigned_agent_id: null })));
 const updateLeadMock = vi.hoisted(() => vi.fn(async (_id: string, body: unknown) => ({ id: "lead-1", ...(body as object) })));
+const findAgentUserMock = vi.hoisted(() => vi.fn(async () => ({ id: "agent-9", user_email: "agent9@example.com" })));
 const notifyMock = vi.hoisted(() => vi.fn(async () => undefined));
 
 vi.mock("@/server/repositories", () => ({
   leads: { findById: findLeadMock, update: updateLeadMock },
+  agents: { findByIdWithUser: findAgentUserMock },
 }));
 
 vi.mock("@/server/services/notify", () => ({
@@ -61,6 +63,7 @@ describe("PATCH lead assignment -> inbox notification", () => {
       expect.objectContaining({
         agencyId: "agency-1",
         topic: "lead.assigned",
+        emailTo: "agent9@example.com",
         payload: expect.objectContaining({ lead_id: "lead-1", assigned_agent_id: "agent-9" }),
       }),
     );

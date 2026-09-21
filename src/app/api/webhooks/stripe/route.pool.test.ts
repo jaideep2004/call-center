@@ -113,4 +113,23 @@ describe("stripe webhook — agency pool top-up (P1.4)", () => {
     expect(res.status).toBe(404);
     expect(creditPoolMock).not.toHaveBeenCalled();
   });
+
+  it("credits the NET amount — the 3% fee is never minted (Phase 4)", async () => {
+    // New-shape row: user asked for 25000 credit, Stripe charged 25750 gross.
+    findBySessionIdMock.mockResolvedValue({
+      id: "pay-fee",
+      agency_id: "agency-1",
+      agent_id: null,
+      status: "pending",
+      amount_cents: 25000,
+      fee_cents: 750,
+      currency: "usd",
+    });
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    expect(walletCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ amount_cents: 25000 }),
+    );
+    expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 25000);
+  });
 });

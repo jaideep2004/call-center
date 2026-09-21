@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { formatCents } from "@/lib/format";
+import { formatCents, stripeFeeCents } from "@/lib/format";
 import { showToast } from "@/lib/use-toast";
 import Sparkline from "@/components/sparkline";
 import DataTable from "@/components/data-table";
@@ -236,6 +236,14 @@ function AgentWalletInner() {
               {toppingUp ? "Starting checkout..." : `Pay $${topUpAmount / 100}`}
             </button>
           </div>
+          {(() => {
+            const fee = stripeFeeCents(topUpAmount);
+            return (
+              <p className="text-mono-sm" style={{ fontSize: 11, marginTop: 8, color: "var(--muted)" }}>
+                {formatCents(topUpAmount)} credit + {formatCents(fee)} Stripe fee (3%) = {formatCents(topUpAmount + fee)} charged
+              </p>
+            );
+          })()}
           {error && <p className="form-error" style={{ marginTop: 8 }}>{error}</p>}
         </div>
       </div>

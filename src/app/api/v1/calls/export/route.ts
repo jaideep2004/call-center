@@ -16,9 +16,9 @@ export const GET = apiHandler(async (req, context) => {
   const format = formatRaw as "csv" | "xlsx";
   const state = url.searchParams.get("state");
   const search = url.searchParams.get("search");
-  // agency scoped - allow privileged admin/super_admin without agencyId to export across agencies
+  // agency scoped - allow privileged admin without agencyId to export across agencies
   const role = context.user?.role ?? "agent";
-  const isPrivileged = role === "admin" || role === "super_admin";
+  const isPrivileged = role === "admin";
   if (!context.agencyId && !isPrivileged) {
     return fail("Agency scope required", 403) as unknown as NextResponse;
   }

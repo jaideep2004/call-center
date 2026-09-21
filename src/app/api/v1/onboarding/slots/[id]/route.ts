@@ -1,7 +1,7 @@
 import { apiHandler, ok, fail } from "@/server/api-utils";
 import { queryOne, query } from "@/server/db";
 
-function isAdmin(user: any) { return user && (user.role === "admin" || user.role === "super_admin"); }
+function isAdmin(user: any) { return user && user.role === "admin"; }
 
 export const PATCH = apiHandler(async (req, context: any) => {
   const { id } = await context.params;

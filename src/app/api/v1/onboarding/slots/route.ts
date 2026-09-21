@@ -3,7 +3,7 @@ import { query, queryOne } from "@/server/db";
 import { hasPermission } from "@/server/services/permission-data";
 
 function isAdmin(user: any) {
-  return user && (user.role === "admin" || user.role === "super_admin");
+  return user && user.role === "admin";
 }
 
 // GET /api/v1/onboarding/slots — list slots (agent sees only active future, admin sees all)

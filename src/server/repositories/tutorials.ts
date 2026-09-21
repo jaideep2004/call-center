@@ -36,6 +36,7 @@ export type TutorialWithProgress = TutorialRow & {
 export class TutorialRepository extends BaseRepository<TutorialRow> {
   protected schema = "app";
   protected table = "tutorials";
+  protected skipDeleted = true;
 
   async findByAgency(agencyId: string): Promise<TutorialRow[]> {
     const { rows } = await super.findMany({

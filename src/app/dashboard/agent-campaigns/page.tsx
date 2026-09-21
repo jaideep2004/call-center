@@ -101,7 +101,6 @@ function AgentCampaignsInner() {
             is_assigned_to_me: false,
             has_assignments: false,
             effective_price_cents: c.price_cents,
-            effective_payout_cents: null,
           }));
           setCampaigns(rows);
           setTotalPages(ab.pagination?.totalPages ?? 1);
@@ -226,11 +225,6 @@ function AgentCampaignsInner() {
           {c.has_bid_override && <span className="badge" style={{ marginLeft: 6, fontSize: 9 }}>bid</span>}
         </span>
       ),
-    },
-    {
-      key: "effective_payout_cents",
-      header: "Payout",
-      render: (c) => <span className="text-mono-sm">{formatCents(c.effective_payout_cents)}</span>,
     },
     {
       key: "routing_strategy",

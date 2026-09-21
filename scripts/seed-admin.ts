@@ -1,12 +1,12 @@
 /**
  * Seed admin user from env — idempotent, non-destructive.
  * Usage:
- *   SEED_ADMIN_EMAIL=admin@coverage.test SEED_ADMIN_PASSWORD=Admin123! SEED_ADMIN_NAME="Super Admin" npm run seed:admin
+ *   SEED_ADMIN_EMAIL=admin@coverage.test SEED_ADMIN_PASSWORD=Admin123! SEED_ADMIN_NAME="Platform Admin" npm run seed:admin
  * Or set in .env: SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, SEED_ADMIN_NAME
  * Also reads ADMIN_EMAIL / ADMIN_PASSWORD as fallback.
  *
  * - Creates Better Auth user via auth.api.signUpEmail (handles bcrypt + emailVerified)
- * - Promotes to super_admin (user.role + app.memberships)
+ * - Promotes to admin (user.role + app.memberships)
  * - Ensures default agency exists
  * - Safe to re-run (updates password/name if user exists)
  */
@@ -16,8 +16,13 @@ import { pool, query, queryOne } from '../src/server/db';
 
 const EMAIL = process.env.SEED_ADMIN_EMAIL || process.env.ADMIN_EMAIL || process.env.SUPER_ADMIN_EMAIL || 'admin@coverage.test';
 const PASSWORD = process.env.SEED_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'Admin123!';
-const NAME = process.env.SEED_ADMIN_NAME || process.env.ADMIN_NAME || 'Super Admin';
-const ROLE = (process.env.SEED_ADMIN_ROLE || 'super_admin') as 'super_admin' | 'admin';
+const NAME = process.env.SEED_ADMIN_NAME || process.env.ADMIN_NAME || 'Platform Admin';
+const REQUESTED_ROLE = process.env.SEED_ADMIN_ROLE || 'admin';
+if (REQUESTED_ROLE !== 'admin') {
+  console.error(`Unsupported SEED_ADMIN_ROLE=${REQUESTED_ROLE}; this script only seeds role=admin`);
+  process.exit(1);
+}
+const ROLE = 'admin' as const;
 
 if (!EMAIL || !PASSWORD) {
   console.error('Missing SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (or ADMIN_EMAIL/PASSWORD) in .env');
@@ -116,7 +121,7 @@ async function main() {
     }
   }
 
-  // 2. Promote to super_admin
+  // 2. Promote to admin
   await query(`UPDATE "user" SET role=$1, "updatedAt"=now() WHERE id=$2`, [ROLE, user!.id]);
   console.log(`Set user role=${ROLE}`);
 

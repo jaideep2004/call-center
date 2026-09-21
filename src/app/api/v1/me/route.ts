@@ -23,8 +23,8 @@ export const GET = apiHandler(async (req, context) => {
       );
       if (byEmail) {
         // Attempt to auto-link this user to the publisher (publisher portal without explicit invite)
-        // Only for non-admin/agent users without an existing membership to avoid hijacking agency accounts.
-        const canLink = !context.membership && context.user.role !== "super_admin" && context.user.role !== "admin" && context.user.role !== "manager" && context.user.role !== "finance";
+        // Only for membership-less non-admins to avoid hijacking agency accounts.
+        const canLink = !context.membership && context.user.role !== "admin";
         if (canLink) {
           try {
             const { query } = await import("@/server/db");
@@ -48,13 +48,14 @@ export const GET = apiHandler(async (req, context) => {
   }
   // Mirror publisher linkage to role for clients that still hold stale session.role
   let user = context.user;
-  if (publisherId && user && user.role !== "publisher" && user.role !== "super_admin" && user.role !== "admin") {
+  if (publisherId && user && user.role !== "publisher" && user.role !== "admin") {
     user = { ...user, role: "publisher" } as typeof user;
   }
   return ok({
     user,
     membership: context.membership,
     agencyId: context.agencyId,
+    isHead: context.isHead ?? false,
     agentId,
     publisherId,
     publisher,

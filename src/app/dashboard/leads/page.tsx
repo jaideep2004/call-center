@@ -151,6 +151,52 @@ function LeadsInner() {
     return `badge ${cls[s] ?? ""}`;
   }
 
+  const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
+
+  // Phase 3 (point 7): plain <a download> links swallowed 403/400 JSON as
+  // "successful" file downloads and never encoded params. fetch + blob +
+  // toast, mirroring the calls page.
+  async function handleExport(format: "csv" | "xlsx") {
+    if (exporting) return;
+    setExporting(format);
+    try {
+      const params = new URLSearchParams();
+      params.set("format", format);
+      if (debouncedQ) params.set("search", debouncedQ);
+      if (statusFilter) params.set("status", statusFilter);
+      if (sourceFilter) params.set("source", sourceFilter);
+      if (agentFilter) params.set("assignedAgentId", agentFilter);
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
+      const res = await fetch(`/api/v1/leads/export?${params.toString()}`);
+      if (!res.ok) {
+        let msg = `Export failed (${res.status})`;
+        try {
+          const body = (await res.json()) as { message?: string };
+          if (body?.message) msg = body.message;
+        } catch {}
+        showToast(msg, "error");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? `leads-export-${Date.now()}.${format}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`${format.toUpperCase()} downloaded`, "success");
+    } catch {
+      showToast("Export failed - network error", "error");
+    } finally {
+      setExporting(null);
+    }
+  }
+
   const columns: Column<Lead>[] = [
     { key: "created_at", header: "Date", sortable: true, render: (l) => <time className="text-mono-sm">{new Date(l.created_at).toLocaleDateString()}</time> },
     { key: "email_hash", header: "Email", render: (l) => <Link href={`/dashboard/leads/${l.id}`} className="clickable">{l.email_hash?.slice(0, 16) ?? "\u2014"}</Link> },
@@ -220,8 +266,8 @@ function LeadsInner() {
         <input className="input" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} style={{ maxWidth: 150 }} />
         <input className="input" type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} style={{ maxWidth: 150 }} />
         <div className="stack-h" style={{ gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
-          <a className="btn btn-ghost btn-sm" href={`/api/v1/leads/export?search=${debouncedQ}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>CSV</a>
-          <a className="btn btn-ghost btn-sm" href={`/api/v1/leads/export?format=xlsx&search=${debouncedQ}&status=${statusFilter}&source=${sourceFilter}&assignedAgentId=${agentFilter}&startDate=${startDate}&endDate=${endDate}`} download>Excel</a>
+          <button className="btn btn-ghost btn-sm" onClick={() => handleExport("csv")} disabled={exporting !== null}>{exporting === "csv" ? "Exporting…" : "CSV"}</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => handleExport("xlsx")} disabled={exporting !== null}>{exporting === "xlsx" ? "Exporting…" : "Excel"}</button>
           {(statusFilter || sourceFilter || agentFilter || startDate || endDate) && <button className="btn btn-ghost btn-sm" onClick={() => { setStatusFilter(""); setSourceFilter(""); setAgentFilter(""); setStartDate(""); setEndDate(""); setPage(1); }}>Clear</button>}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { PgBoss } from "pg-boss";
+import { sharedBoss } from "@/server/services/boss";
 import { recordings } from "@/server/repositories";
 import { getTelephonyProvider } from "@/server/telephony-registry";
 
@@ -54,28 +54,13 @@ export async function resolveRecordingStreamUrl(recording: {
   return recording.storage_path;
 }
 
-let bossPromise: Promise<PgBoss> | null = null;
-
-function boss(): Promise<PgBoss> {
-  if (!bossPromise) {
-    bossPromise = (async () => {
-      const connectionString = process.env.DATABASE_URL;
-      if (!connectionString) throw new Error("DATABASE_URL is required for recording queue");
-      const b = new PgBoss({ connectionString, schema: "jobs" });
-      await b.start();
-      return b;
-    })();
-  }
-  return bossPromise;
-}
-
 /**
  * Enqueues recording storage with retries. The webhook path must never
  * fail because the queue is briefly unavailable — enqueue errors are
  * logged by the caller, not thrown.
  */
 export async function enqueueRecordingStore(input: StoreRecordingInput) {
-  const b = await boss();
+  const b = await sharedBoss();
   await b.send("store-recording", input, {
     retryLimit: 3,
     retryDelay: 30,

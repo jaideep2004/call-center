@@ -42,9 +42,10 @@ vi.mock("@/server/api-utils", async (importOriginal) => {
         try {
           return await handler(req, {
             ...(ctx as object),
-            user: { id: "u-head", role: "agency" },
+            user: { id: "u-head", role: "agent" },
             agencyId: "agency-1",
             membership: { id: "m-head" },
+            isHead: true,
           });
         } catch (e: unknown) {
           const err = e as { message?: string; status?: number };
@@ -77,7 +78,9 @@ describe("agency pool wallet API (P1.4)", () => {
   it("guards every route with agency:manage (head only)", async () => {
     // Guards are captured at import time: GET + POST + PATCH (wallet) + PUT (allocations).
     expect(guards.length).toBe(4);
-    for (const g of guards) expect(g).toMatchObject({ resource: "agency", action: "manage" });
+    for (const g of guards) {
+      expect(g).toMatchObject({ resource: "agency", action: "manage", allowHead: true });
+    }
   });
 
   it("GET returns pool + allocations + remaining headroom", async () => {
@@ -102,13 +105,23 @@ describe("agency pool wallet API (P1.4)", () => {
     expect(checkoutCreateMock).toHaveBeenCalledTimes(1);
     const [args] = checkoutCreateMock.mock.calls[0] as unknown as [Record<string, unknown>];
     expect(args.metadata).toMatchObject({ type: "agency_wallet_topup", agency_id: "agency-1" });
+    // Phase 4: 5000 credit + 150 (3%) fee line item; payment stores both.
+    const lineItems = args.line_items as { price_data: { unit_amount: number } }[];
+    expect(lineItems.map((l) => l.price_data.unit_amount)).toEqual([5000, 150]);
     expect(paymentsCreateMock).toHaveBeenCalledWith({
       agency_id: "agency-1",
       stripe_session_id: "cs_pool_1",
       amount_cents: 5000,
+      fee_cents: 150,
     });
     const body = await res.json();
-    expect(body.data).toMatchObject({ url: "https://pay/pool", sessionId: "cs_pool_1" });
+    expect(body.data).toMatchObject({
+      url: "https://pay/pool",
+      sessionId: "cs_pool_1",
+      credit_cents: 5000,
+      fee_cents: 150,
+      charged_cents: 5150,
+    });
   });
 
   it("POST uses APP_BASE_URL for Stripe redirect URLs (never req origin)", async () => {

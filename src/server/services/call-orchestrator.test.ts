@@ -3,7 +3,7 @@ import { mockProvider } from "@/domain/telephony";
 
 const {
   updateStateMock, findByIdMock, findByProviderCallIdMock, createMock, cancelMock, enqueueRecordingMock, claimStateMock,
-  findAvailableMock, campaignFindByIdMock, findLiveAgentIdsMock,
+  findAvailableMock, campaignFindByIdMock, findLiveAgentIdsMock, findByE164Mock, findByCampaignMock,
 } = vi.hoisted(() => ({
   updateStateMock: vi.fn(),
   findByIdMock: vi.fn(),
@@ -15,6 +15,8 @@ const {
   findAvailableMock: vi.fn().mockResolvedValue([]),
   campaignFindByIdMock: vi.fn().mockResolvedValue(null),
   findLiveAgentIdsMock: vi.fn().mockResolvedValue(null),
+  findByE164Mock: vi.fn().mockResolvedValue(null),
+  findByCampaignMock: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/server/db", () => ({
@@ -58,7 +60,7 @@ vi.mock("@/server/repositories", () => ({
     isLive: vi.fn().mockResolvedValue(false),
     setLive: vi.fn(),
   },
-  phoneNumbers: { findByE164: vi.fn().mockResolvedValue(null), findByCampaign: vi.fn().mockResolvedValue(null) },
+  phoneNumbers: { findByE164: findByE164Mock, findByCampaign: findByCampaignMock },
   memberships: {},
   recordings: { findByCallId: vi.fn().mockResolvedValue(null), create: vi.fn() },
   dispositions: { findByCallId: vi.fn().mockResolvedValue(null) },
@@ -244,6 +246,10 @@ describe("processProviderEvent — agent leg handling", () => {
 
   it("still creates calls for genuine inbound events (regression)", async () => {
     findByProviderCallIdMock.mockResolvedValue(null);
+    findByE164Mock.mockResolvedValue({
+      id: "n1", agency_id: "agency-1", campaign_id: "campaign-1",
+      provider: "telnyx", e164: "+15559876543", status: "active",
+    });
     createMock.mockResolvedValue(makeCall({ provider_call_id: "caller-leg-9" }));
     // The inline routeCall re-loads the call — it must still be in 'routing'.
     findByIdMock.mockResolvedValue(makeCall({ provider_call_id: "caller-leg-9", state: "routing" }));
@@ -258,6 +264,21 @@ describe("processProviderEvent — agent leg handling", () => {
     // No eligible agents → the ringing→missed claim records the outcome.
     expect(claimStateMock).toHaveBeenCalledWith("call-1", "ringing", "missed", "agency-1", expect.anything(), expect.anything());
     expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-9" });
+  });
+
+  it("fails closed on unknown DID — no call row, no fallback routing (Phase 0.2)", async () => {
+    findByProviderCallIdMock.mockResolvedValue(null);
+    findByE164Mock.mockResolvedValue(null);
+
+    await expect(processProviderEvent({
+      provider: "mock", eventId: "evt-unknown-did", type: "inbound",
+      providerCallId: "caller-leg-unknown", occurredAt: "2026-01-01T00:00:00Z",
+      from: "+15551234567", to: "+19999999999", raw: {},
+    })).rejects.toThrow("Unknown or unassigned DID");
+
+    // No call row was created for the unknown DID — the webhook layer turns
+    // the throw into a 400 so nothing is ever billed to a random agency.
+    expect(createMock).not.toHaveBeenCalled();
   });
 });
 

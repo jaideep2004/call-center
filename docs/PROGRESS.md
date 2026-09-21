@@ -104,3 +104,99 @@
 - Tests: npx tsc --noEmit 0 · vitest contact route 4/4 · npm run build clean (○ /contact static, ƒ /api/v1/public/contact, zero errors).
 
 ## 2026-09-19 - assistant - ENV-DRIVEN CHECKOUT URLS - new src/server/app-url.ts getAppBaseUrl (APP_BASE_URL > NEXT_PUBLIC_APP_URL > req origin > localhost:30001 dev default) adopted by all 4 Stripe checkout routes (agent/agent-subscription/agency-pool/generic) + retreaverWebhookUrl (was inline fallback) - .env.example APP_BASE_URL comment documents contract + fixes stale :3000 default - tests: app-url 6/6 + agency wallet env-URL route test - tsc:0 - vitest: 599 pass | 5 skipped (67 files) - nothing committed - next: set APP_BASE_URL per env (live https://coveragecalls.com, local ngrok URL), restart dev + redeploy live
+
+## 2026-09-20 - assistant - CALL TESTING + WORKER/GATEWAY LATENCY + PUBLISHER/SOFTPHONE/ADMIN UI FIXES
+- Did: verified stripe webhook DB secret override; diagnosed wallet not updating because no stripe listen / no session completion; updated all Stripe checkout + Retreaver webhook URLs to env-driven app-url helper; softphone UI premium polish: dock layout, blur removed, pointer-events isolated, minimize/restore call + script popups, volume control for #remoteMedia, modal pills, Take Calls link; publisher campaigns 'Failed to load' - found DB publishers have user_id null except 1 inactive, attribution zero; removed Go Online toggle from admin/publisher dropdown (agent-only), availability N/A shown for admin/publisher; confirmed async routing queue works via CALL_ROUTING_ASYNC=1, worker start scripts ready (npm run worker/gateway), call latency 10-15s traced to missing worker/gateway + async routing queue pickup; tsc:0; vitest: 599 pass | 5 skipped (67 files)
+- Decisions: Go Online button must be agent-only; publisher portal needs linked user + attribution fix; APP_BASE_URL env drives all external redirects; softphone minimize buttons avoid overlay overlap.
+- Broke / TODO: notifications table missing (repo uses app.outbox), email SMTP Gmail limits, call delay still 10-15s on live VPS until worker/gateway started, publisher campaigns still fail for unlinked users.
+- Next: start worker on :3002 + gateway on :3001, fund live agency pool + allocate, run migration 0053 on live, verify publisher linking & attribution sync, test Stripe listen on :30001, monitor call routing latency after worker online.
+
+## 2026-09-20 - assistant - PHASE 0.2 DONE (DID fail-closed, final-stretch kickoff)
+- Did: phoneNumbers.findByE164 + findByCampaign now filter status='active' (phone-numbers.ts:19-33); removed random agency/campaign fallbacks in call-orchestrator.ts:70-104 — unknown/inactive/spare DIDs now throw (webhook maps to 400, no call row, nothing billed to wrong client); event.to normalized via normalizeE164 before lookup; cleared stale .next/dev types (gitignored build artifact blocking tsc).
+- Tests: new fail-closed test (unknown DID rejects + create never called) + genuine-inbound test now seeds an active phone (old version passed with undefined agency — proof of the bug) + phone-numbers-status.test.ts 2/2 SQL asserts — suites: 53/53 pass (orchestrator 22, phone-numbers 2, phase5 29).
+- Decisions: fail-closed over 400-safe fallback (mis-attribution > dropped call; publisher gets machine-readable rejection); status filter safe for all callers (orchestrator/retreaver/ping paths are routing-only; caller-ID presentation must also be active-only).
+- Broke / TODO: Phase 0.1 live-env runbook is VPS-side (user action, see chat); retreaver.ts:95 null-phone path unchanged (skips row, correct).
+- Next: Phase 1 connect-time + auto-pickup (awaiting go).
+- Tests: npx tsc --noEmit 0 · targeted vitest 53 pass — nothing committed (not requested).
+
+## 2026-09-20 - assistant - PHASE 1 DONE (queue singleton + soft-delete gate + auto-pickup)
+- Did: NEW boss.ts shared start-once pg-boss singleton adopted by route-queue/finalize-queue/recording-store (enqueue no longer pays start() per call); agents.findAvailable now filters deleted_at IS NULL (comment always claimed it; partial index now actually applies); migration 0054 idx_phone_numbers_status_campaign (deliberately skipped (e164,status) — e164 UNIQUE already covers it); softphone auto-pickup: default-ON per-agent toggle (localStorage cc-auto-answer) + once-per-call effect covering socket + poll paths + reject-guard + audio-unlock best-effort + header Auto ON/OFF pill.
+- Decisions: worker consumer untouched (0.5s poll + NOTIFY + batch5/burst already optimal; batchSize 1 would hurt throughput); routeCall pool-path already parallel (sequential only in-txn = pg constraint, documented in code); auto-pickup default ON per client billing concern (publisher bills from answer), PSTN-only agents unaffected (nothing client-side to answer, server bridge path unchanged).
+- Broke / TODO: none. 0054 needs live apply (small, transaction-safe, IF NOT EXISTS).
+- Next: Phase 2 publisher sync (awaiting go).
+- Tests: npx tsc --noEmit 0 · vitest 606 pass | 5 skipped (70 files, +7 new: boss 3, find-available 1, Phase-0 3) · build clean — nothing committed (not requested).
+
+## 2026-09-20 - assistant - PHASE 2 DONE (publisher switch + attribution repair)
+- Did: acceptPortalInvite gains explicit switchFromAgency — agency members get 409 SWITCH_REQUIRED (UI shows leave-and-switch button) instead of dead-end; confirmed switch ends membership (suspended — the CHECK-allowed deactivated state) then links, returns switchedAgency flag; invites accept route passes {switch} from body; linkPair backfills retreaver campaign_id from authoritative app call; NEW backfillAttribution() repairs publisher-by-afid + campaign-by-cid NULLs from raw_redacted (bounded 7d, NULL-targeted, on the 5-min link tick); raw now stores afid at ingest (sync + webhook) so future rows are repairable (cid already was).
+- Decisions: kept upsert COALESCE (preserving good data on re-sync is correct; NULL-lock fixed by repair job, not by clobbering); link window stays 120min (steady-state fine with 5-min cron; repair job covers history); membership ended as suspended (CHECK-allowed; resolveAuth + routing only honor active — fail-closed).
+- Broke / TODO: pre-existing live rows ingested without afid in raw can't be SQL-backfilled — they repair via Retreaver re-sync overlap once afids are provisioned; UI leave-and-switch button still to be added on the register/invite screen (API ready).
+- Next: Phase 3 routing integrity + agency-create + exports (awaiting go).
+- Tests: npx tsc --noEmit 0 · vitest 609 pass | 5 skipped (70 files, +3: portal switch 2, backfill 1) · build clean — nothing committed (not requested).
+
+## 2026-09-20 - assistant - PHASE 3 DONE (agency leave-create + exports + join backfill)
+- Did: POST /api/v1/agencies leave-and-create — root cause of point 6: old guard was 100% dead (resolveAuth derives membership+agencyId from same row, pass path unreachable); now active members get 400 LEAVE_REQUIRED, confirmed leave moves membership in-txn, heads blocked from stranding agency, membership-less accounts get a head membership created; leaveAgency added to createAgencySchema; settings page gains Start-a-New-Agency section (explicit checkbox) — exports (point 7): leads/export + reports/export now validate format (400), leads honors privileged cross-agency + runtime nodejs, reports honors xlsx (was CSV-only lie); leads + reports pages use fetch+blob+toast (no more silent JSON downloads), params encoded.
+- Decisions: schedule check stays scheduleOpen:true with code comment — no working-hours/timezone model exists, inventing fake hours would be worse; join-as-truth via 0055 backfill (single-join + legacy-NULL only, never overwrite) rather than rewriting billing SELECTs; membership.status CHECK has no 'inactive' (fixed Phase 2 to suspended).
+- Broke / TODO: 0055 needs live apply (idempotent UPDATE); publisher-role export perms intentionally unchanged (portal has own payouts CSV).
+- Next: Phase 4 Stripe 3% + GHL booking + payout-strip + prepaid/postpaid doc (awaiting go).
+- Tests: npx tsc --noEmit 0 · vitest 619 pass | 5 skipped (73 files, +10: agencies 4, leads-export 4, reports-export 2) · build clean — nothing committed (not requested).
+
+## 2026-09-20 - assistant - PHASE 4 DONE (fee + GHL booking + payout-strip, final stretch COMPLETE)
+- Did: Stripe 3% (point 3): canonical stripeFeeCents in lib/format + migration 0056 payments.fee_cents + 3 checkout routes charge 2 line items (net credit + fee) with credit/fee metadata + payments.create stores fee + webhook credits NET (never gross) in all 3 wallet branches + breakdown UI on Ledger/agent/pool pages — also fixed 2 live payment bugs found en route: Ledger posted to nonexistent /wallet/recharge (404) and pool page read body.url instead of body.data.url (redirect never fired). Payout strip (point 2): agent/campaigns + generic campaigns (non-admin) responses stripped of all 4 payout fields; Browse UI fallback key removed. GHL booking (point 4): NEW shared ghl-booking.tsx embed; agent Book Call + admin Calendar rewritten GHL-only (slots UI deleted, APIs/tables kept for history). Docs: MANUAL_TEST_FLOW.md updated (live runbook, fee, auto-pickup, booking, exports, leave-create).
+- Decisions: subscriptions keep face value (fee on fixed plan prices needs client call); upsert/webhook idempotency untouched; pool default $5000 untouched (pre-existing).
+- Broke / TODO: 0056 live apply; Stripe Voyager/test clock for real $250 fee E2E still user-side; subscriptions fee decision open.
+- Next: live deploy (migrations 0054-0056, pm2 worker+gateway+restart) + client UAT per MANUAL_TEST_FLOW.
+- Tests: npx tsc --noEmit 0 · vitest 622 pass | 5 skipped (74 files, +13: strip 2, fee-mint 1, pool-checkout-fee update) · build clean — nothing committed (not requested).
+
+## 2026-09-20 - assistant - ADMIN AGENCY-MANAGE FIX (follow-up Q)
+- Did: admin role gains agency:manage in permission-data.ts (was view-only, so the Delete button on admin agency detail 403d and no live super_admin existed to do it); updated permission-data.test.ts expectation.
+- Decisions: one-line matrix change over route-level carve-out — pool-wallet POST/PATCH also use agency:manage but require an agency membership admins don't hold, so no privilege bleed; users:manage stays super_admin-only.
+- Tests: npx tsc --noEmit 0 · permission suites 21 pass — nothing committed (not requested).
+
+## 2026-09-21 - assistant - THREE-ROLE RBAC COMPLETION (admin/agent/publisher)
+- Did: fixed `allowHead` guard + agency Stripe URL field regression; remapped `super_admin/agency/manager/finance` code, routes, validation, seeds, and operational scripts to admin/agent/publisher with per-request head elevation.
+- Decisions: kept historical migrations/docs naming for the removed roles; 0057 remaps rows while enum-label drops remain manual because they cannot run in the migration transaction.
+- Broke / TODO: DB enum still lists removed labels until the manual `ALTER TYPE ... DROP VALUE` commands run; no runtime impact because inserts/validation only emit the three roles.
+- Next: apply migrations 0054-0057 live, then run the manual enum-label drops.
+- Tests: `npm run typecheck` clean · `npm test` 610 passed | 5 skipped (74 files) · `graphify update .` rebuilt 1287 nodes / 1239 edges.
+
+## 2026-09-21 - assistant - NEW SUPABASE SETUP + INVOICE AUTO-SEND
+- Did: pointed `.env` at the new Supabase URI; fresh DB needed Better Auth tables first, then fixed fresh-DB-only migration failures (0002 policy idempotency, 0028b orphan column folded into 0033, 0036/0050 empty-table setval + missing created_at, 0042 applied non-transactionally per its runbook, 0055 min(uuid) rewrite); seeded + login-verified admin@coveragecalls.com.
+- Decisions: edited only unrecorded-on-fresh-DB migration files (recorded DBs skip them); auto-send is best-effort next to invoice creation with `sent_at/sent_to` idempotency (0058) so failures retry instead of rolling back invoices.
+- Broke / TODO: legacy `role_name` enum labels still present (manual DROP VALUE step unchanged); campaigns not seeded — need names/pricing/states from client.
+- Next: seed campaigns once specs arrive; Monday worker now auto-emails invoices to head + active agents.
+- Tests: `npm run typecheck` clean · `npm test` 615 passed | 5 skipped (75 files, +5 invoice-delivery) · `check:migrations` 58/58 recorded · `graphify update .` 1294 nodes / 1253 edges.
+
+## 2026-09-21 - assistant - CAMPAIGN SEED (9 live offers)
+- Did: seeded 9 active campaigns on agency Public Leads — 4 default offers (FE CTV $50/30s, $70/90s; Medicare CG $16/30s, $35/120s) + 5 exclusive (Medicare CG $27/90s, $15/30s, $32/180s, $28/120s; FE CTV $65/90s) with matching price_cents/min_connected_seconds, visibility + is_exclusive flags.
+- Decisions: status active (not draft) so routing can use them immediately; retreaver_cid NULL so Retreaver sync adopts/links them later; idempotent by (agency_id, name).
+- Broke / TODO: none — remaining campaigns arrive via Retreaver sync as expected.
+- Next: client UAT on live DB.
+- Tests: seed verified 4 default + 5 exclusive rows · full suite still 615 passed | 5 skipped.
+
+## 2026-09-21 - assistant - ENV FLAG + EMAIL COVERAGE + TEMPLATE REDESIGN
+- Did: set `CALL_ROUTING_ASYNC=1` in `.env` (+ uncommented in `.env.example`); new `action-emails.ts` service (agent welcome on create, approval mail, member-invite mail — all best-effort via notify inbox+email); support replies + lead assignments now also email the requester/assignee.
+- Decisions: root cause of "ugly emails" found — white wordmark logo on white header was invisible; header is now a violet gradient (Outlook solid fallback) with light body, zero black surfaces; all hooks `void`-fired so mail can never break the API call.
+- Broke / TODO: none.
+- Next: UI batch (settings/calendar/notifications/perf/login flash) via design-worker.
+- Tests: `npm run typecheck` clean · `npm test` 624 passed | 5 skipped (76 files, +9 new).
+
+## 2026-09-21 - assistant - UI BATCH 7/7 (settings/calendar/notifications/perf/login flash)
+- Did: (1) /dashboard/settings branches on /api/v1/me — admin gets PLATFORM view (agency-creation toggle via PATCH system settings + Users/Agencies/System links, zero agency tabs/editing; members/phone-numbers redirect admin back); removed agent-visible dead link to /dashboard/admin/settings. (2) Agency LIST gains per-row Delete (confirm+toast+refetch, existing DELETE). (3) GHL iframe fixed 960px, scrolling=no, no inner container; admin calendar rewritten entries-only (Onboarding Slots + Bookings read-only tabs, APIs/tables untouched); booking widget stays agent-side on /dashboard/onboarding. (4) Nav audit: all hrefs resolve; fixed 2 orphans (Users→PEOPLE, Skills→OPERATIONS) + admin-calendar widget misplacement. (5) Suggest-form hidden for admin. (6) Notifications viewer-scoped (admin=all, agent=own+global) + scoped idempotent PATCH [id] (404 cross-agency) + NEW POST mark-all-read (UI called it, 404d before) + fixed top-right bell w/ badge+dropdown in all 3 dashboards. (7) Login flash: layout nav + dashboard home render skeleton until server role resolves (dashboard data now fetches once, not twice); notifications columns memoized.
+- Decisions: heads stay agents (no members-page behavior change); dispatched_at keeps its dual read-flag meaning; bell is role-agnostic (endpoint scoped server-side).
+- Broke / TODO: none. Visual QA at 375/768/1440 still user-side (no browser tooling here).
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npx tsc --noEmit` 0 · `npm test` 631 passed | 5 skipped (77 files, +7 notifications-scoped) — nothing committed (not requested).
+
+## 2026-09-21 - assistant - VERIFY UI BATCH (independent re-check)
+- Did: re-ran worker's batch from clean state — `npm run typecheck` 0 errors, `npm test` 631 passed | 5 skipped (77 files). All 7 items hold.
+- Decisions: no code changes in verification; worker's PROGRESS entry above stands as the record.
+- Broke / TODO: none. Visual QA at 375/768/1440 remains user-side.
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npm run typecheck` clean · `npm test` 631 passed | 5 skipped (77 files).
+
+## 2026-09-21 - assistant - INVITE COPY + SOFT-DELETE LISTS + TEMPLATE POLISH
+- Did: (1) invite email is now an app invite — no agency name, "create your own agency and invite your team once you're in" (`invites/route.ts` simplified, unused agency/smtp imports dropped). (2) Root-caused fake agency delete: base `findMany` never filtered `deleted_at`, so soft-deleted rows kept listing — new `skipDeleted` flag on BaseRepository enabled for agencies/agents/campaigns/calls/scripts/tutorials. (3) Tagline now pure white; CTA anchor enriched (17px/800/tracked, padding stays on the cell so Gmail can't collapse it).
+- Decisions: lists hide deleted rows (delete = hide, never destroy); detail lookups untouched; invite keeps token link + 7-day copy.
+- Broke / TODO: none. Note: restart dev so the new template serves (stale modules serve old HTML).
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npm run typecheck` clean · `npm test` 637 passed | 5 skipped (78 files, +6 soft-delete-lists).

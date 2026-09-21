@@ -89,7 +89,7 @@ async function seed() {
     console.log("  4. Promote to admin:");
     console.log("     curl -X POST http://localhost:30001/api/v1/setup/make-admin \\");
     console.log('       -H "Content-Type: application/json" \\');
-    console.log('       -d \'{"user_id":"<uuid>","role":"super_admin"}\'');
+    console.log('       -d \'{"user_id":"<uuid>","role":"admin"}\'');
     console.log("  5. Refresh the dashboard at http://localhost:30001/dashboard");
   } catch (err) {
     console.error("Seed failed:", err);

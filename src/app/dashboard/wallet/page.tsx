@@ -6,6 +6,7 @@ import Link from "next/link";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
 import { showToast } from "@/lib/use-toast";
+import { stripeFeeCents } from "@/lib/format";
 
 interface WalletEntry {
   id: string;
@@ -171,7 +172,9 @@ function WalletInner() {
     if (!amount || amount < 100) { showToast("Enter a valid amount", "error"); return; }
     setRecharging(true);
     try {
-      const res = await fetch("/api/v1/wallet/recharge", {
+      // Phase 4: the live checkout route is /create-checkout (the old
+      // /recharge path never existed — this 404d). Response is {data:{url}}.
+      const res = await fetch("/api/v1/wallet/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount_cents: amount }),
@@ -254,7 +257,17 @@ function WalletInner() {
           {showRecharge && (
             <div className="card card--spacious">
               <h3 style={{ margin: "0 0 4px", font: "500 16px var(--serif)" }}>Top up</h3>
-              <p className="text-muted" style={{ fontSize: 11, margin: "0 0 var(--space-4)" }}>Grouped presets + custom amount — checkout via Stripe.</p>
+              <p className="text-muted" style={{ fontSize: 11, margin: "0 0 var(--space-4)" }}>Grouped presets + custom amount — checkout via Stripe. A 3% Stripe payment processing fee applies.</p>
+              {(() => {
+                const preview = selectedPreset ?? (customAmount ? Math.round(Number(customAmount) * 100) : 0);
+                if (!preview || preview < 100) return null;
+                const fee = stripeFeeCents(preview);
+                return (
+                  <p className="text-mono-sm" style={{ fontSize: 11, margin: "0 0 10px" }}>
+                    {formatCents(preview)} credit + {formatCents(fee)} Stripe fee = {formatCents(preview + fee)} charged
+                  </p>
+                );
+              })()}
               <div className="filter-bar filter-bar--plain" style={{ marginTop: 0, padding: 0, flexWrap: "wrap" }}>
                 <div className="filter-bar__group" style={{ flexWrap: "wrap" }}>
                   {PRESET_AMOUNTS.map((amt) => (

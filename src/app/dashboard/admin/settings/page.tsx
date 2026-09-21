@@ -232,9 +232,9 @@ export default function AdminSystemSettingsPage() {
 
           <section className="card" style={{ padding:16, background:"linear-gradient(135deg, rgba(168,85,247,.10), rgba(255,255,255,.02))", borderColor:"rgba(168,85,247,.16)" }}>
             <h3 style={{ font:"600 13px var(--sans)", margin:0, color:"var(--ink)" }}>Platform health</h3>
-            <p className="text-muted" style={{ fontSize:12, margin:"6px 0 0", lineHeight:1.5 }}>All systems nominal. Use Agency and Members tabs to manage access.</p>
+            <p className="text-muted" style={{ fontSize:12, margin:"6px 0 0", lineHeight:1.5 }}>All systems nominal. Platform controls live here; agency setup under Agencies, members under Users.</p>
             <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
-              <Link href="/dashboard/settings" className="btn btn-secondary btn-sm">Agency Settings</Link>
+              <Link href="/dashboard/admin/users" className="btn btn-secondary btn-sm">Users</Link>
               <Link href="/dashboard/admin/agencies" className="btn btn-ghost btn-sm">Agencies →</Link>
             </div>
           </section>

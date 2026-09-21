@@ -3,7 +3,7 @@ import { campaigns, campaignAssignments } from "@/server/repositories";
 import { validate, createCampaignSchema, paginationSchema, searchSchema, sortSchema } from "@/server/validate";
 import { assertValidSkills } from "@/server/services/skills.service";
 
-const ADMIN_ROLES = new Set(["admin", "super_admin"]);
+const ADMIN_ROLES = new Set(["admin"]);
 
 export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
@@ -30,6 +30,23 @@ export const GET = apiHandler(async (req, context) => {
     const assignedToMe = new Set(await campaignAssignments.findCampaignIdsForAgencyOrAgent(context.agencyId));
     const anyAssignments = new Set(await campaignAssignments.findAllAssignedCampaignIds());
     visible = rows.filter((c) => !anyAssignments.has(c.id) || assignedToMe.has(c.id));
+  }
+
+  // Phase 4 (point 2): publisher payouts are admin-only. Agents reach this
+  // endpoint via the Browse fallback, so strip for every non-admin role.
+  // Admins keep full rows (Bidding tab edits max payout live).
+  if (!ADMIN_ROLES.has(role)) {
+    visible = visible.map((c) => {
+      const {
+        effective_payout_cents: _s1,
+        effective_max_payout_cents: _s2,
+        max_publisher_payout_cents: _s3,
+        min_publisher_payout_cents: _s4,
+        ...payoutFree
+      } = c as unknown as Record<string, unknown>;
+      void _s1; void _s2; void _s3; void _s4;
+      return payoutFree as unknown as typeof c;
+    });
   }
 
   return paginated(visible, pagination);

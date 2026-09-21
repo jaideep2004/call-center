@@ -5,7 +5,8 @@ import { queryOne } from "@/server/db";
 import { publishCallEvent } from "@/lib/event-bridge";
 
 export const GET = apiHandler(async (req, context) => {
-  const rows = await notifications.findMany(50, context.agencyId ?? undefined);
+  const isAdmin = context.user?.role === "admin";
+  const rows = await notifications.findForViewer(50, context.agencyId ?? null, isAdmin);
   return ok(rows);
 }, { resource: "settings", action: "view" });
 

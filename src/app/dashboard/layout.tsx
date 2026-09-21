@@ -24,7 +24,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "05": Users, "02": UserPlus, "03b": Radio, "06c": Scale, "06b": Disc,
   "05g": Receipt, "08b": TrendingUp, "07": BookOpen, "10c": Calendar,
   "08": BarChart3, "11b": LayoutTemplate, "10b": SlidersHorizontal,
-  "07c": Landmark, "AA": Shield,
+  "07c": Landmark, "AA": Shield, "04b": Users, "05e": SlidersHorizontal,
 };
 
 function NavIco({ code }: { code: string }) {
@@ -57,6 +57,125 @@ function NotificationBadge({ membershipId }: { membershipId: string | null }) {
   return <span className="badge badge-danger" style={{ marginLeft: 6, fontSize: 9 }}>{count}</span>;
 }
 
+interface BellNotification {
+  id: string;
+  topic: string;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+  dispatched_at: string | null;
+}
+
+/**
+ * Fixed top-right bell rendered in ALL three dashboards (layout-level). The
+ * endpoint is role-scoped server-side, so one component serves every role:
+ * unread badge + dropdown with the latest ~10, mark-read on click,
+ * mark-all-read, and a "View all" link.
+ */
+function NotificationBell({ membershipId }: { membershipId: string | null }) {
+  const { socket } = useSocket(membershipId);
+  const [items, setItems] = useState<BellNotification[]>([]);
+  const [open, setOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  const refresh = () => {
+    fetch("/api/v1/notifications").then((res) => {
+      if (!res.ok) return;
+      res.json().then((body) => setItems(body.data ?? []));
+    }).catch(() => {});
+  };
+
+  useEffect(refresh, []);
+  useEffect(() => {
+    if (!socket) return;
+    socket.on("notification:new", refresh);
+    return () => { socket.off("notification:new", refresh); };
+  }, [socket]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const unread = items.filter((n) => !n.dispatched_at).length;
+  // Unread first, then newest — cap the dropdown at ~10.
+  const latest = [...items]
+    .sort((a, b) => Number(!b.dispatched_at) - Number(!a.dispatched_at) || +new Date(b.occurred_at) - +new Date(a.occurred_at))
+    .slice(0, 10);
+
+  async function markRead(id: string) {
+    const res = await fetch(`/api/v1/notifications/${id}`, { method: "PATCH" });
+    if (res.ok) setItems((prev) => prev.map((n) => n.id === id ? { ...n, dispatched_at: new Date().toISOString() } : n));
+  }
+
+  async function markAllRead() {
+    const res = await fetch("/api/v1/notifications/mark-all-read", { method: "POST" });
+    if (res.ok) setItems((prev) => prev.map((n) => ({ ...n, dispatched_at: new Date().toISOString() })));
+  }
+
+  function summary(n: BellNotification): string {
+    const p = n.payload ?? {};
+    const text = (p.message ?? p.subject ?? p.title ?? "") as string;
+    if (typeof text === "string" && text) return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+    return n.topic;
+  }
+
+  return (
+    <div ref={bellRef} style={{ position: "fixed", top: 14, right: 16, zIndex: 9000 }}>
+      <button
+        type="button"
+        className="btn btn-sm"
+        onClick={() => { setOpen((v) => !v); if (!open) refresh(); }}
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+        title="Notifications"
+        style={{ position: "relative", borderRadius: 9999, width: 36, height: 36, display: "grid", placeItems: "center", background: "rgba(168,85,247,0.10)", border: "1px solid var(--line)" }}
+      >
+        <Bell size={16} aria-hidden />
+        {unread > 0 && (
+          <span className="badge badge-danger" style={{ position: "absolute", top: -6, right: -6, fontSize: 9, minWidth: 18, height: 18, display: "grid", placeItems: "center", borderRadius: 9999 }}>
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="card" style={{ position: "absolute", top: 44, right: 0, width: 340, maxWidth: "calc(100vw - 32px)", padding: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderBottom: "1px solid var(--line)" }}>
+            <strong style={{ fontSize: 13 }}>Notifications</strong>
+            {unread > 0 && <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={markAllRead}>Mark all read</button>}
+          </div>
+          <div style={{ maxHeight: 360, overflowY: "auto" }}>
+            {latest.length === 0 ? (
+              <p className="text-muted" style={{ fontSize: 12, padding: "16px 14px", margin: 0 }}>No notifications yet.</p>
+            ) : (
+              latest.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => { if (!n.dispatched_at) void markRead(n.id); }}
+                  style={{ display: "flex", gap: 10, width: "100%", textAlign: "left", padding: "10px 14px", background: n.dispatched_at ? "transparent" : "rgba(168,85,247,0.07)", border: "none", borderBottom: "1px solid var(--line)", cursor: "pointer", color: "var(--ink)" }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 5, flexShrink: 0, background: n.dispatched_at ? "var(--line)" : "var(--cyan)" }} />
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 12, fontWeight: n.dispatched_at ? 400 : 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{summary(n)}</span>
+                    <span className="text-muted" style={{ display: "block", fontSize: 10, marginTop: 2 }}>{n.topic} · {new Date(n.occurred_at).toLocaleString()}</span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+          <Link href="/dashboard/notifications" onClick={() => setOpen(false)} className="btn btn-ghost btn-sm" style={{ width: "100%", justifyContent: "center", borderRadius: 0, borderTop: "1px solid var(--line)" }}>
+            View all →
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const agentNav = [
   { label: "Command", href: "/dashboard", icon: "01" },
   { label: "Take Calls", href: "/dashboard/take-calls", icon: "01b" },
@@ -79,6 +198,7 @@ const adminNavGroups = [
     label: "PEOPLE", items: [
       { label: "Agencies", href: "/dashboard/admin/agencies", icon: "04" },
       { label: "Agents", href: "/dashboard/agents", icon: "05" },
+      { label: "Users", href: "/dashboard/admin/users", icon: "04b" },
       { label: "Leads", href: "/dashboard/leads", icon: "02" },
     ]
   },
@@ -91,6 +211,7 @@ const adminNavGroups = [
       { label: "Recordings", href: "/dashboard/recordings", icon: "06b" },
       { label: "Scripts", href: "/dashboard/scripts", icon: "05c" },
       { label: "Tutorials", href: "/dashboard/tutorials", icon: "05h" },
+      { label: "Skills", href: "/dashboard/admin/skills", icon: "05e" },
     ]
   },
   {
@@ -131,11 +252,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const user = session?.user;
   const [serverRole, setServerRole] = useState<string | null>(null);
+  const [isHead, setIsHead] = useState(false);
   const [roleReady, setRoleReady] = useState(false);
   const clientRole = (user as { role?: string } | undefined)?.role;
-  // Prefer server truth (DB) once loaded; while loading, keep client role to avoid flash but don't enforce redirects yet
-  const role = serverRole ?? clientRole;
-  const isAdmin = role === "admin" || role === "super_admin";
+  // Server truth (DB) wins once loaded. Until roleReady resolves we render NO
+  // role-specific nav — previously the agent nav painted first for admins
+  // (wrong-role first paint on login). role === null → skeleton.
+  const role = roleReady ? (serverRole ?? clientRole ?? null) : null;
+  const isAdmin = role === "admin";
   const isPublisher = role === "publisher";
   const initials = user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() ?? "??";
   const { toasts, dismiss } = useToast();
@@ -185,6 +309,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (body.data.publisherId) setServerRole("publisher");
         else if (body.data.publisher?.id) setServerRole("publisher");
         else if (body.data.user?.role) setServerRole(body.data.user.role);
+        setIsHead(body.data.isHead === true);
         setMembershipId(body.data.membership?.id ?? null);
         setAgentId(body.data.agentId ?? null);
         if (body.data.agentId) {
@@ -232,6 +357,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   function renderNav() {
+    // Role unknown (session/server still resolving): skeleton only, never a
+    // wrong-role nav. Fixes the login flash where admins briefly saw the
+    // agent sidebar.
+    if (!roleReady || !role) {
+      return (
+        <nav aria-hidden>
+          <div className="stack" style={{ gap: 8, padding: "4px 2px" }}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="skeleton skeleton-text" style={{ height: 30 }} />
+            ))}
+          </div>
+        </nav>
+      );
+    }
     if (isPublisher) {
       return (
         <nav>
@@ -296,7 +435,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <NavIco code={item.icon} /><span className="nav-label">{item.label}</span>
             </Link>
           ))}
-          {role === "agency" && (
+          {isHead && (
             <Link className={isActive("/dashboard/wallet/pool") ? "active" : ""} href="/dashboard/wallet/pool" title="Pool Wallet" style={{ marginBottom: 2 }}>
               <NavIco code="07c" /><span className="nav-label">Pool Wallet</span>
             </Link>
@@ -332,7 +471,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {sidebarCollapsed ? "»" : "«"}
           </button>
         </div>
-        <p className="agency">{isAdmin ? "ADMIN CONSOLE" : isPublisher ? "PUBLISHER PORTAL" : "OPERATIONS CONSOLE"}</p>
+        <p className="agency">{!roleReady || !role ? "CONSOLE" : isAdmin ? "ADMIN CONSOLE" : isPublisher ? "PUBLISHER PORTAL" : "OPERATIONS CONSOLE"}</p>
         {renderNav()}
         <div className="operator" ref={dropdownRef}>
           <button
@@ -356,32 +495,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div>
                   <strong>{user?.name ?? "Operator"}</strong>
                   <small>{user?.email ?? ""}</small>
-                  {role && <span className="badge" style={{ marginTop: 4, fontSize: 9, textTransform: "uppercase" }}>{role === "super_admin" ? "super admin" : role}</span>}
+                  {role && <span className="badge" style={{ marginTop: 4, fontSize: 9, textTransform: "uppercase" }}>{isHead ? "agency head" : role}</span>}
                 </div>
               </div>
-              <div className="dropdown-availability">
-                <span className="online-dot" style={{ background: agentAvailability === "available" ? "var(--accent)" : "var(--muted)", width: 8, height: 8 }} />
-                <span style={{ fontSize: 12 }}>{agentAvailability === "available" ? "Online" : "Offline"}</span>
-                <button
-                  className="btn btn-sm"
-                  style={{ marginLeft: "auto", fontSize: 10 }}
-                  disabled={availToggling || !agentId}
-                  onClick={async () => {
-                    if (!agentId || availToggling) return;
-                    setAvailToggling(true);
-                    const next = agentAvailability === "available" ? "offline" : "available";
-                    const res = await fetch(`/api/v1/agents/${agentId}`, {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ availability: next }),
-                    });
-                    if (res.ok) setAgentAvailability(next);
-                    setAvailToggling(false);
-                  }}
-                >
-                  {availToggling ? "..." : agentAvailability === "available" ? "Go Offline" : "Go Online"}
-                </button>
-              </div>
+                <div className="dropdown-availability">
+                  <span className="online-dot" style={{ background: agentAvailability === "available" ? "var(--accent)" : "var(--muted)", width: 8, height: 8 }} />
+                  <span style={{ fontSize: 12 }}>{agentAvailability === "available" ? "Online" : "Offline"}</span>
+                  {!isAdmin && !isPublisher && (
+                    <button
+                      className="btn btn-sm"
+                      style={{ marginLeft: "auto", fontSize: 10 }}
+                      disabled={availToggling || !agentId}
+                      onClick={async () => {
+                        if (!agentId || availToggling) return;
+                        setAvailToggling(true);
+                        const next = agentAvailability === "available" ? "offline" : "available";
+                        const res = await fetch(`/api/v1/agents/${agentId}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ availability: next }),
+                        });
+                        if (res.ok) setAgentAvailability(next);
+                        setAvailToggling(false);
+                      }}
+                    >
+                      {availToggling ? "..." : agentAvailability === "available" ? "Go Offline" : "Go Online"}
+                    </button>
+                  )}
+                  {isAdmin || isPublisher ? (
+                    <span className="text-muted" style={{ marginLeft: "auto", fontSize: 10 }}>N/A</span>
+                  ) : null}
+                </div>
               <button className="dropdown-item" onClick={handleSignOut}>
                 Sign out
               </button>
@@ -392,6 +536,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <section className="console-main">
         {children}
       </section>
+      {/* Layout-level bell: fixed top-right in ALL three dashboards. */}
+      {user && <NotificationBell membershipId={membershipId} />}
       {!isAdmin && !isPublisher && <Softphone membershipId={membershipId} agentId={agentId} />}
       {toasts.length > 0 && (
         <div style={{ position: "fixed", bottom: "var(--space-6)", right: "var(--space-6)", display: "flex", flexDirection: "column", gap: 8, zIndex: 9999 }}>

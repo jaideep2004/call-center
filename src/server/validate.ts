@@ -22,6 +22,9 @@ export const searchSchema = z.object({
 export const createAgencySchema = z.object({
   name: z.string().min(1).max(255),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
+  // Phase 3 (point 6): active members must explicitly confirm leaving their
+  // current agency — the membership is moved to the new agency in-txn.
+  leaveAgency: z.boolean().optional(),
 });
 
 export const updateAgencySchema = z.object({
@@ -282,11 +285,11 @@ export const contactMessageSchema = z.object({
 export const createMembershipSchema = z.object({
   agency_id: z.string().min(1),
   user_id: z.string().min(1),
-  role: z.enum(["super_admin", "admin", "agency", "manager", "finance", "agent"]),
+  role: z.enum(["admin", "agent"]),
 });
 
 export const updateMembershipSchema = z.object({
-  role: z.enum(["super_admin", "admin", "agency", "manager", "finance", "agent"]).optional(),
+  role: z.enum(["admin", "agent"]).optional(),
   status: z.enum(["invited", "active", "suspended"]).optional(),
 });
 
@@ -321,7 +324,7 @@ export const createAffiliateSchema = z.object({
 
 export const makeAdminSchema = z.object({
   user_id: z.string().min(1),
-  role: z.enum(["super_admin", "admin"]).optional(),
+  role: z.enum(["admin"]).optional(),
 });
 
 export const routingSimulateSchema = z.object({

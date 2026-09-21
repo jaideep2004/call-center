@@ -15,7 +15,7 @@ interface Membership {
   status: string;
 }
 
-const ROLE_OPTIONS = ["super_admin", "admin", "agency", "manager", "finance", "agent"];
+const ROLE_OPTIONS = ["admin", "agent"];
 const PAGE_SIZE = 10;
 
 function MembershipInner() {

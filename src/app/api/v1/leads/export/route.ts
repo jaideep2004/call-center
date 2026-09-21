@@ -1,12 +1,18 @@
-import { apiHandler } from "@/server/api-utils";
+import { apiHandler, fail } from "@/server/api-utils";
 import { query } from "@/server/db";
 import { NextResponse } from "next/server";
 import { toCsv } from "@/lib/csv";
 import { toExcelBuffer } from "@/lib/excel";
 
+export const runtime = "nodejs";
+
 export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
-  const format = url.searchParams.get("format") ?? "csv";
+  const formatRaw = (url.searchParams.get("format") ?? "csv").toLowerCase();
+  if (formatRaw !== "csv" && formatRaw !== "xlsx") {
+    return fail(`Unsupported export format "${formatRaw}". Use format=csv or format=xlsx`, 400) as unknown as NextResponse;
+  }
+  const format = formatRaw as "csv" | "xlsx";
   const search = url.searchParams.get("search");
   const status = url.searchParams.get("status");
   const source = url.searchParams.get("source");
@@ -14,14 +20,29 @@ export const GET = apiHandler(async (req, context) => {
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
 
-  const params: unknown[] = [context.agencyId];
-  const clauses: string[] = ["l.agency_id = $1"];
+  // Agency scoped — privileged admin without agencyId export
+  // across agencies (mirrors calls/export; previously agency_id=NULL matched
+  // zero rows, i.e. silently empty files).
+  const role = context.user?.role ?? "agent";
+  const isPrivileged = role === "admin";
+  if (!context.agencyId && !isPrivileged) {
+    return fail("Agency scope required", 403) as unknown as NextResponse;
+  }
+
+  const params: unknown[] = [];
+  const clauses: string[] = [];
+  if (context.agencyId) {
+    params.push(context.agencyId);
+    clauses.push(`l.agency_id = $${params.length}`);
+  }
   if (search) { params.push(`%${search}%`); clauses.push(`(l.email_hash LIKE $${params.length} OR l.phone_hash LIKE $${params.length})`); }
   if (status) { params.push(status); clauses.push(`l.status = $${params.length}`); }
   if (source) { params.push(source); clauses.push(`l.source = $${params.length}`); }
   if (assignedAgentId) { params.push(assignedAgentId); clauses.push(`l.assigned_agent_id = $${params.length}`); }
   if (startDate) { params.push(startDate); clauses.push(`l.created_at >= $${params.length}`); }
   if (endDate) { params.push(endDate); clauses.push(`l.created_at <= $${params.length}`); }
+
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
   const rows = await query<Record<string, unknown>>(`
     SELECT l.id, l.email_hash, l.phone_hash, l.source, l.status, l.assigned_agent_id, l.created_at,
@@ -31,7 +52,7 @@ export const GET = apiHandler(async (req, context) => {
     FROM app.leads l
     LEFT JOIN app.calls lc ON lc.id = l.call_id
     LEFT JOIN app.dispositions ld ON ld.call_id = lc.id
-    WHERE ${clauses.join(" AND ")}
+    ${where}
     ORDER BY l.created_at DESC
   `, params);
 

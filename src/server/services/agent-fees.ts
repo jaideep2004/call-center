@@ -1,5 +1,6 @@
 import { query, transaction } from "@/server/db";
 import { agentFees } from "@/server/repositories/agent-fees";
+import { sendWeeklyInvoice } from "@/server/services/invoice-delivery";
 
 interface FeeCandidate {
   id: string;
@@ -51,13 +52,15 @@ export async function generateMonthlyFees(dueDate: Date = new Date()): Promise<{
 
 /**
  * Weekly invoice generation (client Q6): every Monday, roll all fees due in
- * the last 7 days into ONE pending invoice per agency (call_id NULL). The
- * admin reviews the invoice and manually sends it to the agency.
- * Idempotent: fees already attached to an invoice are skipped.
+ * the last 7 days into ONE pending invoice per agency (call_id NULL), then
+ * email it to the agency head + active agents automatically.
+ * Idempotent: fees already attached to an invoice are skipped, and invoices
+ * already marked sent are never re-emailed (delivery failures retry next run).
  */
 export async function generateWeeklyInvoices(sinceDate: Date = new Date(Date.now() - 7 * 86400_000)): Promise<{
   invoices: number;
   feesIncluded: number;
+  emailsSent: number;
 }> {
   const since = sinceDate.toISOString().slice(0, 10);
   const dueFees = await query<{ id: string; agency_id: string; amount_cents: number }>(
@@ -77,7 +80,9 @@ export async function generateWeeklyInvoices(sinceDate: Date = new Date(Date.now
 
   let invoices = 0;
   let feesIncluded = 0;
+  let emailsSent = 0;
   for (const [agencyId, agg] of byAgency) {
+    let invoiceId: string | null = null;
     await transaction(async (client) => {
       const invoice = await client.query<{ id: string }>(
         `INSERT INTO app.invoices (agency_id, call_id, total_cents, currency, status)
@@ -90,9 +95,20 @@ export async function generateWeeklyInvoices(sinceDate: Date = new Date(Date.now
          WHERE id = ANY($1::uuid[]) AND invoice_id IS NULL`,
         [agg.ids, invoice.rows[0].id],
       );
+      invoiceId = invoice.rows[0].id;
       invoices++;
       feesIncluded += agg.ids.length;
     });
+    // Best-effort delivery next to invoice creation: a send failure never
+    // rolls back the invoice; the next run retries unsent invoices.
+    if (invoiceId) {
+      try {
+        const delivery = await sendWeeklyInvoice(invoiceId);
+        if (delivery.sent) emailsSent++;
+      } catch (e) {
+        console.warn(`[agent-fees] invoice delivery threw for ${invoiceId}:`, String(e).slice(0, 200));
+      }
+    }
   }
-  return { invoices, feesIncluded };
+  return { invoices, feesIncluded, emailsSent };
 }

@@ -26,10 +26,14 @@ function delta(values: number[]): { pct: number | null; dir: "up"|"down"|"flat" 
 }
 
 export default function DashboardPage(){
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending: sessionPending } = authClient.useSession();
   const user = session?.user;
-  const role = (user as { role?: string } | undefined)?.role;
-  const isAdmin = role === "admin" || role === "super_admin";
+  const clientRole = (user as { role?: string } | undefined)?.role;
+  // Server truth from /api/v1/me. role === null → skeleton, never a
+  // wrong-role first paint (previously admins briefly saw the agent console
+  // on login because the session role resolved first).
+  const [serverRole, setServerRole] = useState<string | null>(null);
+  const isAdmin = serverRole === "admin";
   const [summary,setSummary]=useState<Summary|null>(null);
   const [liveCalls,setLiveCalls]=useState<LiveCall[]>([]);
   const [loading,setLoading]=useState(true);
@@ -45,6 +49,23 @@ export default function DashboardPage(){
   const [walletCents,setWalletCents]=useState<number>(0);
 
   useEffect(()=>{
+    // Resolve the server role first; the dashboard data load below waits for
+    // it so it always runs exactly once with the correct role (no double
+    // fetch when a stale client role flips to the server truth).
+    fetch("/api/v1/me").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        if (body.data?.publisherId || body.data?.publisher?.id) setServerRole("publisher");
+        else setServerRole(body.data?.user?.role ?? clientRole ?? "agent");
+      } else {
+        setServerRole(clientRole ?? "agent");
+      }
+    }).catch(() => setServerRole(clientRole ?? "agent"));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(()=>{
+    // Wait for role resolution: no wrong-role first paint, single fetch.
+    if (serverRole === null) return;
     async function loadDashboard(){
       let recentUrl="/api/v1/calls?limit=5&sortBy=started_at&order=desc";
       let agentId: string | null = null;
@@ -103,7 +124,7 @@ export default function DashboardPage(){
     fetch("/api/v1/dispositions").then(async r=>{
       if(!r.ok) return; try{ const b=await r.json(); const rows: {outcome:string}[] = b.data ?? []; if(Array.isArray(rows)&&rows.length){ const m=new Map<string,number>(); for(const row of rows) m.set(row.outcome||"unknown",(m.get(row.outcome||"unknown")||0)+1); const arr=[...m.entries()].map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value).slice(0,6); setDispoData(arr); } else setDispoData([]);}catch{}
     }).catch(()=>{});
-  },[isAdmin]);
+  },[serverRole]);
 
   const greeting=(()=>{ const h=new Date().getHours(); if(h<12) return "Good morning"; if(h<18) return "Good afternoon"; return "Good evening"; })();
   const firstName=user?.name?.split(" ")[0] ?? "Operator";
@@ -153,7 +174,9 @@ export default function DashboardPage(){
   const agentAvgDur = avgDurSec ? `${String(Math.floor(avgDurSec/60)).padStart(2,"0")}:${String(avgDurSec%60).padStart(2,"0")}` : "—";
   const isAvailable = agentAvail === "available";
 
-  if(loading){
+  // Role unknown or data loading: skeleton only — never paint the agent
+  // console for an admin (login flash) or vice versa.
+  if(serverRole === null || loading || sessionPending){
     return (<div className="dashboard-page"><div className="stack" style={{gap:24}}><div className="skeleton skeleton-text" style={{width:200}}/><div className="skeleton skeleton-text" style={{width:320}}/><div className="metrics">{Array.from({length:4}).map((_,i)=><div key={i} className="skeleton skeleton-text" style={{height:100}}/>)}</div></div></div>);
   }
 

@@ -29,6 +29,7 @@ function AdminAgenciesInner() {
 
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState(urlStatus);
   const [searchInput, setSearchInput] = useState(urlQ);
   const [debouncedQ, setDebouncedQ] = useState(urlQ);
@@ -69,7 +70,7 @@ function AdminAgenciesInner() {
     syncUrl({ page: nextPage });
   };
 
-  useEffect(() => {
+  const loadAgencies = useCallback(() => {
     setLoading(true);
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
@@ -83,6 +84,30 @@ function AdminAgenciesInner() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [statusFilter]);
+
+  useEffect(() => {
+    loadAgencies();
+  }, [loadAgencies]);
+
+  async function handleDelete(e: React.MouseEvent, a: Agency) {
+    // Don't follow the row's navigation when the delete button is clicked.
+    e.stopPropagation();
+    if (!confirm(`Delete agency "${a.name}"? This soft-deletes it. Campaigns remain but the agency is hidden.`)) return;
+    setDeletingId(a.id);
+    try {
+      const res = await fetch(`/api/v1/agencies/${a.id}`, { method: "DELETE" });
+      if (res.ok || res.status === 204) {
+        showToast("Agency deleted", "success");
+        loadAgencies();
+      } else {
+        const b = await res.json().catch(() => ({ message: "Failed to delete" }));
+        showToast(b.message ?? "Failed to delete", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    }
+    setDeletingId(null);
+  }
 
   // Client-side search filter (name/slug) — additive, no API change
   const filtered = useMemo(() => {
@@ -156,6 +181,7 @@ function AdminAgenciesInner() {
                 <th>Currency</th>
                 <th>Recording Retention</th>
                 <th>Created</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -173,6 +199,16 @@ function AdminAgenciesInner() {
                   <td className="text-mono-sm">{a.currency}</td>
                   <td className="text-mono-sm">{a.recording_retention_days} days</td>
                   <td className="text-mono-sm">{new Date(a.created_at).toLocaleDateString()}</td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      disabled={deletingId === a.id}
+                      onClick={(e) => handleDelete(e, a)}
+                      aria-label={`Delete agency ${a.name}`}
+                    >
+                      {deletingId === a.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

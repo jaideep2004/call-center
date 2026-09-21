@@ -18,7 +18,7 @@ export class PhoneNumberRepository extends BaseRepository<PhoneNumberRow> {
 
   async findByE164(e164: string, client?: PoolClient): Promise<PhoneNumberRow | null> {
     return queryOne<PhoneNumberRow>(
-      "SELECT * FROM app.phone_numbers WHERE e164 = $1",
+      "SELECT * FROM app.phone_numbers WHERE e164 = $1 AND status = 'active'",
       [e164],
       client,
     );
@@ -26,7 +26,7 @@ export class PhoneNumberRepository extends BaseRepository<PhoneNumberRow> {
 
   async findByCampaign(campaignId: string, client?: PoolClient): Promise<PhoneNumberRow | null> {
     return queryOne<PhoneNumberRow>(
-      "SELECT * FROM app.phone_numbers WHERE campaign_id = $1 LIMIT 1",
+      "SELECT * FROM app.phone_numbers WHERE campaign_id = $1 AND status = 'active' LIMIT 1",
       [campaignId],
       client,
     );

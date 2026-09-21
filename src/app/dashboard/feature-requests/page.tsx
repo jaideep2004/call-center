@@ -34,8 +34,22 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function FeatureRequestsPage() {
   const { data: session } = authClient.useSession();
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  const isAdmin = role === "admin" || role === "super_admin";
+  const sessionRole = (session?.user as { role?: string } | undefined)?.role;
+  // Server truth from /api/v1/me (mirrors the dashboard layout: an explicit
+  // publisher linkage wins over a stale session role string).
+  const [serverRole, setServerRole] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        if (body.data?.publisherId || body.data?.publisher?.id) setServerRole("publisher");
+        else setServerRole(body.data?.user?.role ?? sessionRole ?? null);
+      } else {
+        setServerRole(sessionRole ?? null);
+      }
+    }).catch(() => setServerRole(sessionRole ?? null));
+  }, [sessionRole]);
+  const isAdmin = (serverRole ?? sessionRole) === "admin";
   const [requests, setRequests] = useState<FeatureRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"open" | "all">("open");
@@ -130,6 +144,9 @@ export default function FeatureRequestsPage() {
         </div>
       </div>
 
+      {/* Admin keeps the list + status management; the submit form is for
+          agents/publishers only. */}
+      {!isAdmin && (
       <section className="card" style={{ padding: "var(--space-6)", marginBottom: "var(--space-5)" }}>
         <h2 style={{ font: "500 18px var(--serif)", margin: "0 0 var(--space-4)", letterSpacing: "-0.03em" }}>Suggest a feature</h2>
         <form onSubmit={handleSubmit} className="stack" style={{ gap: "var(--space-3)" }}>
@@ -148,6 +165,7 @@ export default function FeatureRequestsPage() {
           </div>
         </form>
       </section>
+      )}
 
       <div className="filter-bar" style={{ marginBottom: "var(--space-4)" }}>
         <button className={`btn btn-sm ${tab === "open" ? "btn-primary" : "btn-secondary"}`} onClick={() => setTab("open")}>Open</button>

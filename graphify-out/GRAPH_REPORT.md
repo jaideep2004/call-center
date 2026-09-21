@@ -1,12 +1,12 @@
-# Graph Report - call-center  (2026-09-09)
+# Graph Report - call-center  (2026-09-21)
 
 ## Corpus Check
-- 441 files · ~619,816 words
+- 534 files · ~768,972 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1093 nodes · 1064 edges · 42 communities detected
-- Extraction: 76% EXTRACTED · 24% INFERRED · 0% AMBIGUOUS · INFERRED: 251 edges (avg confidence: 0.8)
+- 1294 nodes · 1253 edges · 47 communities detected
+- Extraction: 77% EXTRACTED · 23% INFERRED · 0% AMBIGUOUS · INFERRED: 291 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -24,289 +24,322 @@
 - [[_COMMUNITY_Community 11|Community 11]]
 - [[_COMMUNITY_Community 12|Community 12]]
 - [[_COMMUNITY_Community 13|Community 13]]
-- [[_COMMUNITY_Community 14|Community 14]]
 - [[_COMMUNITY_Community 15|Community 15]]
-- [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
 - [[_COMMUNITY_Community 19|Community 19]]
 - [[_COMMUNITY_Community 20|Community 20]]
 - [[_COMMUNITY_Community 21|Community 21]]
 - [[_COMMUNITY_Community 22|Community 22]]
 - [[_COMMUNITY_Community 23|Community 23]]
-- [[_COMMUNITY_Community 24|Community 24]]
+- [[_COMMUNITY_Community 25|Community 25]]
+- [[_COMMUNITY_Community 26|Community 26]]
 - [[_COMMUNITY_Community 27|Community 27]]
-- [[_COMMUNITY_Community 31|Community 31]]
-- [[_COMMUNITY_Community 32|Community 32]]
+- [[_COMMUNITY_Community 28|Community 28]]
+- [[_COMMUNITY_Community 30|Community 30]]
 - [[_COMMUNITY_Community 33|Community 33]]
-- [[_COMMUNITY_Community 34|Community 34]]
 - [[_COMMUNITY_Community 36|Community 36]]
-- [[_COMMUNITY_Community 37|Community 37]]
-- [[_COMMUNITY_Community 38|Community 38]]
 - [[_COMMUNITY_Community 39|Community 39]]
 - [[_COMMUNITY_Community 41|Community 41]]
+- [[_COMMUNITY_Community 42|Community 42]]
 - [[_COMMUNITY_Community 43|Community 43]]
-- [[_COMMUNITY_Community 47|Community 47]]
+- [[_COMMUNITY_Community 44|Community 44]]
+- [[_COMMUNITY_Community 45|Community 45]]
+- [[_COMMUNITY_Community 46|Community 46]]
+- [[_COMMUNITY_Community 48|Community 48]]
 - [[_COMMUNITY_Community 53|Community 53]]
-- [[_COMMUNITY_Community 56|Community 56]]
-- [[_COMMUNITY_Community 59|Community 59]]
-- [[_COMMUNITY_Community 61|Community 61]]
-- [[_COMMUNITY_Community 62|Community 62]]
-- [[_COMMUNITY_Community 66|Community 66]]
-- [[_COMMUNITY_Community 109|Community 109]]
+- [[_COMMUNITY_Community 60|Community 60]]
+- [[_COMMUNITY_Community 63|Community 63]]
+- [[_COMMUNITY_Community 64|Community 64]]
+- [[_COMMUNITY_Community 67|Community 67]]
+- [[_COMMUNITY_Community 70|Community 70]]
+- [[_COMMUNITY_Community 73|Community 73]]
+- [[_COMMUNITY_Community 74|Community 74]]
+- [[_COMMUNITY_Community 79|Community 79]]
+- [[_COMMUNITY_Community 145|Community 145]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `showToast()` - 88 edges
-2. `query()` - 49 edges
-3. `queryOne()` - 26 edges
-4. `getTelephonyProvider()` - 12 edges
-5. `refresh()` - 10 edges
-6. `CampaignRepository` - 10 edges
-7. `main()` - 9 edges
-8. `AgentRepository` - 9 edges
-9. `transaction()` - 8 edges
-10. `emailLayout()` - 8 edges
+1. `showToast()` - 99 edges
+2. `query()` - 59 edges
+3. `queryOne()` - 30 edges
+4. `refresh()` - 15 edges
+5. `getTelephonyProvider()` - 12 edges
+6. `emailLayout()` - 11 edges
+7. `AgentRepository` - 10 edges
+8. `CampaignRepository` - 10 edges
+9. `RtbReservationRepository` - 10 edges
+10. `main()` - 9 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `toggleStatus()` --calls--> `showToast()`  [INFERRED]
-  src\app\dashboard\admin\users\page.tsx → src\lib\use-toast.ts
-- `handleRecharge()` --calls--> `showToast()`  [INFERRED]
-  src\app\dashboard\wallet\page.tsx → src\lib\use-toast.ts
-- `handleTransfer()` --calls--> `showToast()`  [INFERRED]
-  src\app\dashboard\wallet\page.tsx → src\lib\use-toast.ts
-- `handleTopUp()` --calls--> `showToast()`  [INFERRED]
-  src\app\dashboard\wallet\agent\page.tsx → src\lib\use-toast.ts
-- `query()` --calls--> `acceptPortalInvite()`  [INFERRED]
-  src\server\db.ts → src\server\services\publisher-portal.ts
+- `toggleActive()` --calls--> `showToast()`  [INFERRED]
+  src\app\dashboard\admin\plans\page.tsx → src\lib\use-toast.ts
+- `deletePlan()` --calls--> `showToast()`  [INFERRED]
+  src\app\dashboard\admin\plans\page.tsx → src\lib\use-toast.ts
+- `updateApproval()` --calls--> `showToast()`  [INFERRED]
+  src\app\dashboard\agents\page.tsx → src\lib\use-toast.ts
+- `saveBid()` --calls--> `showToast()`  [INFERRED]
+  src\app\dashboard\campaigns\[id]\page.tsx → src\lib\use-toast.ts
+- `clearBid()` --calls--> `showToast()`  [INFERRED]
+  src\app\dashboard\campaigns\[id]\page.tsx → src\lib\use-toast.ts
 
 ## Communities
 
 ### Community 0 - "Community 0"
 Cohesion: 0.02
-Nodes (70): handleCreate(), updateApproval(), handleCreate(), removeSlot(), setBookingStatus(), toggleActive(), handleExport(), simulateCall() (+62 more)
+Nodes (87): handleCreate(), handleContactAdmin(), handleJoin(), handleTopUp(), refresh(), handleExport(), simulateCall(), buildContent() (+79 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.02
-Nodes (23): AgentSubscriptionRepository, CallEventRepository, listNotes(), findForAgency(), findForAgent(), findForCampaign(), replaceForCampaign(), LeadTagRepository (+15 more)
+Nodes (29): AgentSubscriptionRepository, CallEventRepository, listNotes(), findForAgency(), findForAgent(), findForCampaign(), replaceForCampaign(), createCreative() (+21 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.03
-Nodes (13): AffiliateRepository, AgencyRepository, AgentFeeRepository, AgentRepository, BidOverrideRepository, CallRepository, CmsSectionRepository, MembershipRepository (+5 more)
+Nodes (13): AffiliateRepository, AgentFeeRepository, BidOverrideRepository, CallRepository, CmsSectionRepository, PaymentRepository, PhoneNumberRepository, PublisherInviteRepository (+5 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.05
-Nodes (21): handleTopUp(), refresh(), buildContent(), createSection(), save(), toggleActive(), handleConfirm(), handleTabChange() (+13 more)
+Nodes (35): selectAgent(), decodeClientState(), publishCallEvent(), main(), getRealDid(), main(), getDid(), main() (+27 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.08
-Nodes (20): selectAgent(), publishCallEvent(), main(), getTelephonyProvider(), calculateBilling(), expireRingingCalls(), requeueStuckRoutingCalls(), runCallMaintenance() (+12 more)
+Nodes (18): hashPhone(), normalizeE164(), GET(), POST(), allocationForAgent(), creditPool(), effectiveBalanceSql(), getOrCreatePool() (+10 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.09
-Nodes (22): hashPhone(), normalizeE164(), decodeClientState(), GET(), POST(), getRealDid(), main(), getDid() (+14 more)
+Cohesion: 0.14
+Nodes (19): getTransport(), sendEmail(), smtpConfigured(), agencyInviteEmail(), appBaseUrl(), ctaButton(), emailLayout(), escapeHtml() (+11 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.15
-Nodes (16): configured(), hashPhone(), request(), requireEnv(), RetreaverError, handleRetreaverWebhook(), linkPair(), linkRetreaverCalls() (+8 more)
+Cohesion: 0.09
+Nodes (9): apiHandler(), clearAuthCache(), publicApiHandler(), requireHeadOr(), requirePermission(), resolveAuth(), canAccessRoute(), hasPermission() (+1 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.16
-Nodes (13): main(), decryptSecret(), encryptSecret(), key(), getStripe(), getStripeStatus(), getWebhookSecret(), invalidateStripeCache() (+5 more)
+Cohesion: 0.11
+Nodes (16): uploadRequest(), main(), decryptSecret(), encryptSecret(), key(), getStripe(), getStripeStatus(), getWebhookSecret() (+8 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.14
-Nodes (7): addNote(), addTag(), deleteLead(), fetchData(), removeTag(), updateStatus(), SupportTicketRepository
+Nodes (16): configured(), hashPhone(), request(), requireEnv(), RetreaverError, handleRetreaverWebhook(), linkPair(), linkRetreaverCalls() (+8 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.14
-Nodes (5): apiHandler(), publicApiHandler(), requirePermission(), canAccessRoute(), hasPermission()
+Nodes (7): addNote(), addTag(), deleteLead(), fetchData(), removeTag(), updateStatus(), SupportTicketRepository
 
 ### Community 10 - "Community 10"
 Cohesion: 0.14
-Nodes (2): CampaignRepository, q()
+Nodes (13): handleConfirm(), handleTabChange(), clearBid(), deployToRetreaver(), handleRename(), loadRetreaverNumbers(), saveAssignments(), saveBid() (+5 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.24
-Nodes (11): getTransport(), sendEmail(), agencyInviteEmail(), ctaButton(), emailLayout(), escapeHtml(), publisherInviteEmail(), resetPasswordEmail() (+3 more)
+Cohesion: 0.14
+Nodes (2): CampaignRepository, q()
 
 ### Community 12 - "Community 12"
+Cohesion: 0.15
+Nodes (4): canContinueStep1(), handleContinue(), handleCreateVertical(), handleSubmit()
+
+### Community 13 - "Community 13"
 Cohesion: 0.13
 Nodes (7): AppError, AuthError, ConflictError, ForbiddenError, NotFoundError, RateLimitError, ValidationError
 
-### Community 13 - "Community 13"
-Cohesion: 0.15
-Nodes (3): canContinueStep1(), handleContinue(), handleSubmit()
-
-### Community 14 - "Community 14"
+### Community 15 - "Community 15"
 Cohesion: 0.17
 Nodes (2): LeadRepository, leadStatusForOutcome()
 
-### Community 15 - "Community 15"
+### Community 16 - "Community 16"
 Cohesion: 0.35
 Nodes (9): ensureRedis(), findAvailablePort(), killAll(), main(), removeEnvLocal(), resolveDbHost(), startGateway(), startOnPort() (+1 more)
 
-### Community 18 - "Community 18"
-Cohesion: 0.24
-Nodes (4): GET(), POST(), unavailable(), clientIp()
+### Community 17 - "Community 17"
+Cohesion: 0.22
+Nodes (1): AgentRepository
 
 ### Community 19 - "Community 19"
 Cohesion: 0.22
 Nodes (2): getClient(), requireEnv()
 
 ### Community 20 - "Community 20"
-Cohesion: 0.25
-Nodes (4): handleRefresh(), fetchData(), handleRecharge(), handleTransfer()
+Cohesion: 0.24
+Nodes (4): GET(), POST(), unavailable(), clientIp()
 
 ### Community 21 - "Community 21"
 Cohesion: 0.36
-Nodes (4): enumerate(), onChange(), startMic(), stopMic()
+Nodes (7): getAppBaseUrl(), campaignCid(), deployCampaign(), getCampaignRetreaverNumbers(), retreaverConfigured(), retreaverWebhookUrl(), syncRetreaverCampaigns()
 
 ### Community 22 - "Community 22"
+Cohesion: 0.25
+Nodes (1): AgencyRepository
+
+### Community 23 - "Community 23"
+Cohesion: 0.25
+Nodes (1): MembershipRepository
+
+### Community 25 - "Community 25"
+Cohesion: 0.38
+Nodes (6): deletePlan(), featuresFromPlan(), featuresToRecord(), handleSave(), openEditForm(), toggleActive()
+
+### Community 26 - "Community 26"
+Cohesion: 0.38
+Nodes (3): enumerate(), onChange(), startMic()
+
+### Community 27 - "Community 27"
 Cohesion: 0.52
 Nodes (6): create(), findById(), findMany(), fullTable(), softDelete(), update()
 
-### Community 23 - "Community 23"
+### Community 28 - "Community 28"
 Cohesion: 0.29
-Nodes (1): acceptPortalInvite()
+Nodes (1): ScriptRepository
 
-### Community 24 - "Community 24"
-Cohesion: 0.52
-Nodes (6): campaignCid(), deployCampaign(), getCampaignRetreaverNumbers(), retreaverConfigured(), retreaverWebhookUrl(), syncRetreaverCampaigns()
+### Community 30 - "Community 30"
+Cohesion: 0.53
+Nodes (4): getYoutubeId(), isYoutubeUrl(), tutorialArtwork(), youtubeThumb()
 
-### Community 27 - "Community 27"
+### Community 33 - "Community 33"
 Cohesion: 0.6
 Nodes (3): isAuthPath(), isStaticAsset(), proxy()
 
-### Community 31 - "Community 31"
+### Community 36 - "Community 36"
 Cohesion: 0.5
 Nodes (2): assertTransition(), canTransition()
 
-### Community 32 - "Community 32"
+### Community 39 - "Community 39"
 Cohesion: 0.4
 Nodes (1): InvoiceRepository
 
-### Community 33 - "Community 33"
-Cohesion: 0.5
-Nodes (1): SystemSettingRepository
-
-### Community 34 - "Community 34"
-Cohesion: 0.4
-Nodes (1): TutorialRepository
-
-### Community 36 - "Community 36"
+### Community 41 - "Community 41"
 Cohesion: 0.83
 Nodes (3): apiGet(), main(), signIn()
 
-### Community 37 - "Community 37"
+### Community 42 - "Community 42"
 Cohesion: 0.67
 Nodes (2): getDid(), main()
 
-### Community 38 - "Community 38"
+### Community 43 - "Community 43"
 Cohesion: 0.5
 Nodes (1): scopeFor()
 
-### Community 39 - "Community 39"
+### Community 44 - "Community 44"
+Cohesion: 0.5
+Nodes (1): updateApproval()
+
+### Community 45 - "Community 45"
 Cohesion: 0.5
 Nodes (2): CanAccess(), usePermission()
 
-### Community 41 - "Community 41"
+### Community 46 - "Community 46"
 Cohesion: 0.5
 Nodes (1): DispositionPayoutRepository
 
-### Community 43 - "Community 43"
+### Community 48 - "Community 48"
 Cohesion: 0.5
 Nodes (1): RetreaverError
 
-### Community 47 - "Community 47"
+### Community 53 - "Community 53"
 Cohesion: 0.67
 Nodes (1): isAdmin()
 
-### Community 53 - "Community 53"
+### Community 60 - "Community 60"
+Cohesion: 1.0
+Nodes (2): handleTimeUpdate(), sendProgress()
+
+### Community 63 - "Community 63"
+Cohesion: 1.0
+Nodes (2): Sparkline(), useReducedMotion()
+
+### Community 64 - "Community 64"
 Cohesion: 1.0
 Nodes (2): xAt(), yAt()
 
-### Community 56 - "Community 56"
+### Community 67 - "Community 67"
 Cohesion: 1.0
 Nodes (2): assertSpendableBalance(), walletBalance()
 
-### Community 59 - "Community 59"
+### Community 70 - "Community 70"
 Cohesion: 1.0
 Nodes (2): findBetterAuthMigration(), seed()
 
-### Community 61 - "Community 61"
+### Community 73 - "Community 73"
 Cohesion: 0.67
 Nodes (1): AgentPlanRepository
 
-### Community 62 - "Community 62"
+### Community 74 - "Community 74"
 Cohesion: 0.67
 Nodes (1): FeatureRequestRepository
 
-### Community 66 - "Community 66"
+### Community 79 - "Community 79"
 Cohesion: 0.67
 Nodes (1): RetreaverError
 
-### Community 109 - "Community 109"
+### Community 145 - "Community 145"
 Cohesion: 1.0
 Nodes (1): LeadNoteRepository
 
 ## Knowledge Gaps
 - **1 isolated node(s):** `LeadNoteRepository`
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Community 10`** (16 nodes): `CampaignRepository`, `.create()`, `.findById()`, `.findByPublisher()`, `.findByRetreaverCid()`, `.findMany()`, `.findManyWithBid()`, `.getPublisherIds()`, `.linkRetreaverCid()`, `.setPublisherIds()`, `live-role-play.js`, `ok()`, `q()`, `q1()`, `section()`, `campaigns.ts`
+- **Thin community `Community 11`** (16 nodes): `CampaignRepository`, `.create()`, `.findById()`, `.findByPublisher()`, `.findByRetreaverCid()`, `.findMany()`, `.findManyWithBid()`, `.getPublisherIds()`, `.linkRetreaverCid()`, `.setPublisherIds()`, `live-role-play.js`, `ok()`, `q()`, `q1()`, `section()`, `campaigns.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 14`** (12 nodes): `LeadRepository`, `.assign()`, `.create()`, `.createFromCall()`, `.findById()`, `.findMany()`, `.findManyWithFilters()`, `.getDistinctSources()`, `isQualifiedOutcome()`, `leadStatusForOutcome()`, `constants.ts`, `leads.ts`
+- **Thin community `Community 15`** (12 nodes): `LeadRepository`, `.assign()`, `.create()`, `.createFromCall()`, `.findById()`, `.findMany()`, `.findManyWithFilters()`, `.getDistinctSources()`, `isQualifiedOutcome()`, `leadStatusForOutcome()`, `constants.ts`, `leads.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 17`** (11 nodes): `AgentRepository`, `.create()`, `.findAvailable()`, `.findById()`, `.findByIdWithUser()`, `.findByMembershipId()`, `.findMany()`, `.update()`, `.updateApproval()`, `.updateAvailability()`, `agents.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 19`** (10 nodes): `getClient()`, `getEventId()`, `getFromField()`, `getOccurredAt()`, `getToField()`, `keyToPem()`, `requireEnv()`, `resolveCallControlId()`, `resolveEventType()`, `telnyx.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 23`** (7 nodes): `acceptPortalInvite()`, `createPortalInvite()`, `getPortalCalls()`, `getPortalOverview()`, `getPortalPayouts()`, `getPublisherForUser()`, `publisher-portal.ts`
+- **Thin community `Community 22`** (8 nodes): `agency_wallet_enabled()`, `AgencyRepository`, `.create()`, `.findById()`, `.findBySlug()`, `.findMany()`, `.update()`, `agencies.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 31`** (5 nodes): `assertTransition()`, `canTransition()`, `isQualifiedCall()`, `isTerminal()`, `calls.ts`
+- **Thin community `Community 23`** (8 nodes): `MembershipRepository`, `.create()`, `.findById()`, `.findByUser()`, `.findByUserAndAgency()`, `.updateRole()`, `.updateStatus()`, `memberships.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 32`** (5 nodes): `InvoiceRepository`, `.create()`, `.findById()`, `.findMany()`, `invoices.ts`
+- **Thin community `Community 28`** (7 nodes): `ScriptRepository`, `.create()`, `.findByAgency()`, `.findScriptsForCampaign()`, `.findUnbound()`, `.update()`, `scripts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 33`** (5 nodes): `SystemSettingRepository`, `.get()`, `.getBoolean()`, `.set()`, `system-settings.ts`
+- **Thin community `Community 36`** (5 nodes): `assertTransition()`, `canTransition()`, `isQualifiedCall()`, `isTerminal()`, `calls.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 34`** (5 nodes): `TutorialRepository`, `.create()`, `.findByAgency()`, `.update()`, `tutorials.ts`
+- **Thin community `Community 39`** (5 nodes): `InvoiceRepository`, `.create()`, `.findById()`, `.findMany()`, `invoices.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (4 nodes): `getDid()`, `main()`, `snapshot()`, `live-monitor.ts`
+- **Thin community `Community 42`** (4 nodes): `getDid()`, `main()`, `snapshot()`, `live-monitor.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (4 nodes): `scopeFor()`, `route.ts`, `route.ts`, `route.ts`
+- **Thin community `Community 43`** (4 nodes): `scopeFor()`, `route.ts`, `route.ts`, `route.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 39`** (4 nodes): `CanAccess()`, `usePermission()`, `can-access.tsx`, `use-permission.ts`
+- **Thin community `Community 44`** (4 nodes): `badgeClass()`, `toggleSelect()`, `updateApproval()`, `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 41`** (4 nodes): `DispositionPayoutRepository`, `.findByAgency()`, `.upsert()`, `disposition-payouts.ts`
+- **Thin community `Community 45`** (4 nodes): `CanAccess()`, `usePermission()`, `can-access.tsx`, `use-permission.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 43`** (4 nodes): `call()`, `RetreaverError`, `.constructor()`, `phase5.test.ts`
+- **Thin community `Community 46`** (4 nodes): `DispositionPayoutRepository`, `.findByAgency()`, `.upsert()`, `disposition-payouts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 47`** (3 nodes): `isAdmin()`, `route.ts`, `route.ts`
+- **Thin community `Community 48`** (4 nodes): `call()`, `RetreaverError`, `.constructor()`, `phase5.test.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 53`** (3 nodes): `xAt()`, `yAt()`, `Analytics.tsx`
+- **Thin community `Community 53`** (3 nodes): `isAdmin()`, `route.ts`, `route.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 56`** (3 nodes): `assertSpendableBalance()`, `walletBalance()`, `ledger.ts`
+- **Thin community `Community 60`** (3 nodes): `page.tsx`, `handleTimeUpdate()`, `sendProgress()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 59`** (3 nodes): `findBetterAuthMigration()`, `seed()`, `seed.ts`
+- **Thin community `Community 63`** (3 nodes): `Sparkline()`, `useReducedMotion()`, `sparkline.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 61`** (3 nodes): `AgentPlanRepository`, `.findByAgency()`, `agent-plans.ts`
+- **Thin community `Community 64`** (3 nodes): `xAt()`, `yAt()`, `Analytics.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 62`** (3 nodes): `FeatureRequestRepository`, `.incrementVotes()`, `feature-requests.ts`
+- **Thin community `Community 67`** (3 nodes): `assertSpendableBalance()`, `walletBalance()`, `ledger.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 66`** (3 nodes): `RetreaverError`, `.constructor()`, `retreaver-campaigns.test.ts`
+- **Thin community `Community 70`** (3 nodes): `findBetterAuthMigration()`, `seed()`, `seed.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 109`** (2 nodes): `LeadNoteRepository`, `lead-notes.ts`
+- **Thin community `Community 73`** (3 nodes): `AgentPlanRepository`, `.findByAgency()`, `agent-plans.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 74`** (3 nodes): `FeatureRequestRepository`, `.incrementVotes()`, `feature-requests.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 79`** (3 nodes): `RetreaverError`, `.constructor()`, `retreaver-campaigns.test.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 145`** (2 nodes): `LeadNoteRepository`, `lead-notes.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `showToast()` connect `Community 0` to `Community 8`, `Community 3`, `Community 20`, `Community 13`?**
-  _High betweenness centrality (0.117) - this node is a cross-community bridge._
-- **Why does `query()` connect `Community 1` to `Community 33`, `Community 2`, `Community 3`, `Community 8`, `Community 10`, `Community 23`?**
-  _High betweenness centrality (0.094) - this node is a cross-community bridge._
-- **Why does `updateStatus()` connect `Community 8` to `Community 0`?**
-  _High betweenness centrality (0.088) - this node is a cross-community bridge._
-- **Are the 87 inferred relationships involving `showToast()` (e.g. with `handleSubmit()` and `handleSubmit()`) actually correct?**
-  _`showToast()` has 87 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 47 inferred relationships involving `query()` (e.g. with `.findMany()` and `.updateEarned()`) actually correct?**
-  _`query()` has 47 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 25 inferred relationships involving `queryOne()` (e.g. with `.findByAgentId()` and `.findByCode()`) actually correct?**
-  _`queryOne()` has 25 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 11 inferred relationships involving `getTelephonyProvider()` (e.g. with `POST()` and `requeueStuckRoutingCalls()`) actually correct?**
-  _`getTelephonyProvider()` has 11 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `showToast()` connect `Community 0` to `Community 9`, `Community 10`, `Community 12`, `Community 44`, `Community 25`?**
+  _High betweenness centrality (0.147) - this node is a cross-community bridge._
+- **Why does `updateStatus()` connect `Community 9` to `Community 0`?**
+  _High betweenness centrality (0.113) - this node is a cross-community bridge._
+- **Why does `query()` connect `Community 1` to `Community 2`, `Community 4`, `Community 5`, `Community 6`, `Community 9`, `Community 11`, `Community 17`, `Community 23`, `Community 28`?**
+  _High betweenness centrality (0.111) - this node is a cross-community bridge._
+- **Are the 98 inferred relationships involving `showToast()` (e.g. with `handleSubmit()` and `handleSubmit()`) actually correct?**
+  _`showToast()` has 98 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 57 inferred relationships involving `query()` (e.g. with `main()` and `resolveAuth()`) actually correct?**
+  _`query()` has 57 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 29 inferred relationships involving `queryOne()` (e.g. with `main()` and `.findByAgentId()`) actually correct?**
+  _`queryOne()` has 29 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 14 inferred relationships involving `refresh()` (e.g. with `ensureSection()` and `save()`) actually correct?**
+  _`refresh()` has 14 INFERRED edges - model-reasoned connections that need verification._

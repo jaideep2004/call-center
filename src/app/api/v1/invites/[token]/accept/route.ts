@@ -8,7 +8,12 @@ export const POST = apiHandler(async (req, { params, user }) => {
 
   const invite = await recruitmentInvites.findByToken(token);
   if (!invite) {
-    const publisherResult = await acceptPortalInvite(token, user.id);
+    // Publisher-portal invite. `switch: true` = explicit "leave my agency
+    // and link as publisher" confirmation from the UI (Phase 2.1).
+    const body = await req.json().catch(() => ({}));
+    const publisherResult = await acceptPortalInvite(token, user.id, {
+      switchFromAgency: (body as { switch?: unknown })?.switch === true,
+    });
     return ok(publisherResult, "Publisher portal activated");
   }
   if (invite.status !== "pending") return fail("Invite already used", 410);

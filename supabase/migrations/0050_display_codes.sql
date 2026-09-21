@@ -32,12 +32,13 @@ UPDATE app.publishers SET display_code = 'PB-' || LPAD(numbered.rn::text, 4, '0'
 WITH numbered AS (SELECT id, row_number() OVER (ORDER BY created_at) as rn FROM app.invoices WHERE display_code IS NULL)
 UPDATE app.invoices SET display_code = 'IN-' || LPAD(numbered.rn::text, 4, '0') FROM numbered WHERE invoices.id = numbered.id;
 
--- sequences continue past the backfilled max
-SELECT setval('app.agency_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.agencies WHERE display_code ~ '^AC-[0-9]+$'), 0));
-SELECT setval('app.campaign_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.campaigns WHERE display_code ~ '^CA-[0-9]+$'), 0));
-SELECT setval('app.call_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.calls WHERE display_code ~ '^CL-[0-9]+$'), 0));
-SELECT setval('app.publisher_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.publishers WHERE display_code ~ '^PB-[0-9]+$'), 0));
-SELECT setval('app.invoice_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.invoices WHERE display_code ~ '^IN-[0-9]+$'), 0));
+-- sequences continue past the backfilled max (+1 with is_called=false so empty
+-- tables start at 1 instead of failing setval with 0)
+SELECT setval('app.agency_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.agencies WHERE display_code ~ '^AC-[0-9]+$'), 0) + 1, false);
+SELECT setval('app.campaign_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.campaigns WHERE display_code ~ '^CA-[0-9]+$'), 0) + 1, false);
+SELECT setval('app.call_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.calls WHERE display_code ~ '^CL-[0-9]+$'), 0) + 1, false);
+SELECT setval('app.publisher_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.publishers WHERE display_code ~ '^PB-[0-9]+$'), 0) + 1, false);
+SELECT setval('app.invoice_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.invoices WHERE display_code ~ '^IN-[0-9]+$'), 0) + 1, false);
 
 -- defaults for future inserts (column omitted => DB assigns; repos must not send NULL)
 ALTER TABLE app.agencies ALTER COLUMN display_code SET DEFAULT ('AC-' || LPAD(nextval('app.agency_code_seq')::text, 4, '0'));
@@ -50,5 +51,5 @@ ALTER TABLE app.invoices ALTER COLUMN display_code SET DEFAULT ('IN-' || LPAD(ne
 UPDATE app.agents SET display_code = 'AG-' || LPAD(substring(display_code FROM 3), 4, '0') WHERE display_code ~ '^CC[0-9]+$';
 WITH numbered AS (SELECT id, row_number() OVER (ORDER BY id) as rn FROM app.agents WHERE display_code IS NULL)
 UPDATE app.agents SET display_code = 'AG-' || LPAD(numbered.rn::text, 4, '0') FROM numbered WHERE agents.id = numbered.id;
-SELECT setval('app.agent_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.agents WHERE display_code ~ '^AG-[0-9]+$'), 0));
+SELECT setval('app.agent_code_seq', COALESCE((SELECT MAX(CAST(substring(display_code FROM 4) AS int)) FROM app.agents WHERE display_code ~ '^AG-[0-9]+$'), 0) + 1, false);
 ALTER TABLE app.agents ALTER COLUMN display_code SET DEFAULT ('AG-' || LPAD(nextval('app.agent_code_seq')::text, 4, '0'));

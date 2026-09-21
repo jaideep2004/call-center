@@ -13,7 +13,7 @@ import { query } from "@/server/db";
 import { getPortalPayouts } from "@/server/services/publisher-portal";
 import { toCsv } from "@/lib/csv";
 
-describe("finance", () => {
+describe("revenue and publisher payouts", () => {
   beforeEach(() => {
     vi.mocked(query).mockReset();
     vi.mocked(toCsv).mockClear();

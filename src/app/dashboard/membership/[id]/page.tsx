@@ -12,11 +12,7 @@ interface MembershipDetail {
 }
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  super_admin: ["Full access to all resources and settings", "Can manage agencies, users, and billing"],
-  admin: ["Full access to agency resources", "Can manage members, settings, and reports"],
-  agency: ["Full access to agency operations", "Can manage agents, leads, calls, wallet"],
-  manager: ["View agents and monitor calls", "Assign leads, view reports"],
-  finance: ["View wallet, revenue, calls, and reports"],
+  admin: ["Full platform access", "Can manage agencies, users, and billing"],
   agent: ["View leads and calls", "Recharge wallet, manage affiliate settings"],
 };
 

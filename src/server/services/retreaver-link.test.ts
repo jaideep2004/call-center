@@ -9,7 +9,7 @@ vi.mock("@/server/db", () => ({
   pool: { query: poolQueryMock },
 }));
 
-const { tryLinkRetreaverCall, linkRetreaverCalls } = await import("@/server/services/retreaver-link");
+const { tryLinkRetreaverCall, linkRetreaverCalls, backfillAttribution } = await import("@/server/services/retreaver-link");
 
 describe("normalizeE164 / hashPhone", () => {
   it("normalizes common US formats to the same E.164", () => {
@@ -35,6 +35,7 @@ describe("tryLinkRetreaverCall (opportunistic)", () => {
     poolQueryMock.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "call-1" }] });
     poolQueryMock.mockResolvedValueOnce({ rowCount: 1, rows: [] });
     poolQueryMock.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    poolQueryMock.mockResolvedValueOnce({ rowCount: 1, rows: [] });
 
     const linked = await tryLinkRetreaverCall({
       retreaverId: "retr-1",
@@ -44,7 +45,7 @@ describe("tryLinkRetreaverCall (opportunistic)", () => {
     });
 
     expect(linked).toBe(true);
-    expect(poolQueryMock).toHaveBeenCalledTimes(3);
+    expect(poolQueryMock).toHaveBeenCalledTimes(4);
     // Matching query uses the pgcrypto digest comparison + 5-min window.
     expect(poolQueryMock.mock.calls[0][0]).toContain("encode(digest(c.to_number, 'sha256'), 'hex')");
     // Both link directions written.
@@ -52,6 +53,9 @@ describe("tryLinkRetreaverCall (opportunistic)", () => {
     expect(poolQueryMock.mock.calls[1][1]).toEqual(["call-1", "retr-1"]);
     expect(poolQueryMock.mock.calls[2][0]).toContain("UPDATE app.calls SET retreaver_call_id");
     expect(poolQueryMock.mock.calls[2][1]).toEqual(["retr-1", "call-1"]);
+    // Phase 2.2: campaign backfill from the authoritative app call.
+    expect(poolQueryMock.mock.calls[3][0]).toContain("r.campaign_id IS NULL");
+    expect(poolQueryMock.mock.calls[3][1]).toEqual(["retr-1", "call-1"]);
   });
 
   it("returns false when no app call matches", async () => {
@@ -131,5 +135,24 @@ describe("linkRetreaverCalls (reconciliation)", () => {
 
     expect(linked).toBe(0);
     expect(poolQueryMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("backfillAttribution (Phase 2.2 repair sweep)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("re-resolves NULL publisher by afid and NULL campaign by cid", async () => {
+    poolQueryMock.mockResolvedValueOnce({ rowCount: 3, rows: [] });
+    poolQueryMock.mockResolvedValueOnce({ rowCount: 2, rows: [] });
+
+    const result = await backfillAttribution(7);
+
+    expect(result).toEqual({ publishers: 3, campaigns: 2 });
+    expect(poolQueryMock.mock.calls[0][0]).toContain("r.publisher_id IS NULL");
+    expect(poolQueryMock.mock.calls[0][0]).toContain("raw_redacted->>'afid'");
+    expect(poolQueryMock.mock.calls[0][1]).toEqual([7]);
+    expect(poolQueryMock.mock.calls[1][0]).toContain("r.campaign_id IS NULL");
+    expect(poolQueryMock.mock.calls[1][0]).toContain("raw_redacted->>'cid'");
+    expect(poolQueryMock.mock.calls[1][1]).toEqual([7]);
   });
 });

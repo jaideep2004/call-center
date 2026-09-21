@@ -33,7 +33,11 @@ export async function POST(request: Request) {
       if (payment.status === "completed") return NextResponse.json({ received: true });
 
       const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : "";
-      const amountCents = session.amount_total ?? payment.amount_cents;
+      // Phase 4 (point 3): credit the NET amount (payment.amount_cents).
+      // session.amount_total is the gross (credit + 3% fee) — crediting it
+      // would mint the fee into the wallet. Legacy rows (fee_cents=0) have
+      // amount_cents == amount_total, so behavior there is unchanged.
+      const amountCents = payment.amount_cents;
 
       await payments.markCompleted(payment.id, paymentIntentId);
 
@@ -54,7 +58,11 @@ export async function POST(request: Request) {
       if (payment.status === "completed") return NextResponse.json({ received: true });
 
       const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : "";
-      const amountCents = session.amount_total ?? payment.amount_cents;
+      // Phase 4 (point 3): credit the NET amount (payment.amount_cents).
+      // session.amount_total is the gross (credit + 3% fee) — crediting it
+      // would mint the fee into the wallet. Legacy rows (fee_cents=0) have
+      // amount_cents == amount_total, so behavior there is unchanged.
+      const amountCents = payment.amount_cents;
 
       await payments.markCompleted(payment.id, paymentIntentId);
 
@@ -105,7 +113,11 @@ export async function POST(request: Request) {
       if (payment.status === "completed") return NextResponse.json({ received: true });
 
       const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : "";
-      const amountCents = session.amount_total ?? payment.amount_cents;
+      // Phase 4 (point 3): credit the NET amount (payment.amount_cents).
+      // session.amount_total is the gross (credit + 3% fee) — crediting it
+      // would mint the fee into the wallet. Legacy rows (fee_cents=0) have
+      // amount_cents == amount_total, so behavior there is unchanged.
+      const amountCents = payment.amount_cents;
 
       await payments.markCompleted(payment.id, paymentIntentId);
 

@@ -169,7 +169,7 @@ export async function syncRetreaverCalls(options: { maxPages?: number; sinceDays
         callerHash,
         dialedHash,
         startTime,
-        raw: { caller_zip: call.caller_zip, caller_state: call.caller_state, caller_city: call.caller_city, cid: call.cid, sid: call.sid },
+        raw: { caller_zip: call.caller_zip, caller_state: call.caller_state, caller_city: call.caller_city, afid: call.afid, cid: call.cid, sid: call.sid },
       });
       stored++;
       // Opportunistic link — the app call may already be in the DB. Anything
@@ -249,7 +249,7 @@ export async function handleRetreaverWebhook(req: Request): Promise<{ stored: bo
     callerHash,
     dialedHash,
     startTime,
-    raw: { caller_zip: call.caller_zip, caller_state: call.caller_state, caller_city: call.caller_city, cid: call.cid, sid: call.sid },
+    raw: { caller_zip: call.caller_zip, caller_state: call.caller_state, caller_city: call.caller_city, afid: call.afid, cid: call.cid, sid: call.sid },
   });
   if (storedRow && callerHash && dialedHash && startTime) {
     await tryLinkRetreaverCall({ retreaverId: storedRow.id, callerHash, dialedHash, startTime }).catch(() => undefined);

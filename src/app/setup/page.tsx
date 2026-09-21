@@ -20,11 +20,11 @@ export default function SetupPage() {
       const res = await fetch("/api/v1/setup/make-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id, role: "super_admin" }),
+        body: JSON.stringify({ user_id: user.id, role: "admin" }),
       });
       const json = await res.json();
       if (json.success) {
-        setResult({ ok: true, message: "Promoted to Super Admin! Redirecting to dashboard..." });
+        setResult({ ok: true, message: "Promoted to Admin! Redirecting to dashboard..." });
         setTimeout(() => router.push("/dashboard"), 1500);
       } else {
         setResult({ ok: false, message: json.message ?? "Failed to promote" });

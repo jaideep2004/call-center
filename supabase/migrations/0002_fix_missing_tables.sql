@@ -12,4 +12,12 @@ create table if not exists app.affiliates (
 );
 
 alter table app.affiliates enable row level security;
-create policy agency_isolation on app.affiliates using (true) with check (true);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies where schemaname = 'app' and tablename = 'affiliates' and policyname = 'agency_isolation'
+  ) then
+    create policy agency_isolation on app.affiliates using (true) with check (true);
+  end if;
+end
+$$;

@@ -1,8 +1,9 @@
-import { apiHandler, ok, noContent, fail } from "@/server/api-utils";
+import { apiHandler, ok, noContent, fail, requireHeadOr } from "@/server/api-utils";
 import { agents } from "@/server/repositories";
 import { validate, updateAgentSchema, updateOwnAgentSchema } from "@/server/validate";
 import { hasPermission } from "@/server/services/permission-data";
 import { assertValidSkills } from "@/server/services/skills.service";
+import { sendAgentApproved } from "@/server/services/action-emails";
 import { queryOne } from "@/server/db";
 
 export const GET = apiHandler(async (req, { params }) => {
@@ -11,9 +12,11 @@ export const GET = apiHandler(async (req, { params }) => {
   return ok(agent);
 }, { resource: "agents", action: "view" });
 
-export const PATCH = apiHandler(async (req, { params, user, membership, agencyId }) => {
+export const PATCH = apiHandler(async (req, { params, user, membership, agencyId, isHead }) => {
   const { id } = await params;
-  const canManage = Boolean(user && hasPermission(user.role as any, "agents", "manage"));
+  // Phase 5: heads manage agents in their own agency (scoped update below);
+  // platform admins keep matrix rights; everyone else is self-edit only.
+  const canManage = Boolean(isHead || (user && hasPermission(user.role as any, "agents", "manage")));
   if (!canManage) {
     const agent = await queryOne<{ membership_id: string }>("SELECT membership_id FROM app.agents WHERE id = $1", [id]);
     if (!agent || !membership || agent.membership_id !== membership.id) {
@@ -28,15 +31,20 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
     body.skills = await assertValidSkills(body.skills);
   }
   const agent = await agents.update(id, body, agencyId ?? undefined);
+  // Best-effort approval email + inbox row (never blocks the update).
+  if (body.approval_status === "approved") {
+    void sendAgentApproved({ agencyId: agencyId ?? "", agentId: id });
+  }
   return ok(agent, "Agent updated");
 }, { resource: "agents", action: "update" });
 
-export const DELETE = apiHandler(async (req, { params, agencyId, user }) => {
-  const { id } = await params;
-  const scope = agencyId ?? undefined;
-  if (!scope && !["super_admin", "admin"].includes(user?.role ?? "")) {
+export const DELETE = apiHandler(async (req, context) => {
+  requireHeadOr(context, "agents", "delete");
+  const { id } = await context.params;
+  const scope = context.agencyId ?? undefined;
+  if (!scope && context.user?.role !== "admin") {
     return fail("Agency scope required", 403);
   }
   await agents.softDelete(id, scope);
   return noContent();
-}, { resource: "agents", action: "delete" });
+}, { resource: "agents", action: "delete", allowHead: true });

@@ -1,7 +1,7 @@
 import { apiHandler, ok, created, fail } from "@/server/api-utils";
 import { agencies, systemSettings } from "@/server/repositories";
 import { validate, createAgencySchema } from "@/server/validate";
-import { transaction } from "@/server/db";
+import { transaction, query } from "@/server/db";
 
 export const runtime = "nodejs";
 
@@ -19,11 +19,22 @@ export const POST = apiHandler(async (req, context) => {
     if (!allowed) {
       return fail("Agency creation is disabled by the platform admin", 403);
     }
-    if (!context.membership) {
-      return fail("No membership found for your account", 400);
-    }
-    if (context.agencyId) {
-      return fail("You already belong to an agency", 400);
+    if (context.agencyId && context.membership) {
+      // Phase 3 (point 6): the old guard ("already belong") made agent
+      // agency-creation 100% dead — resolveAuth derives membership AND
+      // agencyId from the same active row, so the pass path was unreachable.
+      // Explicit leave-and-create only; never silent. Heads cannot strand
+      // their agency without transferring headship first.
+      if (body.leaveAgency !== true) {
+        return fail("You already belong to an agency — confirm leaving it to create a new one (LEAVE_REQUIRED)", 400);
+      }
+      const headRows = await query<{ one: number }>(
+        `SELECT 1 AS one FROM app.agencies WHERE id = $1 AND head_membership_id = $2`,
+        [context.agencyId, context.membership.id],
+      );
+      if (headRows.length > 0) {
+        return fail("You head your current agency — transfer headship before leaving", 400);
+      }
     }
   }
 
@@ -38,10 +49,24 @@ export const POST = apiHandler(async (req, context) => {
         [context.membership.id, agencyRow.id],
       );
       await client.query(
-        `UPDATE app.memberships SET agency_id = $1, role = 'agency', status = 'active' WHERE id = $2`,
+        `UPDATE app.memberships SET agency_id = $1, role = 'agent', status = 'active' WHERE id = $2`,
         [agencyRow.id, context.membership.id],
       );
-      await client.query(`UPDATE "user" SET role = 'agency' WHERE id = $1`, [context.user!.id]);
+      await client.query(`UPDATE "user" SET role = 'agent' WHERE id = $1`, [context.user!.id]);
+    } else if (isAgent && context.user) {
+      // Brand-new account with no membership yet: create one as head.
+      // Heads are agents (Phase 5) — headship lives in head_membership_id,
+      // elevated per-request via context.isHead.
+      const m = await client.query(
+        `INSERT INTO app.memberships (agency_id, user_id, role, status)
+         VALUES ($1, $2, 'agent', 'active') RETURNING id`,
+        [agencyRow.id, context.user.id],
+      );
+      await client.query(
+        `UPDATE app.agencies SET head_membership_id = $1 WHERE id = $2`,
+        [m.rows[0].id, agencyRow.id],
+      );
+      await client.query(`UPDATE "user" SET role = 'agent' WHERE id = $1`, [context.user.id]);
     }
     return agencyRow;
   });

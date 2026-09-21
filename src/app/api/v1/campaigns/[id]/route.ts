@@ -5,7 +5,7 @@ import { validate, updateCampaignSchema } from "@/server/validate";
 import { assertValidSkills } from "@/server/services/skills.service";
 import { encryptSecret } from "@/server/crypto";
 
-const PLATFORM_ROLES = ["super_admin", "admin"];
+const PLATFORM_ROLES = ["admin"];
 
 function scopeFor(context: { agencyId?: string | null; user?: { role?: string } }): string | undefined {
   const scope = context.agencyId ?? undefined;

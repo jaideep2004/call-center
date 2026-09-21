@@ -33,6 +33,8 @@ function PhoneNumbersInner() {
   const [numbers, setNumbers] = useState<PhoneNumber[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  // Admin is platform-level: this agency-scoped tab redirects to the platform view.
+  const [roleChecked, setRoleChecked] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
   const [number, setNumber] = useState("");
@@ -45,6 +47,18 @@ function PhoneNumbersInner() {
   const hasMounted = useRef(false);
 
   useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        const r = body.data?.publisherId || body.data?.publisher?.id ? "publisher" : body.data?.user?.role;
+        if (r === "admin") { router.replace("/dashboard/settings"); return; }
+      }
+      setRoleChecked(true);
+    }).catch(() => setRoleChecked(true));
+  }, [router]);
+
+  useEffect(() => {
+    if (!roleChecked) return;
     Promise.all([
       fetch("/api/v1/phone-numbers").then((r) => r.ok ? r.json() : { data: [] }),
       fetch("/api/v1/campaigns").then((r) => r.ok ? r.json() : { data: [] }),
@@ -222,7 +236,7 @@ function PhoneNumbersInner() {
         </Modal>
       )}
 
-      {loading ? (
+      {!roleChecked || loading ? (
         <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>{numbers.length === 0 ? "No phone numbers configured. Add your first tracking number above." : `No numbers match "${debouncedQ}".`}</p></div>

@@ -12,6 +12,10 @@ export const EMAIL_SUBJECTS = {
   reset: "Reset your password — Coverage Calls",
   agencyInvite: "You're invited to join Coverage Calls",
   publisherInvite: "Your Coverage Calls publisher portal is ready",
+  weeklyInvoice: "Your weekly Coverage Calls invoice is ready",
+  agentWelcome: "Welcome to Coverage Calls — your agent account is ready",
+  agentApproved: "You're approved — start taking calls on Coverage Calls",
+  memberAdded: "You've been added to an agency on Coverage Calls",
 };
 
 interface LayoutOptions {
@@ -22,14 +26,19 @@ interface LayoutOptions {
 }
 
 const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-const BG = "#F6F7FB";
+const BG = "#F4F2FB";
 const CARD = "#FFFFFF";
 const BORDER = "#E5E7EB";
 const TEXT = "#111827";
 const MUTED = "#6B7280";
 const ACCENT = "#7C3AED";
+const ACCENT_DARK = "#5B21B6";
+const ACCENT_DEEP = "#4C1D95";
 
 // Use absolute production logo URL as requested — ensures Gmail can fetch it (no env-dependent relative path)
+// NOTE: the logo artwork is white-on-transparent (built for dark surfaces), so
+// it ALWAYS renders on the violet gradient header below — never on white,
+// where the white "Coverage" wordmark would disappear.
 const LOGO_URL = "https://coveragecalls.com/images/coveragecallsfinal.png";
 const APP_URL = "https://coveragecalls.com";
 
@@ -58,7 +67,7 @@ function ctaButton(label: string, href: string): string {
           </v:roundrect>
           <![endif]-->
           <!--[if !mso]><!-->
-          <a href="${href}" target="_blank" rel="noopener" style="display: inline-block; min-width: 240px; color: #FFFFFF; font-family: ${FONT}; font-size: 16px; font-weight: 700; line-height: 24px; mso-line-height-rule: exactly; text-decoration: none; text-align: center; letter-spacing: 0.02em;">${safeLabel}</a>
+          <a href="${href}" target="_blank" rel="noopener" style="display: inline-block; min-width: 240px; color: #FFFFFF; font-family: ${FONT}; font-size: 17px; font-weight: 800; line-height: 24px; letter-spacing: 0.02em; mso-line-height-rule: exactly; text-decoration: none; text-align: center;">${safeLabel}</a>
           <!--<![endif]-->
         </td>
       </tr>
@@ -90,7 +99,7 @@ export function emailLayout({ preheader, bodyHtml, cta, footerNote }: LayoutOpti
   <style>
     @media only screen and (max-width: 600px) {
       .cc-card { padding: 28px 22px 24px !important; }
-      .cc-header { padding: 24px 20px 20px !important; }
+      .cc-header { padding: 28px 20px 22px !important; }
     }
   </style>
 </head>
@@ -101,19 +110,20 @@ export function emailLayout({ preheader, bodyHtml, cta, footerNote }: LayoutOpti
     <tr>
       <td align="center" style="padding: 32px 12px 40px; background-color:${BG}; background:${BG};">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 680px; width: 100%; margin: 0 auto; border-collapse: separate;">
-          <!-- Header: white, light-safe, logo centered -->
+          <!-- Brand header: violet gradient (Outlook falls back to solid ACCENT_DARK via bgcolor).
+               The white wordmark logo ONLY ever sits on this violet — never on white. -->
           <tr>
-            <td align="center" class="cc-header" style="background-color:${CARD}; background:${CARD}; border: 1px solid ${BORDER}; border-bottom: none; border-radius: 16px 16px 0 0; padding: 32px 24px 20px; box-shadow: 0 1px 2px rgba(16,12,42,0.04);">
+            <td align="center" class="cc-header" bgcolor="${ACCENT_DARK}" style="background-color:${ACCENT_DARK}; background: linear-gradient(135deg, ${ACCENT} 0%, ${ACCENT_DARK} 55%, ${ACCENT_DEEP} 100%); border: 1px solid ${ACCENT_DEEP}; border-bottom: none; border-radius: 16px 16px 0 0; padding: 34px 24px 26px;">
               <a href="${base}" target="_blank" rel="noopener" style="text-decoration: none; display: inline-block;">
-                <img src="${logo}" alt="Coverage Calls" width="180" height="40" style="display: block; width: 180px; height: auto; max-width: 180px; border: 0; outline: none; text-decoration: none;" />
+                <img src="${logo}" alt="Coverage Calls" width="200" height="44" style="display: block; width: 200px; height: auto; max-width: 200px; border: 0; outline: none; text-decoration: none;" />
               </a>
-              <p style="font-family: ${FONT}; color: ${MUTED}; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin: 12px 0 0; line-height: 1; font-weight: 600;">Call Operations Platform</p>
+              <p style="font-family: ${FONT}; color: #FFFFFF; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; margin: 14px 0 0; line-height: 1; font-weight: 700;">Final Expense Inbound Calls</p>
             </td>
           </tr>
           <!-- Hairline divider -->
           <tr>
             <td style="background-color:${CARD}; background:${CARD}; border-left: 1px solid ${BORDER}; border-right: 1px solid ${BORDER}; padding: 0; font-size: 0; line-height: 0;">
-              <div style="height: 1px; line-height: 1px; background-color:${BORDER}; background:${BORDER}; font-size: 0; mso-line-height-rule: exactly;">&nbsp;</div>
+              <div style="height: 3px; line-height: 3px; background-color:${ACCENT}; background:${ACCENT}; font-size: 0; mso-line-height-rule: exactly;">&nbsp;</div>
             </td>
           </tr>
           <!-- Card body: white #FFFFFF, padding 36-40, shadow, rounded bottom -->
@@ -174,13 +184,12 @@ export function resetPasswordEmail(url: string): string {
   });
 }
 
-export function agencyInviteEmail(url: string, agencyName?: string): string {
+export function agencyInviteEmail(url: string): string {
   return emailLayout({
-    preheader: "You've been invited to join an agency on Coverage Calls.",
+    preheader: "You've been invited to Coverage Calls — create your account to get started.",
     bodyHtml: `
       <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">You're invited</h1>
-      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">${agencyName ? `You've been invited to join <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(agencyName)}</strong> on Coverage Calls.` : "You've been invited to join an agency on Coverage Calls."}</p>
-      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">Create your account to accept the invitation.</p>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">You've been invited to join <strong style="color:${TEXT}; font-weight: 700;">Coverage Calls</strong>. Create your account below to get started — you can create your own agency and invite your team once you're in.</p>
       <p style="font-family: ${FONT}; margin: 0; color: ${MUTED}; font-size: 13px; line-height: 1.6;">This invite expires in 7 days.</p>`,
     cta: { label: "Create your account", href: url },
   });
@@ -195,5 +204,67 @@ export function publisherInviteEmail(url: string, publisherName?: string): strin
       <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">Your Coverage Calls publisher account has been set up. Click the button below to register and access your portal, where you can track your campaigns, calls, and earnings.</p>
       <p style="font-family: ${FONT}; margin: 0; color: ${MUTED}; font-size: 13px; line-height: 1.6;">This invite expires in 7 days.</p>`,
     cta: { label: "Open your publisher portal", href: url },
+  });
+}
+
+export function agentWelcomeEmail(dashboardUrl: string, agencyName?: string, agentName?: string): string {
+  return emailLayout({
+    preheader: "Your Coverage Calls agent account was created — here's what happens next.",
+    bodyHtml: `
+      <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">Welcome${agentName ? `, ${escapeHtml(agentName)}` : ""}</h1>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">${agencyName ? `Your agent account on <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(agencyName)}</strong> has been created.` : "Your Coverage Calls agent account has been created."} Once an admin approves your profile, you can go online and start taking calls.</p>
+      <p style="font-family: ${FONT}; margin: 0; color: ${MUTED}; font-size: 13px; line-height: 1.6;">Open your dashboard to complete your profile: availability, licensed states, and call endpoint.</p>`,
+    cta: { label: "Open your dashboard", href: dashboardUrl },
+  });
+}
+
+export function agentApprovedEmail(dashboardUrl: string, agencyName?: string, agentName?: string): string {
+  return emailLayout({
+    preheader: "You're approved — go online and start taking calls.",
+    bodyHtml: `
+      <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">You're approved${agentName ? `, ${escapeHtml(agentName)}` : ""}</h1>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">${agencyName ? `Great news — <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(agencyName)}</strong> approved your agent profile.` : "Great news — your agent profile was approved."} Flip yourself <strong style="color:${TEXT}; font-weight: 700;">Online</strong> and calls will start ringing on your softphone (auto-pickup is on by default).</p>
+      <p style="font-family: ${FONT}; margin: 0; color: ${MUTED}; font-size: 13px; line-height: 1.6;">Make sure your wallet is funded for the campaigns you want — unfunded agents are skipped by routing.</p>`,
+    cta: { label: "Go to Take Calls", href: dashboardUrl },
+  });
+}
+
+export function memberAddedEmail(dashboardUrl: string, agencyName?: string): string {
+  return emailLayout({
+    preheader: "You've been added to an agency on Coverage Calls.",
+    bodyHtml: `
+      <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">You've been added</h1>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">${agencyName ? `You are now a member of <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(agencyName)}</strong> on Coverage Calls.` : "You are now a member of an agency on Coverage Calls."} Sign in to see your workspace.</p>`,
+    cta: { label: "Open your dashboard", href: dashboardUrl },
+  });
+}
+
+function formatUsd(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+export interface WeeklyInvoiceEmailInput {
+  agencyName: string;
+  invoiceRef: string;
+  totalCents: number;
+  feeCount: number;
+  dialerCents: number;
+  softwareCents: number;
+  dashboardUrl: string;
+}
+
+export function weeklyInvoiceEmail(input: WeeklyInvoiceEmailInput): string {
+  const breakdown: string[] = [];
+  if (input.dialerCents > 0) breakdown.push(`Dialer Fees ${formatUsd(input.dialerCents)}`);
+  if (input.softwareCents > 0) breakdown.push(`Software Access ${formatUsd(input.softwareCents)}`);
+  return emailLayout({
+    preheader: `Invoice ${input.invoiceRef} for ${input.agencyName}: ${formatUsd(input.totalCents)} across ${input.feeCount} fee(s).`,
+    bodyHtml: `
+      <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">Your weekly invoice is ready</h1>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">Hi ${escapeHtml(input.agencyName)} team,</p>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">Invoice <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.invoiceRef)}</strong> totals <strong style="color:${TEXT}; font-weight: 700;">${formatUsd(input.totalCents)}</strong> across ${input.feeCount} fee(s)${breakdown.length ? ` (${breakdown.map(escapeHtml).join(" + ")})` : ""}.</p>
+      <p style="font-family: ${FONT}; margin: 0; color: ${MUTED}; font-size: 13px; line-height: 1.6;">Review the itemized fees and current status in your dashboard. Reply to this email if anything looks off.</p>`,
+    cta: { label: "Review invoice", href: input.dashboardUrl },
+    footerNote: "This is an automated billing email from Coverage Calls.",
   });
 }

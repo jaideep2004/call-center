@@ -26,7 +26,7 @@ interface AgencyRow {
   slug: string;
 }
 
-const ROLE_OPTIONS = ["super_admin", "admin", "agency", "manager", "finance", "agent"];
+const ROLE_OPTIONS = ["admin", "agent", "publisher"];
 const PAGE_SIZE = 10;
 
 export default function AdminUsersPage() {
@@ -94,7 +94,7 @@ export default function AdminUsersPage() {
   }, [agencies]);
 
   async function updateRole(membershipId: string, role: string) {
-    if (role === "super_admin" && !confirm("Grant super_admin? This gives full system access. Confirm?")) return;
+    if (role === "admin" && !confirm("Grant admin? This gives full platform access. Confirm?")) return;
     try {
       const res = await fetch(`/api/v1/memberships/${membershipId}`, {
         method: "PATCH",

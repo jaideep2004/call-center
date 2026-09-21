@@ -68,10 +68,11 @@ export class AgentRepository extends BaseRepository<AgentRow> {
          WHERE c.agent_id = a.id
            AND c.state IN ('ringing','connecting','connected')
        ) AS is_busy
-       FROM app.agents a
-       WHERE a.agency_id = $1
-         AND a.approval_status = 'approved'
-         AND a.availability = 'available'
+        FROM app.agents a
+        WHERE a.agency_id = $1
+          AND a.approval_status = 'approved'
+          AND a.availability = 'available'
+          AND a.deleted_at IS NULL
        ORDER BY a.priority ASC, a.last_assigned_at ASC NULLS FIRST`,
       [agencyId],
       client,
@@ -84,7 +85,7 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     const limit = pagination?.limit ?? 25;
     const offset = (page - 1) * limit;
 
-    const conditions: string[] = [];
+    const conditions: string[] = [`a.deleted_at IS NULL`];
     const queryParams: unknown[] = [];
     let paramIndex = 1;
 

@@ -2,7 +2,7 @@ import { apiHandler, ok, fail } from "@/server/api-utils";
 import { getStripeStatus, saveStripeKeys, invalidateStripeCache } from "@/server/stripe";
 import { z } from "zod";
 
-const PLATFORM_ROLES = ["super_admin", "admin"];
+const PLATFORM_ROLES = ["admin"];
 
 function requirePlatform(role?: string): boolean {
   return Boolean(role && PLATFORM_ROLES.includes(role));
