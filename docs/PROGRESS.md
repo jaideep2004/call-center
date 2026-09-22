@@ -235,6 +235,41 @@
 - Next: client UAT per MANUAL_TEST_FLOW.
 - Tests: `npm run typecheck` clean · `npm test` 658 passed | 5 skipped (83 files, +1 portal zero-call listing).
 
+## 2026-09-21 - assistant - HOMEPAGE FAQ (CMS-driven)
+- Did: new FAQSection landing component (category tabs derived from data, accordion, GSAP, support card → /contact) placed on homepage below Testimonials, above CTA; homepage fetches CMS faq server-side (hides when empty); faq items gained category in admin editor + /faq page; seeded 6 Q&As live via scripts/seed-faq.mjs.
+- Decisions: content stays in cms_sections faq (no new table — categories ride the existing items jsonb); no hardcoded fallback (empty CMS = hidden section, never dead headings).
+- Broke / TODO: none. Deploy + scroll homepage to confirm.
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npm run typecheck` clean · `npm test` 668 passed | 5 skipped (85 files) · `npm run build` clean.
+
+## 2026-09-21 - assistant - GAP AUDIT (backend + dashboards)
+- Did: verified suspected gaps against code. Fixed: phone-numbers PATCH missing-campaign_id guard (schema already 422s — added explicit guard + test documenting it); MANUAL_TEST_FLOW 58→60 migrations. Confirmed non-issues: outbox IS the notifications store (live consumer), undefined-bind crash impossible via validation.
+- Decisions: audit-only session otherwise — findings below go to the client as the remaining-work list.
+- Broke / TODO: see remainder list in chat.
+- Next: client picks items from the remainder list.
+- Tests: `npm run typecheck` clean · `npm test` 669 passed | 5 skipped (85 files).
+
+## 2026-09-21 - assistant - NEW ABOUT PAGE
+- Did: replaced old About with the new design (hero + globe + floating badges, animated stat counters, mission cards, impact map, CTA banner) as TSX + scoped CSS module; dropped its duplicate header/footer (public layout already renders them); links pointed at real routes (/register, /login, /contact, /blog); uses existing /images/globe.png + /images/map.png; reduced-motion guard on idle animations.
+- Decisions: CSS-module scoping (pasted global selectors would have collided with app styles); no duplicate nav/footer; "Meet the Team" → "Talk to Us" (/contact) since no team section exists.
+- Broke / TODO: none. Deploy + open /about to confirm.
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npm run typecheck` clean · `npm test` 668 passed | 5 skipped (85 files) · `npm run build` clean.
+
+## 2026-09-21 - assistant - CMS BLOG (archive + single + manager)
+- Did: new app.blog_posts table (0060, applied live) + repo + validate + admin CRUD (/api/v1/cms/admin/blog) + public feed (/api/v1/cms/blog, cached 60s, drafts never leak) + shared markdown lib (XSS-safe, TOC extraction) + /blog archive (featured hero, category tabs, search, newsletter→contact inbox) + /blog/[slug] (progress bar, scroll-spy TOC, share/copy, tags, author card, related) + CMS Blog tab (table, modal editor, markdown preview, publish/featured toggles) + 7 seeded posts + header/footer Blog links.
+- Decisions: content lives in DB (not hardcoded) — edits go live immediately; skipped CoverageFooterCTA (public layout already renders SiteFooter); newsletter reuses contact inbox as inquiry_type=newsletter; native scroll observers instead of ScrollTrigger (App Router safe).
+- Broke / TODO: none. Deploy + open /blog to confirm.
+- Next: client UAT per MANUAL_TEST_FLOW.
+- Tests: `npm run typecheck` clean · `npm test` 668 passed | 5 skipped (85 files, +6 markdown, +4 blog-feed) · `npm run build` clean (all blog routes compiled).
+
+## 2026-09-21 - assistant - SPEED VERDICT + CLIENT GUIDE
+- Did: audited ring path for further speedups — pipeline already optimal (NOTIFY instant + 0.5s poll floor, 12 workers, parallel queries); only live check left is confirming NOTIFY isn't falling back to polling (worker log warning = point worker at direct 5432). Wrote docs/CLIENT_TESTING_GUIDE.md (all 3 dashboards in plain words + E2E call test + speed/charge fixes explained).
+- Decisions: no code change — remaining seconds are Telnyx dial + human pickup, not our pipeline; guide is client-facing, no jargon.
+- Broke / TODO: none.
+- Next: client tests per guide; check worker log for notify fallback.
+- Tests: no code touched (docs only).
+
 ## 2026-09-21 - assistant - PAYMENTS FIX + SECURITY AUDIT
 - Did: new 0059 adds missing agent_id/plan_id to app.payments (agent top-up 500 root-caused: code wrote columns no migration ever created); applied live, verified 59/59 recorded + columns present. Security audit: all webhooks verified (Telnyx Ed25519→401, Stripe constructEvent→401, Retreaver token fail-closed, gateway Bearer + prod-closed + session sockets), zero NEXT_PUBLIC secrets, layout role-redirects on all dashboards, XSS-safe markdown (escapes first, https-only links).
 - Decisions: nullable FKs on payments (pool top-ups carry neither); no code changes from audit — posture is solid.

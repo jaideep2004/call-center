@@ -17,6 +17,9 @@ export const PATCH = apiHandler(async (req, context) => {
   if (!isAdmin && !agencyId) return fail("Agency required", 403);
   const { id } = await context.params;
   const body = validate(updatePhoneNumberSchema, await req.json());
+  // Undefined would become an undefined pg bind param (500) — require an
+  // explicit value: a campaign id to move, null to park as spare.
+  if (body.campaign_id === undefined) return fail("campaign_id is required (null to unassign)", 400);
   const number = await phoneNumbers.findById(id, agencyId).catch(() => null);
   if (!number) return fail("Phone number not found", 404);
   if (body.campaign_id) {

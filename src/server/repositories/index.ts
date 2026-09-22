@@ -38,3 +38,4 @@ export { bidOverrides } from "./bid-overrides";
 export { agentFees } from "./agent-fees";
 export { supportTickets } from "./support-tickets";
 export { cmsSections } from "./cms-sections";
+export { blogPosts } from "./blog-posts";

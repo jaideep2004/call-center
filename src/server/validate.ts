@@ -71,6 +71,26 @@ export const updateCmsSectionSchema = z.object({
   active: z.boolean().optional(),
 });
 
+const blogSlug = z.string().min(1).max(120).regex(/^[a-z0-9-]+$/);
+
+export const createBlogPostSchema = z.object({
+  slug: blogSlug,
+  title: z.string().min(1).max(255),
+  excerpt: z.string().max(500).default(""),
+  cover_image: z.string().url().max(500).nullable().optional(),
+  category: z.string().min(1).max(80).default("General"),
+  tags: z.array(z.string().max(40)).max(12).default([]),
+  author_name: z.string().max(120).default(""),
+  author_role: z.string().max(120).default(""),
+  author_avatar: z.string().url().max(500).nullable().optional(),
+  read_minutes: z.number().int().min(1).max(120).default(5),
+  featured: z.boolean().default(false),
+  published: z.boolean().default(false),
+  body_markdown: z.string().max(100000).default(""),
+});
+
+export const updateBlogPostSchema = createBlogPostSchema.partial().omit({ slug: true });
+
 export const createAgentSchema = z.object({
   agency_id: z.string().min(1),
   membership_id: z.string().min(1).optional(),

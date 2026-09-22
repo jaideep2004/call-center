@@ -1,0 +1,350 @@
+/* FAQ section — dark glassmorphism, matches the Coverage Calls design system. */
+.faqSection {
+  position: relative;
+  background-color: #05040a;
+  color: #ffffff;
+  padding: 100px 24px 80px 24px;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.ambientGlow {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(147, 51, 234, 0.15) 0%, rgba(67, 10, 130, 0.04) 55%, transparent 75%);
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.header {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 52px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pillBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: rgba(147, 51, 234, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  color: #c084fc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.pillDot {
+  width: 6px;
+  height: 6px;
+  background-color: #a855f7;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #c084fc;
+}
+
+.title {
+  font-size: 2.65rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  margin: 0 0 16px 0;
+}
+
+.gradientText {
+  background: linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7e22ce 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: #8c86a2;
+  margin: 0 0 32px 0;
+}
+
+.categoryPills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.catBtn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #8c86a2;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.catBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.activeCatBtn {
+  background: rgba(147, 51, 234, 0.18);
+  border-color: #a855f7;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+}
+
+.faqLayout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 40px;
+  align-items: start;
+}
+
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.faqCard {
+  background: linear-gradient(180deg, rgba(23, 14, 46, 0.5) 0%, rgba(12, 7, 24, 0.7) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.14);
+  border-radius: 18px;
+  padding: 22px 26px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.faqCard:hover {
+  border-color: rgba(192, 132, 252, 0.35);
+  background: linear-gradient(180deg, rgba(28, 17, 56, 0.6) 0%, rgba(14, 8, 30, 0.8) 100%);
+}
+
+.faqCardOpen {
+  border-color: rgba(168, 85, 247, 0.45);
+  background: linear-gradient(180deg, rgba(32, 19, 64, 0.7) 0%, rgba(16, 9, 36, 0.85) 100%);
+  box-shadow: 0 12px 30px rgba(147, 51, 234, 0.15), inset 0 0 12px rgba(168, 85, 247, 0.05);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.questionWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.itemCategory {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #a855f7;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.questionText {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.toggleIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #c084fc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toggleIconOpen {
+  transform: rotate(45deg);
+  background: #a855f7;
+  color: #ffffff;
+  border-color: #c084fc;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
+}
+
+.cardBody {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  opacity: 0;
+}
+
+.cardBodyExpanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.answerText {
+  overflow: hidden;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: #a39cb8;
+  margin: 16px 0 0 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sideHelpCard {
+  position: relative;
+  background: linear-gradient(135deg, #200d47 0%, #13072b 70%, #0c041f 100%);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  border-radius: 22px;
+  padding: 32px 28px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.helpGlow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.helpIconBox {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(147, 51, 234, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.helpTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.015em;
+}
+
+.helpDesc {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #9d96b8;
+  margin: 0 0 20px 0;
+}
+
+.helpFeatureList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.helpFeature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: #c9c3e2;
+}
+
+.featureDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  flex-shrink: 0;
+}
+
+.contactBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #3b0764;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 12px 20px;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
+.contactBtn:hover {
+  background: #f4eeff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 1024px) {
+  .faqLayout {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+  .sideHelpCard {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 2.1rem;
+  }
+
+  .faqCard {
+    padding: 18px 20px;
+  }
+
+  .questionText {
+    font-size: 0.98rem;
+  }
+}

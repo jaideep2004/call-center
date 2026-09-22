@@ -10,7 +10,11 @@ export const revalidate = 60;
 
 export default async function FaqPage() {
   const section = await cmsSections.findBySlug("faq").catch(() => null);
-  const items = (section?.content as { items?: { question: string; answer: string }[] })?.items ?? [];
+  const items = (
+    (section?.content as { items?: { question: string; answer: string; category?: string }[] })?.items ?? []
+  )
+    .filter((it) => it.question?.trim() && it.answer?.trim())
+    .map((it) => ({ question: it.question.trim(), answer: it.answer.trim(), category: it.category?.trim() || "General" }));
   const isLive = section?.active && items.length > 0;
 
   return (
@@ -22,6 +26,7 @@ export default async function FaqPage() {
           <div className="faq-list" style={{ textAlign: "left", marginTop: 32 }}>
             {items.map((it, i) => (
               <div key={i} className="faq-item">
+                <div className="text-mono-sm" style={{ color: "var(--accent)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>{it.category}</div>
                 <h3>{it.question}</h3>
                 <p>{it.answer}</p>
               </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { showToast } from "@/lib/use-toast";
 import AdminCreatives from "@/components/admin-creatives";
+import BlogManager from "./blog-manager";
 
 interface CmsSection {
   id: string;
@@ -13,7 +14,7 @@ interface CmsSection {
   active: boolean;
   updated_at: string;
 }
-type FaqItem = { question: string; answer: string };
+type FaqItem = { question: string; answer: string; category: string };
 type TestimonialItem = { name: string; role: string; quote: string };
 type PostItem = { title: string; slug: string; excerpt: string; body: string; image: string; author: string };
 
@@ -63,7 +64,7 @@ export default function AdminCmsPage() {
   const [postItems, setPostItems] = useState<PostItem[]>([]);
   const [bodyText, setBodyText] = useState("");
   const [preview, setPreview] = useState(false);
-  const [tab, setTab] = useState<"sections" | "ads">("sections");
+  const [tab, setTab] = useState<"sections" | "ads" | "blog">("sections");
 
   const refresh = useCallback(() => {
     fetch("/api/v1/cms/admin")
@@ -122,7 +123,14 @@ export default function AdminCmsPage() {
       const raw = Array.isArray((c as { items?: unknown }).items) ? ((c as { items: unknown[] }).items as Record<string, unknown>[]) : [];
       setFaqItems(
         raw.length
-          ? raw.map((it) => ({ question: String((it as Record<string, unknown>).question ?? (it as Record<string, unknown>).q ?? ""), answer: String((it as Record<string, unknown>).answer ?? (it as Record<string, unknown>).a ?? "") }))
+          ? raw.map((it) => {
+              const r = it as Record<string, unknown>;
+              return {
+                question: String(r.question ?? r.q ?? ""),
+                answer: String(r.answer ?? r.a ?? ""),
+                category: String(r.category ?? "General"),
+              };
+            })
           : []
       );
       setContentText(JSON.stringify(c, null, 2));
@@ -160,7 +168,7 @@ export default function AdminCmsPage() {
   function buildContent(): Record<string, unknown> | null {
     if (!activeSlug) return null;
     if (activeSlug === "faq") {
-      return { items: faqItems.filter((it) => it.question.trim() || it.answer.trim()).map((it) => ({ question: it.question.trim(), answer: it.answer.trim() })) };
+      return { items: faqItems.filter((it) => it.question.trim() || it.answer.trim()).map((it) => ({ question: it.question.trim(), answer: it.answer.trim(), category: it.category.trim() || "General" })) };
     }
     if (activeSlug === "testimonials") {
       return { items: testimonialItems.filter((it) => it.name.trim() || it.quote.trim()).map((it) => ({ name: it.name.trim(), role: it.role.trim(), quote: it.quote.trim() })) };
@@ -296,9 +304,12 @@ export default function AdminCmsPage() {
       <nav className="tabs" style={{ marginBottom: "var(--space-4)" }}>
         <button type="button" className={`tab ${tab === "sections" ? "active" : ""}`} onClick={() => setTab("sections")}>Sections</button>
         <button type="button" className={`tab ${tab === "ads" ? "active" : ""}`} onClick={() => setTab("ads")}>Campaign Ads</button>
+        <button type="button" className={`tab ${tab === "blog" ? "active" : ""}`} onClick={() => setTab("blog")}>Blog</button>
       </nav>
 
-      {tab === "ads" ? (
+      {tab === "blog" ? (
+        <BlogManager />
+      ) : tab === "ads" ? (
         <AdminCreatives />
       ) : (
       <>
@@ -411,11 +422,12 @@ export default function AdminCmsPage() {
                           </button>
                         </div>
                         <input className="input" value={it.question} onChange={(e) => setFaqItems((prev) => prev.map((p, i) => (i === idx ? { ...p, question: e.target.value } : p)))} placeholder="Question (e.g. How does Coverage Calls work?)" style={{ fontSize: 12 }} />
+                        <input className="input" value={it.category} onChange={(e) => setFaqItems((prev) => prev.map((p, i) => (i === idx ? { ...p, category: e.target.value } : p)))} placeholder="Category (e.g. Voice & WebRTC)" style={{ fontSize: 12 }} />
                         <textarea className="textarea" rows={3} value={it.answer} onChange={(e) => setFaqItems((prev) => prev.map((p, i) => (i === idx ? { ...p, answer: e.target.value } : p)))} placeholder="Answer (supports **bold** and [links](https://...))" style={{ fontSize: 12 }} />
                       </div>
                     </div>
                   ))}
-                  <button className="btn btn-secondary btn-sm" onClick={() => setFaqItems((prev) => [...prev, { question: "", answer: "" }])}>+ Add FAQ</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setFaqItems((prev) => [...prev, { question: "", answer: "", category: "" }])}>+ Add FAQ</button>
                 </div>
               )}
 

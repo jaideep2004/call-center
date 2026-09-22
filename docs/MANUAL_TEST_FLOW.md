@@ -6,7 +6,7 @@ One terminal is enough: `npm run dev` starts all three (Next.js app + realtime g
 
 Run `npm run dev` and confirm: `realtime-gateway ready` (live popups), `call-worker ready` (recordings, billing, syncs), `Next.js on port: 30001`. If the worker failed, routing still works but recordings never save — fix DB/Redis, don't open a second terminal (double workers double-process jobs).
 
-Checklist: `.env` has Telnyx keys, Retreaver keys, `ENCRYPTION_KEY`, Stripe keys, `APP_BASE_URL` = ngrok URL (never localhost — Telnyx/Retreaver can't reach it). Migrations 58/58 (`npm run check:migrations`). Restart dev after any `.env` edit (stale modules serve old code).
+Checklist: `.env` has Telnyx keys, Retreaver keys, `ENCRYPTION_KEY`, Stripe keys, `APP_BASE_URL` = ngrok URL (never localhost — Telnyx/Retreaver can't reach it). Migrations 60/60 (`npm run check:migrations`). Restart dev after any `.env` edit (stale modules serve old code).
 
 **Live VPS startup order (Phase 0.1 runbook):** set `APP_BASE_URL=https://coveragecalls.com`, `CALL_ROUTING_ASYNC=1`, `GATEWAY_URL` + `GATEWAY_PUBLISH_TOKEN` + `REALTIME_PORT` (same values both sides) → `pm2 start npm --name worker -- run worker` → `pm2 start npm --name gateway -- run gateway` → `pm2 restart next`. Acceptance: webhook log `webhook_done elapsedMs <500ms`, then `routing_queued → call_routed` within ~2s. Unknown-DID test call → **400**, zero new rows in `app.calls` (fail-closed, Phase 0.2).
 

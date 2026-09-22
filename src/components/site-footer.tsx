@@ -42,6 +42,7 @@ export function SiteFooter() {
           <div>
             <h4 style={{ color: "white", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 14px" }}>Resources</h4>
             <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
+              <li><Link href="/blog" style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textDecoration: "none" }}>Blog</Link></li>
               <li><Link href="/faq" style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textDecoration: "none" }}>FAQ</Link></li>
               <li><Link href="/privacy" style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textDecoration: "none" }}>Privacy</Link></li>
               <li><Link href="/terms" style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, textDecoration: "none" }}>Terms</Link></li>

@@ -87,6 +87,12 @@ describe("PATCH /api/v1/phone-numbers/[id] (move / unassign)", () => {
     expect(reassignMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a missing campaign_id at validation (never reaches the DB)", async () => {
+    const res = await patch({});
+    expect(res.status).toBe(422);
+    expect(reassignMock).not.toHaveBeenCalled();
+  });
+
   it("admin operates unscoped across agencies", async () => {
     ctxRole = "admin";
     const res = await patch({ campaign_id: "camp-new" });
