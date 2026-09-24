@@ -67,6 +67,20 @@ describe("acceptCall bridge wait loop", () => {
     expect(result).toMatchObject({ state: "connected" });
   });
 
+  it("wakes on the agent_answered_at stamp and bridges on the next attempt", async () => {
+    bridgeMock
+      .mockRejectedValueOnce(new Error("90034 Call not answered yet"))
+      .mockResolvedValue(undefined);
+    // First read (loop start): ringing, no stamp. Poll reads: stamp present.
+    findCallMock
+      .mockResolvedValueOnce({ ...RINGING_CALL })
+      .mockResolvedValue({ ...RINGING_CALL, routing_snapshot: { agent_answered_at: "2026-01-01T00:00:05Z" } });
+    const result = await runAccept();
+    expect(bridgeMock).toHaveBeenCalledTimes(2);
+    expect(updateStateMock).toHaveBeenCalledWith("call-1", "connected", "agency-1", expect.anything());
+    expect(result).toMatchObject({ state: "connected" });
+  });
+
   it("gives up after bounded retries and marks missed (never hangs forever)", async () => {
     bridgeMock.mockRejectedValue(new Error("90034 Call not answered yet"));
     const result = await runAccept();

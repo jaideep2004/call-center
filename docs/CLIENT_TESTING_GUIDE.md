@@ -1,119 +1,106 @@
-# Coverage Calls — Client Testing Guide
+# Coverage Calls — Client Testing Guide (v2, Sept 2026)
 
-> How to test the whole app yourself, in plain words. You need three logins:
-> **Admin** (platform owner), **Agent** (takes calls), **Publisher** (sends traffic).
-> Open each in a separate browser (or normal + incognito windows) so sessions don't mix.
-
----
-
-## Part 1 — Admin dashboard (`/dashboard/admin`)
-
-Log in as admin. You land on the **Command** home: total calls, agents online, leads, revenue, live queue.
-
-### 1. Agencies (PEOPLE → Agencies)
-- You see every agency (name, code like `AC-0001`, status, created).
-- Open an agency → edit name/retention → Save. Delete button soft-deletes it — the row must **disappear from the list after refresh** (deleted = hidden, never destroyed).
-- "+ New Agency" is a just-in-case tool. Normal flow: **agents create their own agency** (Settings → Start a New Agency → Leave & Create).
-
-### 2. Agents (PEOPLE → Agents)
-- Approve a new agent (status → approved). They get an **approval email** automatically.
-- Suspend an agent → they go offline instantly and routing skips them.
-- Open an agent → wallet, subscriptions, states, skills.
-
-### 3. Campaigns (OPERATIONS → Campaigns)
-- Each campaign shows price (what the buyer pays us) and min-connect seconds (shorter calls bill $0).
-- Open a campaign → **RTB & Numbers** tab → **Tracking numbers**: add your Telnyx DID here (`+1…`). This is the number callers dial to reach this campaign. Unassign parks it as spare (it can never route traffic while spare).
-- **Publishers tab**: tick which publishers may send traffic to this campaign. **Bidding tab**: max payout (what we pay the publisher — keep it below price). **Assignments tab**: exclusives only.
-- A campaign with no tracking number can never receive calls (fail-closed by design).
-
-### 4. Publishers (OPERATIONS → Publishers)
-- "+ New" → name + email → **Invite** sends them a branded email with a register link (always the live domain, never localhost).
-- After they register, assign them campaigns (step 3) and watch their calls/payouts appear.
-
-### 5. Calls, Disputes, Recordings
-- **Calls**: every call with state, duration, agent, campaign. Short/disputed calls are marked, never silently billed.
-- **Disputes**: confirm a disposition → payout + invoice rows are created.
-- **Recordings**: play links appear ~1 min after the call (needs Recording ON in your Telnyx Connection).
-
-### 6. Money (FINANCE → Plans, Fees, Revenue, Ledger)
-- Top up any wallet with test card `4242…`: checkout shows `credit + 3% fee = charged`, wallet is credited the **net** amount only.
-- **Fees**: postpaid agents get a monthly **Dialer Fee** (plan price); prepaid agents get **Software Access**. Every Monday the system rolls pending fees into **one invoice per agency and emails it automatically** — re-running never resends.
-- **Revenue** counts only `paid` invoices (collected money, not promises).
-
-### 7. System (SYSTEM → Calendar, Reports, Support, CMS, Notifications, Settings, System Settings)
-- **Calendar**: entries only — agents book onboarding calls on their side (GoHighLevel widget); you just see what was booked.
-- **System Settings → Stripe**: badge is green **only** after a live API ping succeeds (Test Connection). Saved-but-unverified keys show "not verified".
-- **Notifications**: the bell (top-right, all dashboards) shows latest + unread count; click marks read.
+> Test everything new in plain words. You need three logins in **separate browsers/incognito windows**: **Admin**, **Agent**, **Publisher**.
+>
+> **Before you start (one time):** deploy latest (`git pull`, `npm run migrate`, rebuild + restart all pm2 processes). Run `npm run check:migrations` — all must be recorded.
 
 ---
 
-## Part 2 — Agent dashboard (OPERATIONS CONSOLE)
+## 0. Prep — Stripe mode + SMTP
 
-Log in as an agent (use incognito).
-
-### 1. Going online (the money rule)
-- Header shows an **Online pill + logout** top-right, next to the bell.
-- Click **Go Online**: it works only if your wallet is funded **or** you hold an active subscription. Otherwise you get a clear error toast telling you to top up. **Why: an unfunded online agent receives calls the publisher still bills us for — so the app refuses.**
-- Keep **auto-pickup ON**: calls answer the instant they ring, even if you glance at the popup late.
-
-### 2. Take Calls
-- Incoming calls pop up with Accept/Reject. Minimize anytime — the bottom-right pill keeps glowing (**green** = connected, **amber** = ringing, **blue** = connecting) with timer + Hang Up.
-- Layout: **Live Campaigns** (with search box) and **Call Readiness Checklist** sit side by side, equal width, on top; Device check + Agent Snapshot below.
-- Browse Campaigns shows live campaigns with prices — **never publisher payouts** (hidden by design). **Exclusive campaigns appear only if assigned to you.**
-- Accept returns instantly now — no more frozen "connecting" screen; a Cancel button is there while bridging. If the caller is already gone you'll get "no longer ringing" instead of a ghost accept.
-
-### 3. Wallet, Book Call, Support
-- **My Wallet**: personal balance + top-up (Stripe, 3% shown). **Book Call**: book your onboarding call (GoHighLevel) — new **Campaign Updates** tab beside it shows every campaign creative full-size (images + videos play inline).
-- **Home layout**: Quick Actions now sits in the top row where Today's Goal was (Today's Goal moved to the side stack).
-- **Support**: open tickets, replies arrive by inbox + email.
+1. Admin → System Settings → Stripe card. Select **Test** mode, paste test keys + test webhook secret, **Save & Use Test**. Badge must read "Test mode — verified" (green only after a real API ping).
+2. Localhost webhook secret (no Stripe CLI login needed for app testing): `stripe login` once, then `stripe listen --forward-to localhost:30001/api/webhooks/stripe` — paste the printed `whsec_…` as the Test webhook secret.
+3. Confirm SMTP is configured (ask dev) — otherwise all "email sent" steps below only log warnings.
 
 ---
 
-## Part 3 — Publisher dashboard (PUBLISHER PORTAL)
+## 1. Live call connection (the most important flow)
 
-Log in as a publisher (third window).
+**Setup:** campaign has a tracking DID + is active; agent approved, device tested, live for the campaign, funded (Section 2); agent clicks **Go Online** on Take Calls.
 
-- **Campaigns**: shows every campaign assigned to you, even with zero calls yet — price, your calls, qualified calls, payout.
-- **Calls**: your traffic with status + payout per call. **Payouts**: totals + per-campaign history.
-- You cannot see agents, other publishers, wallets, or admin pages (403 everywhere else).
+1. As the agent, open Take Calls **with the browser console open** (F12). Keep auto-pickup ON.
+2. From your real phone, call the campaign DID.
+3. **Expect:** popup rings → auto-answers → **Answering… → Bridging…** → connected in **under ~2 seconds**. Console must show `leg … state=ringing → phase=ringing`, `answer START`, `answer COMMAND OK`.
+4. In pm2 logs: `bridge succeeded` on attempt 1–2, accept total well under 2s. (Older builds needed 3+ attempts — that delay is fixed.)
+5. Hang up → call appears in Calls with recording (~1 min later, needs Recording ON in Telnyx).
+6. **Missed path:** go offline mid-ring (or reject) → caller leg ends, call marked **missed**, agent gets `call:ended`, no phantom ringing.
+
+## 2. Going online needs BOTH subscription AND top-up
+
+1. Agent with **only a subscription** ($0 wallet) → Go Online blocked: *"Buy a subscription…" / "Top up your wallet…"*. Take Calls shows a red **Funding** checklist row saying exactly which leg is missing.
+2. Agent with **only a top-up** (no plan) → blocked the same way.
+3. Buy the missing leg → Funding row turns green → Go Online works.
+4. **Postpaid agencies exempt:** Admin → agency → enable postpaid bypass → its agents go online with $0 and no plan.
+
+## 3. Device gate (no untested browser online)
+
+1. Fresh browser (no mic test done) → header **Go Online** refuses: *"Test your mic & speaker on Take Calls first"* and redirects there.
+2. An agent left online from another device/session with no device check here is auto-set **offline** with a warning toast.
+3. Take Calls Go Online button stays disabled until mic + speaker both verify.
+
+## 4. Wallet top-ups ($1 / $250 / $500 / $1000)
+
+1. Agent → My Wallet → pick **$1** (test) → Pay → Stripe test card `4242 4242 4242 4242` → success page says **"Payment credited"** and balance updates (it verifies with Stripe directly — no waiting on webhooks).
+2. Check **Transaction History**: top_up entry for the **net** amount (fee never minted).
+3. **Both inboxes + emails:** agent gets a receipt, agency head gets a copy.
+4. Admin → FINANCE → **Payments**: row appears as **LIVE** (or TEST pill in test mode), totals update, Stripe link opens the payment. Pending rows have **Verify**; paste any `cs_…` id into **Recover a missing payment** to force-verify.
+5. Payments page defaults to **Live** — test money never mixes into revenue.
+
+## 5. Subscriptions (paid but must show active)
+
+1. Agent → Subscriptions → paid plan → Subscribe → pay → you land back to an honest banner: **Verifying… → Active**, and the plan card appears with calls-used counter. (Old builds celebrated on URL alone — that lie is gone; "pending, refresh shortly" shows if Stripe is slow.)
+2. Receipt email to agent + copy to head.
+3. Free ($0) plans still subscribe instantly, no checkout.
+4. API abuse check (dev): POST a paid plan id directly to `/api/v1/agent-subscriptions` → must **402**, never a free active plan.
+
+## 6. Support tickets + mail
+
+1. Agent → Support → raise a ticket → requester gets confirmation (inbox + email), agency **head** gets an alert with priority.
+2. Admin → Support → reply → requester gets the reply mail. Bell badge updates live on all dashboards.
+3. Notifications page: **no raw Payload column** anymore — human Message column; bell dropdown + View all work per role (agent/publisher see only theirs + global; admin sees all).
+
+## 7. Privacy between agents (must all pass)
+
+Log in as **two different agents** (A and B) and confirm:
+- A opens Calls, Wallet → Transaction History, Recordings, Earnings, Subscriptions, Take Calls → **only A's rows** (try pasting B's call id into the URL → 404).
+- B sees only B's. Heads/admins still see the team (that's intended).
+- Calls **Export CSV + XLSX** downloads real files (the 500 error is fixed), and A's export contains only A's calls. Exports cap at 5000 rows.
+
+## 8. Content: CMS, Blog, Campaign Updates
+
+1. Admin → CMS → **Sections** tab (segmented control with counts): FAQ / Testimonials / Privacy / Terms only — **no Blog Posts** (blog lives in its own Blog tab now).
+2. **Campaign Ads** tab: add an image/video creative (Drive links work) with CTA → agent home shows hero carousel + feed with **Preview / Download / Open in Drive** buttons.
+3. Agent → **Campaign Updates** (nav, below Book Call): full grid of updates. **Onboarding** is now Book Call only.
+
+## 9. Onboarding booking + booked state
+
+1. Agent → Book Call → pick a slot in the calendar → after booking, tap **"I've booked my call"** → ✓ BOOKED banner (persists; "Book again" resets).
+2. Tip: set the GHL calendar's thank-you redirect to `/dashboard/onboarding?booked=1` and it marks automatically.
+3. Admin **Calendar nav entry is gone** (it never received GHL bookings) — old links redirect to the admin console.
+
+## 10. Ledger (admin) + transfers
+
+1. FINANCE → Ledger: **Current Balance / Money In / Money Out / Net** strip, IN/OUT badges, Agent column (agent short-id or "Agency"), direction + type filters that paginate honestly, full timestamps.
+2. Agent Performance → **Transfer →** opens a **popup** (not an inline form). Send → agent wallet updates instantly, ledger refreshes. Transfers are **internal ledger moves, never Stripe charges**.
+
+## 11. Settings (single agency card)
+
+1. Agent → Settings → Agency tab shows **only** "Start a New Agency" (+ current-agency chip). No more Agency Profile editing (heads: profile edits are admin-side now).
+2. Test leave-and-create: needs System Settings → Agency Creation **On** → tick the leave checkbox → Leave & Create → you become head of the new agency; old agency keeps your history.
+3. Phone Numbers tab visible to **heads only**; plain agents get a "Heads only" notice on the page.
+
+## 12. Publisher portal walkthrough
+
+1. Admin → Publishers → invite → publisher registers → assign them a campaign (Campaign → Publishers tab). Note their **AFID**.
+2. Publisher logs in → Dashboard lists the assigned campaign (zeros at first) → **Tracking Links** card → **Copy** → open the link on your phone → branded call page with tap-to-call number → visit bumps the **Clicks** count.
+3. Make a real test call to the campaign DID with a funded agent online → agent dispositions it qualified → Publisher **Calls** shows the row (+ recording) and **Payouts** shows earnings.
+4. Publisher A never sees publisher B's campaigns, calls, or payouts.
+
+## 13. Payments admin + reconcile drill (do once)
+
+1. Admin → Payments → pick any pending row → **Verify** → flips to completed + wallet credited.
+2. If a customer ever reports "charged but no credit": paste their `cs_…` session id into **Recover a missing payment** → credited on the spot. Then check Stripe → Developers → Webhooks delivery log to fix the root cause (usually endpoint/secret).
 
 ---
 
-## Part 4 — End-to-end call test (do this live)
-
-1. Agent: funded wallet, online, auto-pickup ON, Take Calls open.
-2. From your mobile, dial the campaign's Telnyx DID.
-3. Within ~2–3 seconds the agent softphone rings and auto-answers. Talk 40 seconds, hang up from mobile.
-4. Verify: Calls row ~40s → revenue/cost/margin on a $16 campaign ≈ $16/$10/$6; recording appears in ~1 min; disposition → payout.
-5. Hang up at 10 seconds instead → **$0, `below_min_connected`** — short calls never bill.
-
----
-
-## Part 5 — What we fixed (connect speed + publisher charges)
-
-**Why calls connect fast (~2s inbound → ring):**
-- Webhook answers the caller leg immediately (fire-and-forget) and returns in <500ms; routing runs async in the worker.
-- Worker wakes the instant a job lands (Postgres NOTIFY, 0.5s poll fallback), 12 parallel route slots.
-- Routing is 4 parallel indexed queries + one atomic claim — same speed for 10 or 500 agents; duplicates can never double-dial.
-- After Accept, bridging retries up to ~8s for late pickup (previously died at 0.8s), then marks missed cleanly.
-
-**Why the publisher can't overcharge you:**
-- Nobody available → the publisher's ping is rejected up front (`no_agent_available`) — the call never arrives, nothing to bill.
-- No answer / reject / sub-threshold duration → **$0 on our side, always** (no invoice line without real connected talk time).
-- Unfunded agents can't go online, so dead rings don't happen.
-- One honest limit: if *their* terms count sub-threshold calls as payable, that's a contract question — confirm with them that non-connected/short calls aren't billed.
-
-**If something looks wrong**, report it as: `page — did X, expected Y, got Z` (plus the pm2 log line if it's a call).
-
----
-
-## Part 6 — Latest changes to re-test (this round)
-
-1. **Agency invite + postpaid**: Admin → Agencies → open an agency → **Invite agents** box (email → invite scoped to that agency) and **Postpaid agency** toggle. Flip postpaid ON → members of that agency go online with $0 wallet; toggle back → funding gate returns. Heads cannot set this (403 if attempted).
-2. **Signup flow**: register a brand-new user directly (no invite) → lands with **no agency** (can create their own) → create agency → appears in Admin → Agents with correct status; Members tab loads (was stuck on skeletons before).
-3. **Exclusives**: set a campaign to Exclusive → Bidding tab shows the amber **Exclusive access** panel with agency/agent dropdowns → assign one agency → only its agents see the campaign in Browse; everyone else doesn't.
-4. **Tracking numbers per campaign**: campaign → RTB & Numbers → Tracking numbers → add DID → appears; Unassign → parked as spare. Google Drive share links pasted in CMS ads now render (auto-rewritten to direct links).
-5. **Admin home Call Activity**: bars now show even when most calls missed (missed/failed used to be invisible, leaving the card empty). Numbers are real per-state counts, not estimates.
-6. **Instant accept**: Accept returns immediately; Cancel available while bridging; accepting a dead call gives "no longer ringing".
-7. **New pages**: `/blog` (archive + posts, CMS-managed), `/about` (new design), homepage FAQ section (CMS-managed) — linked in header/footer.
-8. **Migrations/code health**: 62/62 applied, `typecheck` clean, full suite green.
+**Done when:** every section above shows its green/expected state on live. Anything red — screenshot it with the pm2 log lines and browser console, and it gets fixed the same way as everything above.

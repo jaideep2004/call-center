@@ -3,7 +3,7 @@ import { mockProvider } from "@/domain/telephony";
 
 const {
   updateStateMock, findByIdMock, findByProviderCallIdMock, createMock, cancelMock, enqueueRecordingMock, claimStateMock,
-  findAvailableMock, campaignFindByIdMock, findLiveAgentIdsMock, findByE164Mock, findByCampaignMock,
+  findAvailableMock, campaignFindByIdMock, findLiveAgentIdsMock, findByE164Mock, findByCampaignMock, updateMock,
 } = vi.hoisted(() => ({
   updateStateMock: vi.fn(),
   findByIdMock: vi.fn(),
@@ -12,6 +12,7 @@ const {
   cancelMock: vi.fn(),
   enqueueRecordingMock: vi.fn(),
   claimStateMock: vi.fn(),
+  updateMock: vi.fn(),
   findAvailableMock: vi.fn().mockResolvedValue([]),
   campaignFindByIdMock: vi.fn().mockResolvedValue(null),
   findLiveAgentIdsMock: vi.fn().mockResolvedValue(null),
@@ -45,6 +46,7 @@ vi.mock("@/server/repositories", () => ({
     findByProviderCallId: findByProviderCallIdMock,
     create: createMock,
     updateState: updateStateMock,
+    update: updateMock,
     claimState: claimStateMock,
   },
   agents: {
@@ -204,12 +206,28 @@ describe("processProviderEvent — agent leg handling", () => {
     expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-1" });
   });
 
-  it("ignores agent-leg answered events while ringing (no state change)", async () => {
-    findByIdMock.mockResolvedValue(makeCall({ agent_id: "agent-1" }));
+  it("stamps agent_answered_at (no state change) when the AGENT leg answers while ringing", async () => {
+    findByIdMock.mockResolvedValue(makeCall({ agent_id: "agent-1", provider_agent_call_id: "agent-leg-1" }));
 
     const result = await processProviderEvent(agentLegEvent("connected", "call-1", "agent-leg-1"));
 
     expect(updateStateMock).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalledWith(
+      "call-1",
+      { routing_snapshot: expect.objectContaining({ agent_answered_at: "2026-01-01T00:00:05Z" }) },
+      "agency-1",
+      expect.anything(),
+    );
+    expect(result).toBeTruthy();
+  });
+
+  it("ignores caller-leg connected echoes while ringing (no stamp)", async () => {
+    findByIdMock.mockResolvedValue(makeCall({ agent_id: "agent-1", provider_agent_call_id: "agent-leg-1" }));
+
+    const result = await processProviderEvent(agentLegEvent("connected", "call-1", "caller-leg-1"));
+
+    expect(updateStateMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
     expect(result).toBeTruthy();
   });
 

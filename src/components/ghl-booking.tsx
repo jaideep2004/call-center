@@ -3,9 +3,9 @@ import Script from "next/script";
 
 /**
  * Single booking system: the client-provided GoHighLevel calendar. Agents
- * book from Dashboard → Onboarding → Book Call; admins never embed this —
- * they read entries on /dashboard/admin/calendar. Swap the ID if the client
- * rotates calendars. Bookings made here live in GoHighLevel, not our tables.
+ * book from Dashboard → Onboarding; bookings live in GoHighLevel (which can
+ * redirect back with ?booked=1), not our tables. Swap the ID if the client
+ * rotates calendars.
  *
  * Scroll contract: the iframe is tall enough for the full multi-step widget
  * (no inner scroll container of our own — the page scrolls naturally). The

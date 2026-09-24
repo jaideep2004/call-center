@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import { query, queryOne } from "@/server/db";
-import { publishers, publisherInvites, memberships } from "@/server/repositories";
+import { publishers, publisherInvites, memberships, campaigns, phoneNumbers } from "@/server/repositories";
 import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
 
 export interface PortalOverview {
@@ -278,4 +278,72 @@ export async function acceptPortalInvite(
     },
     switchedAgency,
   };
+}
+
+export interface TrackingLinkData {
+  publisherId: string;
+  publisherName: string;
+  campaignId: string;
+  campaignName: string;
+  trackingNumber: string;
+}
+
+/**
+ * Resolve a public tracking link /t/[afid]?cid=[campaign]. Returns null when
+ * the afid is unknown, the campaign is missing/inactive, the campaign has no
+ * live tracking number, or the publisher is not assigned to the campaign
+ * (join-table or legacy publisher_id) — the page renders 404 in all cases so
+ * unassigned campaigns can never be advertised.
+ */
+export async function getTrackingLinkData(afid: string, campaignId: string): Promise<TrackingLinkData | null> {
+  const publisher = await publishers.findByAfid(afid).catch(() => null);
+  if (!publisher) return null;
+  const campaign = await campaigns.findById(campaignId).catch(() => null);
+  if (!campaign || campaign.status !== "active" || (campaign as { deleted_at?: string | null }).deleted_at) return null;
+  const assigned = await queryOne<{ one: number }>(
+    `SELECT 1 AS one FROM app.campaign_publishers WHERE campaign_id = $1 AND publisher_id = $2
+      UNION SELECT 1 AS one FROM app.campaigns WHERE id = $1 AND publisher_id = $2
+     LIMIT 1`,
+    [campaignId, publisher.id],
+  ).catch(() => null);
+  if (!assigned) return null;
+  const number = await phoneNumbers.findByCampaign(campaignId).catch(() => null);
+  if (!number) return null;
+  return {
+    publisherId: publisher.id,
+    publisherName: publisher.name,
+    campaignId: campaign.id,
+    campaignName: campaign.name,
+    trackingNumber: number.e164,
+  };
+}
+
+/** Best-effort click log for the public tracking page. Never throws. */
+export async function recordTrackingClick(opts: {
+  publisherId: string;
+  campaignId: string;
+  referrer?: string | null;
+}): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO app.tracking_clicks (publisher_id, campaign_id, referrer) VALUES ($1, $2, $3)`,
+      [opts.publisherId, opts.campaignId, opts.referrer ?? null],
+    );
+  } catch {
+    /* stats must never break the page */
+  }
+}
+
+/** Per-campaign click counts (last 30 days) for a publisher's Tracking Links card. */
+export async function getClickStats(publisherId: string): Promise<{ campaign_id: string; clicks: number }[]> {
+  try {
+    return await query<{ campaign_id: string; clicks: number }>(
+      `SELECT campaign_id, COUNT(*)::int AS clicks FROM app.tracking_clicks
+        WHERE publisher_id = $1 AND created_at > now() - interval '30 days'
+       GROUP BY campaign_id`,
+      [publisherId],
+    );
+  } catch {
+    return [];
+  }
 }

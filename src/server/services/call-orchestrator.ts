@@ -161,6 +161,25 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
         call = await calls.updateState(call.id, "connected", call.agency_id, {
           connected_at: event.occurredAt,
         }, client);
+      } else if (
+        call.state === "ringing" &&
+        call.provider_agent_call_id &&
+        event.providerCallId &&
+        event.providerCallId === call.provider_agent_call_id
+      ) {
+        // AGENT leg answered while ringing (browser picked up before/at the
+        // Accept click). Stamp it into the snapshot so acceptCall's bridge
+        // loop wakes immediately instead of sleeping out its retry gap.
+        // Caller-leg echoes (providerCallId == provider_call_id) stay ignored.
+        const snap = {
+          ...((call.routing_snapshot ?? {}) as Record<string, unknown>),
+          agent_answered_at: event.occurredAt,
+        };
+        try {
+          await calls.update(call.id, { routing_snapshot: snap }, call.agency_id, client);
+        } catch {
+          /* stamp is advisory — the retry loop still converges without it */
+        }
       }
       return { call };
     }
@@ -800,10 +819,20 @@ export async function acceptCall(callId: string) {
     // the agent may pick up seconds after clicking Accept (late popup), and a
     // single 800ms retry was too short. ~8s of retries stays well under the
     // ring timeout; afterwards the call goes down the normal missed path.
+    //
+    // Fast wake: the agent-leg `connected` webhook stamps
+    // routing_snapshot.agent_answered_at while state is still ringing. Between
+    // attempts we poll for that stamp (or a terminal state) every 200ms
+    // instead of sleeping a blind second — the bridge fires ~800ms sooner
+    // once answered, at the same 8-attempt budget.
     const BRIDGE_ATTEMPTS = 8;
+    const BRIDGE_WINDOW_MS = 8000;
+    const ANSWER_POLL_MS = 200;
+    const deadline = Date.now() + BRIDGE_WINDOW_MS;
     let bridged = false;
+    let stopped = false;
     let lastErr: string | null = null;
-    for (let attempt = 1; attempt <= BRIDGE_ATTEMPTS && !bridged; attempt++) {
+    for (let attempt = 1; attempt <= BRIDGE_ATTEMPTS && !bridged && !stopped; attempt++) {
       try {
         if (attempt > 1) console.log(`[acceptCall] bridge attempt ${attempt}/${BRIDGE_ATTEMPTS} for ${callId.slice(0, 8)}`);
         else console.log(`[acceptCall] bridging agent=${agentCallId.slice(0, 12)} to caller=${call.provider_call_id.slice(0, 12)}`);
@@ -816,10 +845,18 @@ export async function acceptCall(callId: string) {
         lastErr = msg;
         const isNotAnsweredYet = msg.includes("90034") || msg.includes("not been answered") || msg.includes("Call not answered");
         if (!isNotAnsweredYet) break; // leg gone or other fatal — straight to missed path
-        // Refresh: if either side ended while we wait, stop retrying.
-        call = await calls.findById(callId).catch(() => null) ?? call;
-        if (!call || call.state === "ended" || call.state === "missed" || call.state === "failed" || call.state === "cancelled") break;
-        await new Promise((r) => setTimeout(r, 1000));
+        // Wait for the answer stamp (or a terminal state), polling quickly.
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, ANSWER_POLL_MS));
+          // Refresh: if either side ended while we wait, stop retrying.
+          call = await calls.findById(callId).catch(() => null) ?? call;
+          if (!call || call.state === "ended" || call.state === "missed" || call.state === "failed" || call.state === "cancelled") {
+            stopped = true;
+            break;
+          }
+          const snap = (call.routing_snapshot ?? {}) as Record<string, unknown>;
+          if (snap.agent_answered_at) break;
+        }
       }
     }
     if (!bridged) {

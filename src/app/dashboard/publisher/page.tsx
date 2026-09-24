@@ -31,19 +31,37 @@ function PublisherOverviewInner(){
   const [searchInput,setSearchInput]=useState(initialQ);
   const [debouncedQ,setDebouncedQ]=useState(initialQ);
   const [userName,setUserName]=useState<string | null>(null);
+  const [clicksByCampaign,setClicksByCampaign]=useState<Record<string,number>>({});
+
+  /** Tracking links are origin-aware (localhost in dev, domain in prod). */
+  const trackingLinkFor = (afid: string, campaignId: string | null) => {
+    const base = typeof window !== "undefined" ? window.location.origin : "https://coveragecalls.com";
+    return `${base}/t/${afid}?cid=${encodeURIComponent(campaignId ?? "")}`;
+  };
+
+  const copyTrackingLink = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast("Tracking link copied — share it anywhere","success");
+    } catch {
+      showToast(link,"info");
+    }
+  };
 
   const fetchData=useCallback(async()=>{
-    const [ovRes,callsRes,payoutsRes,meRes]=await Promise.all([
+    const [ovRes,callsRes,payoutsRes,meRes,clicksRes]=await Promise.all([
       fetch("/api/v1/publisher/overview"),
       fetch("/api/v1/publisher/calls?limit=50"),
       fetch("/api/v1/publisher/payouts").catch(()=>null as unknown as Response),
       fetch("/api/v1/me").catch(()=>null as unknown as Response),
+      fetch("/api/v1/publisher/clicks").catch(()=>null as unknown as Response),
     ]);
     if(ovRes.ok){ const b=await ovRes.json(); setOverview(b.data??null); }
     else { setOverview(null); }
     if(callsRes.ok){ const b=await callsRes.json(); setRecent(b.data?.rows??[]); }
     if(payoutsRes && payoutsRes.ok){ try{ const b=await payoutsRes.json(); const monthly:Array<{payout_cents:number}>=b.data?.monthly??[]; if(monthly.length>=2) setPayoutTrend(monthly.map(m=>Number(m.payout_cents))); }catch{} }
     if(meRes && meRes.ok){ try{ const b=await meRes.json(); setUserName(b.data?.user?.name ?? b.data?.publisher?.name ?? null);}catch{} }
+    if(clicksRes && clicksRes.ok){ try{ const b=await clicksRes.json(); const rows:Array<{campaign_id:string;clicks:number}> = b.data ?? []; const m:Record<string,number> = {}; for(const r of rows) m[r.campaign_id]=Number(r.clicks)||0; setClicksByCampaign(m); }catch{} }
     setLoading(false);
   },[]);
   useEffect(()=>{ fetchData(); },[fetchData]);
@@ -271,7 +289,12 @@ function PublisherOverviewInner(){
             <div className="cc-card__head"><div><h2>What to do next</h2><small>Publisher quick actions</small></div></div>
             <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:8 }}>
               <Link href="/dashboard/publisher/campaigns" className="action-row"><span><i className="action-dot action-dot--amber"/> Browse campaigns</span><span className="badge">View →</span></Link>
-              <button onClick={()=>showToast("Copy your tracking link for this campaign and place it in your marketing.","info")} className="action-row" style={{width:"100%", background:"none", border:0, cursor:"pointer", textAlign:"left"}}><span><i className="action-dot action-dot--violet"/> Get tracking link</span><span className="badge">Copy</span></button>
+              <button onClick={()=>{
+                const first = campaignPerf[0];
+                const afid = overview?.publisher.afid ?? overview?.publisher.id ?? "";
+                if(!first || !afid){ showToast("No assigned campaigns yet","info"); return; }
+                void copyTrackingLink(trackingLinkFor(afid, first.campaign_id ?? first.id));
+              }} className="action-row" style={{width:"100%", background:"none", border:0, cursor:"pointer", textAlign:"left"}}><span><i className="action-dot action-dot--violet"/> Get tracking link</span><span className="badge">Copy</span></button>
               <Link href="/dashboard/publisher/payouts" className="action-row"><span><i className="action-dot action-dot--cyan"/> Payout history</span><span className="badge">{formatCents(totalPayout)}</span></Link>
               <Link href="/dashboard/publisher/settings" className="action-row"><span><i className="action-dot"/> Settings</span><span className="badge">Manage →</span></Link>
             </div>
@@ -309,17 +332,19 @@ function PublisherOverviewInner(){
           <div className="cc-card__head"><div><h2>Your Tracking Links</h2><small>Affiliate ID • copy to share</small></div><span className="cc-badge" style={{ fontFamily:"var(--mono)", fontSize:11 }}>{overview?.publisher.afid ?? overview?.publisher.id?.slice(0,8) ?? "—"}</span></div>
           {campaignPerf.length ? (
             <div style={{ display:"flex", flexDirection:"column", gap:0, marginTop:8 }}>
-              <div style={{ display:"grid", gridTemplateColumns:"1.2fr 1.6fr 64px", gap:8, padding:"10px 8px", borderBottom:"1px solid var(--line)", font:"10px var(--mono)", letterSpacing:"1px", color:"var(--muted)", textTransform:"uppercase" }}>
-                <span>Campaign</span><span>Tracking Link</span><span>Copy</span>
+              <div style={{ display:"grid", gridTemplateColumns:"1.2fr 1.6fr 64px 64px", gap:8, padding:"10px 8px", borderBottom:"1px solid var(--line)", font:"10px var(--mono)", letterSpacing:"1px", color:"var(--muted)", textTransform:"uppercase" }}>
+                <span>Campaign</span><span>Tracking Link</span><span>Clicks</span><span>Copy</span>
               </div>
               {(campaignPerf.slice(0,5)).map(c=>{
                 const afid = overview?.publisher.afid ?? overview?.publisher.id ?? "AFF123";
-                const link = `https://coveragecalls.com/t/${afid}?cid=${encodeURIComponent(c.campaign_id ?? c.id)}`;
+                const link = trackingLinkFor(afid, c.campaign_id ?? c.id);
+                const clicks = clicksByCampaign[c.campaign_id ?? c.id] ?? 0;
                 return (
-                  <div key={c.id} style={{ display:"grid", gridTemplateColumns:"1.2fr 1.6fr 64px", gap:8, padding:"12px 8px", borderTop:"1px solid var(--line)", alignItems:"center" }}>
+                  <div key={c.id} style={{ display:"grid", gridTemplateColumns:"1.2fr 1.6fr 64px 64px", gap:8, padding:"12px 8px", borderTop:"1px solid var(--line)", alignItems:"center" }}>
                     <span style={{fontSize:13, fontWeight:500, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>{c.campaign_name}</span>
                     <span className="text-mono-sm" style={{fontSize:10, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", color:"var(--muted)"}}>{link}</span>
-                    <button className="btn btn-ghost btn-sm" style={{ fontSize:11, padding:"4px 8px", borderRadius:6 }} onClick={async()=>{ try{ await navigator.clipboard.writeText(link); showToast("Tracking link copied","success"); }catch{ showToast(link,"info"); } }}>Copy</button>
+                    <span className="text-mono-sm" style={{fontSize:11}} title="Link visits, last 30 days">{clicks}</span>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize:11, padding:"4px 8px", borderRadius:6 }} onClick={()=>copyTrackingLink(link)}>Copy</button>
                   </div>
                 );
               })}

@@ -115,9 +115,11 @@ function NotificationsInner() {
   const unread = filtered.filter((n) => !n.dispatched_at).length;
 
   // Memoized so DataTable doesn't re-render every row on each keystroke/socket tick.
+  // No raw Payload column — users get a human Message instead (topic +
+  // message); search still matches payload internals invisibly.
   const columns: Column<Notification>[] = useMemo(() => [
     { key: "topic", header: "Topic", render: (n) => <span className={`badge ${TOPIC_COLORS[n.topic] ?? TOPIC_COLORS.default}`}>{n.topic}</span> },
-    { key: "payload", header: "Payload", render: (n) => <span className="text-mono-sm" style={{ fontSize: 11, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", display: "inline-block", whiteSpace: "nowrap" }} title={JSON.stringify(n.payload)}>{JSON.stringify(n.payload)}</span> },
+    { key: "message", header: "Message", render: (n) => <span style={{ fontSize: 12, maxWidth: 420, overflow: "hidden", textOverflow: "ellipsis", display: "inline-block", whiteSpace: "nowrap" }} title={typeof n.payload?.message === "string" ? n.payload.message as string : n.topic}>{typeof n.payload?.message === "string" && (n.payload.message as string) ? n.payload.message as string : n.topic}</span> },
     { key: "occurred_at", header: "When", render: (n) => <time className="text-mono-sm" style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>{new Date(n.occurred_at).toLocaleString()}</time> },
     { key: "dispatched_at", header: "Status", render: (n) => !n.dispatched_at ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--cyan)", display: "inline-block" }} title="Unread" /> : <span className="badge">read</span> },
     { key: "actions", header: "", className: "actions-cell", render: (n) => !n.dispatched_at ? <button className="btn btn-sm btn-secondary" style={{ whiteSpace: "nowrap" }} onClick={() => markRead(n.id)}>Mark read</button> : null },
@@ -133,7 +135,7 @@ function NotificationsInner() {
           <h1>Notifications</h1>
         </div>
         <div className="search-bar">
-          <input className="input" type="search" placeholder="Search topic or payload..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 200 }} />
+          <input className="input" type="search" placeholder="Search notifications..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 200 }} />
           <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{unread} unread · {filtered.length} total</span>
           {unread > 0 && <button className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }} onClick={markAllRead}>Mark all read</button>}
         </div>

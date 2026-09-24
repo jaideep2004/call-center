@@ -348,6 +348,48 @@
 - Next: client re-tests paid subscription end-to-end.
 - Tests: `npm run typecheck` clean · `npm test` 751 passed | 5 skipped (99 files: +reconcile-subscription, +sub isolation/guard) · `npm run build` clean.
 
+## 2026-09-24 - assistant - EVENT-DRIVEN BRIDGE WAKE (2657ms → sub-2s path)
+- Did: live log showed bridge succeeding only on attempt 3 — the agent-leg `connected` webhook arrived mid-loop but was dropped (handler ignored everything while ringing), so acceptCall slept out a blind 1s gap. Now the webhook stamps routing_snapshot.agent_answered_at when the event's leg matches provider_agent_call_id (caller-leg echoes still ignored), and the bridge loop polls the stamp every 200ms within the same 8-attempt/8s budget. Multi-instance safe (DB flag, no new infra); existing test contract preserved.
+- Decisions: JSONB snapshot merge, zero migrations; caller echo explicitly excluded by leg-id match.
+- Broke / TODO: none. Deploy + retest: expect bridge success on attempt 1-2, accept total well under 2s.
+- Next: live call retest with pm2 logs.
+- Tests: `npm run typecheck` clean · `npm test` 753 passed | 5 skipped (99 files: +agent-leg stamp ×2, +fast-wake) · `npm run build` clean.
+
+## 2026-09-24 - assistant - TRACKING LINKS LIVE (/t/[afid])
+- Did: the dead "Get tracking link" toast is now a real endpoint — public /t/[afid]?cid= page (no login, force-dynamic, noindex) resolving afid → active assigned campaign → live tracking DID into a branded click-to-call card (tel: button, recording disclosure, zero payout/afid leakage); 404 unless every check passes so unassigned campaigns can't be advertised. Migration 0064 tracking_clicks (no PII) + per-campaign 30d click stats in the portal card + working clipboard copy (origin-aware links, no more hardcoded domain) + NEW GET /api/v1/publisher/clicks.
+- Decisions: page shows the number (the missing piece — portal never displayed DIDs); attribution stays Retreaver-side as today; clicks logged best-effort, never block render.
+- Broke / TODO: 0064 needs live apply. Honest limit: direct-DID calls still don't attribute to publishers (shared numbers carry no afid) — per-publisher DIDs would be the follow-up if needed.
+- Next: deploy + open a real tracking link on mobile (tap-to-call check).
+- Tests: `npm run typecheck` clean · `npm test` 764 passed | 5 skipped (101 files: +tracking-link ×9, +clicks API ×2) · `npm run build` clean (+/t/[afid], /api/v1/publisher/clicks) · `migrate` applied 0064 locally.
+
+## 2026-09-24 - assistant - CALLS EXPORT 500 (nonexistent column + isolation)
+- Did: export ordered by c.created_at — a column app.calls never had (uses started_at; same family as the old updated_at/created_at audit finds) → every CSV/XLSX export 500d. Fixed to started_at DESC NULLS LAST. Same-file audit: leads/export valid (leads.created_at exists), reports/export valid (started_at); leads list+export intentionally agency-wide (shared pipeline — matches list behavior, documented). Hardened calls/export along the way: plain agents now export only their own calls (was a teammate-data leak by another door), LIMIT 5000 cap.
+- Decisions: no migration (query-only fix); leads scoping unchanged by design.
+- Broke / TODO: none. Re-export on live to confirm.
+- Next: client re-tests calls CSV + XLSX.
+- Tests: `npm run typecheck` clean · `npm test` 769 passed | 5 skipped (102 files: +calls-export ×5) · `npm run build` clean.
+
+## 2026-09-24 - assistant - NOTIFICATIONS + ONBOARDING + ADMIN CALENDAR BATCH
+- Did: notifications table drops raw Payload for a human Message column (search still matches payload invisibly). Campaign Updates out of Onboarding tabs into own /dashboard/campaign-updates page, nav below Book Call (Newspaper icon). Onboarding is Book Call only + booked state: ?booked=1 (GHL thank-you redirect) or manual "I've booked my call" (localStorage) → ✓ BOOKED banner + Book again reset. Admin Calendar nav entry removed (page now redirects to /dashboard/admin; internal slots/bookings APIs kept for history).
+- Decisions: GHL iframe cannot report bookings — honest client-side state is the only option short of GHL webhooks; calendar stays visible under the banner for re-booking.
+- Broke / TODO: none. GHL side: set the calendar's thank-you redirect to /dashboard/onboarding?booked=1 for automatic state.
+- Next: client checks onboarding flow + retired calendar link.
+- Tests: `npm run typecheck` clean · `npm test` 769 passed | 5 skipped (102 files) · `npm run build` clean (+/dashboard/campaign-updates).
+
+## 2026-09-24 - assistant - SINGLE AGENCY CARD (profile removed)
+- Did: agent Settings Agency tab now shows only agency creation — removed the Agency Profile edit card (name/retention) + its dead state/handlers. A slim current-agency chip stays for context; heads edit profile via platform admin. Empty states kept for creation-disabled.
+- Decisions: profile editing is admin-only now (Admin → Agencies); no API changes.
+- Broke / TODO: none.
+- Next: client checks Settings tab.
+- Tests: `npm run typecheck` clean · `npm test` 769 passed | 5 skipped (102 files) · `npm run build` clean.
+
+## 2026-09-24 - assistant - CLEANUP + NEW CLIENT TEST GUIDE
+- Did: deleted 10 orphaned root debug scripts (check-*/verify-*/live-*/start-dev.mjs/fix-hero.py — none referenced by any npm script); docs are already lean (14 live files, all specs/logs/guides — nothing removed). Rewrote docs/CLIENT_TESTING_GUIDE.md v2 covering all new logic in 13 plain-words sections (prep, call connect, AND-gate, device gate, top-ups, subscriptions, tickets, isolation, exports, CMS/tracking, booking, ledger, settings, publisher walkthrough, reconcile drill).
+- Decisions: no vitest files touched (suite is the safety net); MANUAL_TEST_FLOW kept as the full-flow companion.
+- Broke / TODO: none.
+- Next: client tests per new guide on live.
+- Tests: `npm run typecheck` clean · `npm test` 769 passed | 5 skipped (102 files).
+
 ## 2026-09-24 - assistant - LIVE-FAILURE CLASS AUDIT (unverified success + webhook-only activation)
 - Did: swept all 4 Stripe checkout routes + all 4 return pages for the subscription bug class (celebrate-on-URL, no reconcile). Found + fixed 2 more: pool page ignored returns entirely (no toast/refresh/reconcile — silent), admin Ledger read ?success=true while its own checkout sends ?payment=success (dead handler, no reconcile). Both now verify-then-refresh like the others. Confirmed clean: all checkout routes expire orphans + stamp livemode + return session ids; both wallet pages + subscription + pool + ledger all reconcile; no other Stripe API surfaces (no recurring/portal/invoice-charge code paths exist); webhook handles only checkout.session.completed.
 - Decisions: no new APIs — reuse reconcile everywhere; pool/ledger toasts mirror agent-wallet wording.

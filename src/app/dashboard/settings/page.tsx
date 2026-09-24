@@ -155,9 +155,6 @@ function AgentStatesCard({ agentId }: { agentId: string | null }) {
 export default function SettingsPage() {
   const [agency, setAgency] = useState<Agency | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [name, setName] = useState("");
-  const [retention, setRetention] = useState(90);
   // Server role from /api/v1/me: admin is platform-level (not agency-scoped)
   // and gets a dedicated platform view below — never the agency tabs.
   const [meRole, setMeRole] = useState<string | null>(null);
@@ -183,8 +180,6 @@ export default function SettingsPage() {
         const body = await res.json();
         if (body.data) {
           setAgency(body.data);
-          setName(body.data.name);
-          setRetention(body.data.recording_retention_days);
         }
       }
       setLoading(false);
@@ -226,8 +221,6 @@ export default function SettingsPage() {
       if (res.ok) {
         showToast("Agency created — you are now the head", "success");
         setAgency(body.data);
-        setName(body.data.name);
-        setRetention(body.data.recording_retention_days);
         setLeaveConfirm(false);
         setNewAgencyName("");
         setNewAgencySlug("");
@@ -238,27 +231,6 @@ export default function SettingsPage() {
       showToast("Network error creating agency", "error");
     }
     setCreating(false);
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      const res = await fetch("/api/v1/agency", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, recording_retention_days: retention }),
-      });
-      if (res.ok) {
-        showToast("Settings saved", "success");
-      } else {
-        const body = await res.json().catch(() => ({}));
-        showToast(body.message ?? "Failed to save settings", "error");
-      }
-    } catch {
-      showToast("Failed to save settings", "error");
-    } finally {
-      setSaving(false);
-    }
   }
 
   if (loading || meRole === null) return (
@@ -360,7 +332,7 @@ export default function SettingsPage() {
         <div>
           <p className="eyebrow"><i /> SETTINGS / AGENCY</p>
           <h1 style={{ margin:"8px 0 0" }}>Settings</h1>
-          <p className="text-muted" style={{ fontSize:13, margin:"6px 0 0", maxWidth:560 }}>Agency profile, retention and creation controls — your control plane for team setup.</p>
+          <p className="text-muted" style={{ fontSize:13, margin:"6px 0 0", maxWidth:560 }}>Agency creation — start your own agency as head. Profile edits live with the platform admin.</p>
         </div>
       </div>
       <nav className="tabs" style={{ marginBottom: "var(--space-2)" }}>
@@ -370,49 +342,19 @@ export default function SettingsPage() {
       </nav>
 
       <div className="settings-layout">
-        {/* LEFT 2/3 — Agency profile */}
+        {/* LEFT 2/3 — agency creation only. Editing the current agency
+            (name, retention) lives with the platform admin — one card here
+            keeps agents from confusing "edit mine" with "start new". */}
         <div style={{ display:"flex", flexDirection:"column", gap: "var(--space-4)" }}>
           {agency ? (
             <>
-            <section className="card card--spacious" style={{ padding:22 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap" }}>
-                <div>
-                  <h2 className="settings-card-title">Agency Profile</h2>
-                  <p className="settings-card-sub">Name and retention — saved to your agency record.</p>
-                </div>
+            <section className="card card--spacious" style={{ padding:18 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
                 <span className="badge badge-success" style={{ textTransform:"capitalize" }}>{agency.status}</span>
-              </div>
-
-              <dl className="settings-data" style={{ gridTemplateColumns:"1fr 1fr", marginTop:18 }}>
                 <div>
-                  <dt>Agency ID</dt>
-                  <dd className="text-mono-sm" style={{ fontSize:12 }}>{agency.id}</dd>
+                  <strong style={{ fontSize:14, color:"var(--ink)", display:"block" }}>{agency.name}</strong>
+                  <small style={{ fontSize:11, color:"var(--muted)" }}>Your current agency — profile edits live with the platform admin</small>
                 </div>
-                <div>
-                  <dt>Slug</dt>
-                  <dd className="text-mono-sm" style={{ fontSize:12 }}>{agency.slug}</dd>
-                </div>
-                <div>
-                  <dt>Created</dt>
-                  <dd className="text-mono-sm" style={{ fontSize:12 }}>{agency.created_at ? new Date(agency.created_at).toLocaleDateString() : "—"}</dd>
-                </div>
-                <div>
-                  <dt>Currency</dt>
-                  <dd className="text-mono-sm" style={{ fontSize:12 }}>{agency.currency ?? "USD"}</dd>
-                </div>
-              </dl>
-
-              <div className="settings-form">
-                <div>
-                  <label className="settings-label">Agency Name</label>
-                  <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Northside Agency" style={{ minHeight: 42 }} />
-                </div>
-                <div>
-                  <label className="settings-label">Recording Retention (Days)</label>
-                  <input className="input" type="number" min={1} max={3650} value={retention} onChange={(e) => setRetention(parseInt(e.target.value) || 90)} style={{ minHeight: 42 }} />
-                  <p className="text-muted" style={{ fontSize:11, margin:"6px 0 0" }}>After this period, recordings are purged. 90 days is the default.</p>
-                </div>
-                <button className="btn btn-primary" disabled={saving} onClick={handleSave} style={{ height: 42, marginTop: 4 }}>{saving ? "Saving..." : "Save Changes"}</button>
               </div>
             </section>
             {creationAllowed && (
@@ -432,6 +374,15 @@ export default function SettingsPage() {
                     {creating ? <span className="spinner" /> : "Leave & Create Agency"}
                   </button>
                 </form>
+              </section>
+            )}
+            {creationAllowed === false && (
+              <section className="card card--spacious" style={{ padding:22 }}>
+                <h2 className="settings-card-title" style={{ fontSize:15 }}>No actions available</h2>
+                <p className="text-muted" style={{ fontSize: 13, margin:"8px 0 0", lineHeight:1.6 }}>
+                  Agency creation is currently disabled — contact the platform admin if you need changes to {agency.name}.
+                </p>
+                <Link href="/dashboard/support" className="btn btn-secondary btn-sm" style={{ marginTop:16 }}>Contact Support →</Link>
               </section>
             )}
             </>

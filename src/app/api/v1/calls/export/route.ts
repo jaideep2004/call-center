@@ -1,4 +1,5 @@
 import { apiHandler, fail } from "@/server/api-utils";
+import { agents } from "@/server/repositories";
 import { query } from "@/server/db";
 import { NextResponse } from "next/server";
 import { toCsv } from "@/lib/csv";
@@ -22,11 +23,23 @@ export const GET = apiHandler(async (req, context) => {
   if (!context.agencyId && !isPrivileged) {
     return fail("Agency scope required", 403) as unknown as NextResponse;
   }
+  // Plain agents export ONLY their own calls (mirrors the list route —
+  // otherwise the export is a teammate-data leak by another door).
+  let forcedAgentId: string | undefined;
+  if (!isPrivileged && !context.isHead) {
+    const me = context.membership ? await agents.findByMembershipId(context.membership.id).catch(() => null) : null;
+    if (!me) return fail("Agent profile not found", 403) as unknown as NextResponse;
+    forcedAgentId = me.id;
+  }
   const params: unknown[] = [];
   const clauses: string[] = [];
   if (context.agencyId) {
     params.push(context.agencyId);
     clauses.push(`c.agency_id = $${params.length}`);
+  }
+  if (forcedAgentId) {
+    params.push(forcedAgentId);
+    clauses.push(`c.agent_id = $${params.length}`);
   }
   if (state) {
     params.push(state);
@@ -39,6 +52,8 @@ export const GET = apiHandler(async (req, context) => {
 
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
+  // NOTE: app.calls has no created_at — ordering is by started_at (a call
+  // created but never started sorts last, never errors).
   const rows = await query<Record<string, unknown>>(
     `
     SELECT c.id, c.state, c.provider, c.from_hash, c.started_at, c.connected_at, c.ended_at,
@@ -49,7 +64,8 @@ export const GET = apiHandler(async (req, context) => {
     LEFT JOIN app.agents a ON a.id = c.agent_id
     LEFT JOIN app.dispositions d ON d.call_id = c.id
     ${where}
-    ORDER BY c.created_at DESC
+    ORDER BY c.started_at DESC NULLS LAST
+    LIMIT 5000
   `,
     params,
   );

@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   BarChart3, Bell, BookOpen, Building2, Calendar, CalendarPlus, Disc, FileText,
   GraduationCap, Landmark, Layers, LayoutDashboard, LayoutTemplate, LifeBuoy,
-  Lightbulb, LogOut, Megaphone, Phone, PhoneCall, PhoneOff, Radio, Receipt, Scale, Settings,
+  Lightbulb, LogOut, Megaphone, Newspaper, Phone, PhoneCall, PhoneOff, Radio, Receipt, Scale, Settings,
   Shield, SlidersHorizontal, TrendingUp, UserPlus, Users, Wallet, Dot,
   type LucideIcon,
 } from "lucide-react";
@@ -18,7 +18,7 @@ import "@/styles/dashboard.css";
 
 /** Sidebar icon per legacy nav code (expanded: icon + label, collapsed rail: icon only). */
 const NAV_ICONS: Record<string, LucideIcon> = {
-  "01": LayoutDashboard, "01b": PhoneCall, "03": Megaphone, "01c": CalendarPlus,
+  "01": LayoutDashboard, "01b": PhoneCall, "03": Megaphone, "01c": CalendarPlus, "01d": Newspaper,
   "06": Phone, "07b": Wallet, "05f": Layers, "05c": FileText, "05h": GraduationCap,
   "09b": LifeBuoy, "09": Bell, "10": Settings, "11": Lightbulb, "04": Building2,
   "05": Users, "02": UserPlus, "03b": Radio, "06c": Scale, "06b": Disc,
@@ -255,6 +255,7 @@ const agentNav = [
   { label: "Take Calls", href: "/dashboard/take-calls", icon: "01b" },
   { label: "Campaigns", href: "/dashboard/agent-campaigns", icon: "03" },
   { label: "Book Call", href: "/dashboard/onboarding", icon: "01c" },
+  { label: "Campaign Updates", href: "/dashboard/campaign-updates", icon: "01d" },
   { label: "Calls", href: "/dashboard/calls", icon: "06" },
   // Finance group: Keep Subscriptions + Wallet consecutive + visually grouped (billing)
   { label: "My Wallet", href: "/dashboard/wallet/agent", icon: "07b" },
@@ -299,7 +300,6 @@ const adminNavGroups = [
   },
   {
     label: "SYSTEM", items: [
-      { label: "Calendar", href: "/dashboard/admin/calendar", icon: "10c" },
       { label: "Reports", href: "/dashboard/reports", icon: "08" },
       { label: "Support", href: "/dashboard/admin/support", icon: "09b" },
       { label: "CMS", href: "/dashboard/admin/cms", icon: "11b" },
@@ -568,7 +568,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const mainItems = agentNav.filter((i) => !financeGrouped.has(i.href));
     return (
       <nav>
-        {mainItems.slice(0, 4).map((item) => (
+        {mainItems.slice(0, 5).map((item) => (
           <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
             <NavIco code={item.icon} /><span className="nav-label">{item.label}</span>
             {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
@@ -587,7 +587,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           )}
         </div>
-        {mainItems.slice(4).map((item) => (
+        {mainItems.slice(5).map((item) => (
           <Link key={item.href} className={isActive(item.href) ? "active" : ""} href={item.href} title={item.label}>
             <NavIco code={item.icon} /><span className="nav-label">{item.label}</span>
             {item.href === "/dashboard/notifications" && <NotificationBadge membershipId={membershipId} />}
