@@ -1,19 +1,23 @@
-import { apiHandler, ok, requireHeadOr } from "@/server/api-utils";
+import { apiHandler, ok, fail, requireHeadOr } from "@/server/api-utils";
 import { ForbiddenError } from "@/server/errors";
 import { agencies } from "@/server/repositories";
 import { validate, updateAgencySchema } from "@/server/validate";
 
 export const GET = apiHandler(async (req, context) => {
-  requireHeadOr(context, "agency", "view");
   const url = new URL(req.url);
   const id = url.searchParams.get("id") ?? context.agencyId;
   if (!id) return ok(null);
+  // Own agency profile is visible to any active member (agents need it for
+  // Settings; they hold no agency:view matrix right). Anything beyond your
+  // own agency still needs head/admin rights.
+  const isOwn = !!context.agencyId && id === context.agencyId;
+  if (!isOwn) requireHeadOr(context, "agency", "view");
   if (context.isHead && id !== context.agencyId) {
     throw new ForbiddenError("You can only view your own agency");
   }
   const agency = await agencies.findById(id);
   return ok(agency);
-}, { resource: "agency", action: "view", allowHead: true });
+});
 
 export const PATCH = apiHandler(async (req, context) => {
   requireHeadOr(context, "agency", "update");
@@ -25,6 +29,10 @@ export const PATCH = apiHandler(async (req, context) => {
     throw new ForbiddenError("You can only update your own agency");
   }
   const body = validate(updateAgencySchema, await req.json());
+  // Heads must never grant themselves the postpaid money bypass — admin-only.
+  if (body.postpaid_bypass !== undefined && context.user?.role !== "admin") {
+    return fail("Only platform admins can set postpaid billing", 403);
+  }
   const agency = await agencies.update(id, body);
   return ok(agency, "Agency updated");
 }, { resource: "agency", action: "update", allowHead: true });

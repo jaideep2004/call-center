@@ -72,14 +72,11 @@ export default function FAQSection({ items }: { items: FaqEntry[] }) {
           </div>
 
           <h2 className={styles.title}>
-            Everything you need to know about <br />
+            Everything you need to know about 
             <span className={styles.gradientText}>Coverage Calls.</span>
           </h2>
 
-          <p className={styles.subtitle}>
-            Have a question? We&apos;ve got answers. If you can&apos;t find what you&apos;re looking
-            for, reach out to our team anytime.
-          </p>
+    
 
           {categories.length > 1 && (
             <div className={styles.categoryPills}>

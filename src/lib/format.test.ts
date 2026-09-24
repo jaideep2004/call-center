@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCents, formatDuration, formatTimer } from "./format";
+import { formatCents, formatDuration, formatTimer, normalizeMediaUrl } from "./format";
 
 describe("formatCents", () => {
   it("formats zero", () => expect(formatCents(0)).toBe("$0.00"));
@@ -24,4 +24,25 @@ describe("formatTimer", () => {
   it("formats minutes", () => expect(formatTimer(60)).toBe("01:00"));
   it("formats minutes and seconds", () => expect(formatTimer(125)).toBe("02:05"));
   it("formats hours as minutes", () => expect(formatTimer(3600)).toBe("60:00"));
+});
+
+describe("normalizeMediaUrl", () => {
+  it("rewrites Drive file share links to direct download", () =>
+    expect(normalizeMediaUrl("https://drive.google.com/file/d/ABC123xyz/view?usp=sharing")).toBe(
+      "https://drive.google.com/uc?export=download&id=ABC123xyz",
+    ));
+  it("rewrites Drive open links", () =>
+    expect(normalizeMediaUrl("https://drive.google.com/open?id=ABC123xyz")).toBe(
+      "https://drive.google.com/uc?export=download&id=ABC123xyz",
+    ));
+  it("leaves direct and CDN urls untouched", () => {
+    expect(normalizeMediaUrl("https://cdn.example.com/a.png")).toBe("https://cdn.example.com/a.png");
+    expect(normalizeMediaUrl("https://drive.google.com/uc?export=download&id=ABC123xyz")).toBe(
+      "https://drive.google.com/uc?export=download&id=ABC123xyz",
+    );
+  });
+  it("trims and passes through empties", () => {
+    expect(normalizeMediaUrl("  https://cdn.example.com/a.png  ")).toBe("https://cdn.example.com/a.png");
+    expect(normalizeMediaUrl("")).toBe("");
+  });
 });

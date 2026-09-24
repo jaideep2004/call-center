@@ -27,7 +27,7 @@ export interface LeadRowWithCall extends LeadRow {
 const STATUS_RANK: Record<string, number> = { new: 0, contacted: 1, qualified: 2, converted: 3 };
 
 interface LeadFilterParams {
-  agencyId: string;
+  agencyId?: string;
   search?: string;
   sortBy?: string;
   order?: "asc" | "desc";
@@ -59,21 +59,23 @@ export class LeadRepository extends BaseRepository<LeadRow> {
     });
   }
 
-  async findManyWithFilters(params: LeadFilterParams) {
+  async findManyWithFilters(params: LeadFilterParams & { agencyId?: string }) {
     const { agencyId, search, sortBy = "created_at", order = "desc", page = 1, limit = 25, status, source, assignedAgentId, startDate, endDate } = params;
     const offset = (page - 1) * limit;
     // All columns qualified with l. — the JOINs below bring in app.calls /
-    // app.dispositions which share column names (agency_id, ...).
-    const where: string[] = ["l.agency_id = $1", "l.deleted_at IS NULL"];
-    const values: unknown[] = [agencyId];
-    let idx = 1;
-
-    if (search) { values.push(`%${search}%`); where.push(`(l.email_hash::text LIKE $${++idx} OR l.phone_hash::text LIKE $${idx})`); }
-    if (status) { values.push(status); where.push(`l.status = $${++idx}`); }
-    if (source) { values.push(source); where.push(`l.source = $${++idx}`); }
-    if (assignedAgentId) { values.push(assignedAgentId); where.push(`l.assigned_agent_id = $${++idx}`); }
-    if (startDate) { values.push(startDate); where.push(`l.created_at >= $${++idx}`); }
-    if (endDate) { values.push(endDate); where.push(`l.created_at <= $${++idx}`); }
+    // app.dispositions which share column names (agency_id, ...). agencyId is
+    // optional: platform admin lists cross-agency (callers must fail closed
+    // for non-admins without one — never pass undefined for them).
+    const where: string[] = ["l.deleted_at IS NULL"];
+    const values: unknown[] = [];
+    const nextParam = () => `$${values.length + 1}`;
+    if (agencyId) { values.push(agencyId); where.push(`l.agency_id = $${values.length}`); }
+    if (search) { values.push(`%${search}%`); where.push(`(l.email_hash::text LIKE ${nextParam()} OR l.phone_hash::text LIKE ${nextParam()})`); }
+    if (status) { values.push(status); where.push(`l.status = $${values.length}`); }
+    if (source) { values.push(source); where.push(`l.source = $${values.length}`); }
+    if (assignedAgentId) { values.push(assignedAgentId); where.push(`l.assigned_agent_id = $${values.length}`); }
+    if (startDate) { values.push(startDate); where.push(`l.created_at >= $${values.length}`); }
+    if (endDate) { values.push(endDate); where.push(`l.created_at <= $${values.length}`); }
 
     const allowedSort = ["created_at", "updated_at", "source", "status", "email_hash"];
     const safeSort = allowedSort.includes(sortBy) ? sortBy : "created_at";
@@ -92,7 +94,7 @@ export class LeadRepository extends BaseRepository<LeadRow> {
        FROM app.leads l
        LEFT JOIN app.calls lc ON lc.id = l.call_id
        LEFT JOIN app.dispositions ld ON ld.call_id = lc.id
-       WHERE ${where.join(" AND ")} ORDER BY l.${safeSort} ${safeOrder} LIMIT $${idx + 1} OFFSET $${idx + 2}`,
+       WHERE ${where.join(" AND ")} ORDER BY l.${safeSort} ${safeOrder} LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
       [...values, limit, offset],
     );
 

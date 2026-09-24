@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { normalizeMediaUrl } from "@/lib/format";
 
 interface Creative {
   id: string;
@@ -14,11 +15,15 @@ interface Creative {
 }
 
 function CreativeMedia({ creative, height }: { creative: Creative; height: number }) {
+  // Render-time normalization covers rows saved before write-time
+  // canonicalization (old Drive share links).
+  const src = normalizeMediaUrl(creative.media_url);
+  const poster = creative.thumbnail_url ? normalizeMediaUrl(creative.thumbnail_url) : undefined;
   if (creative.type === "video") {
     return (
       <video
-        src={creative.media_url}
-        poster={creative.thumbnail_url ?? undefined}
+        src={src}
+        poster={poster}
         controls
         preload="metadata"
         style={{ width: "100%", height, objectFit: "cover", borderRadius: 10, background: "#000" }}
@@ -28,7 +33,7 @@ function CreativeMedia({ creative, height }: { creative: Creative; height: numbe
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={creative.media_url}
+      src={src}
       alt={creative.title}
       loading="lazy"
       style={{ width: "100%", height, objectFit: "cover", borderRadius: 10 }}
@@ -93,7 +98,59 @@ export function AgentHero() {
   );
 }
 
-/** Feed: agent_feed creatives below Quick Actions. */
+/** Full campaign updates list (Campaign Updates tab): every agent_feed
+ * creative, large media, newest first. Empty state included (unlike the
+ * compact home feed, which hides when empty). */
+export function CampaignUpdatesList() {
+  const [items, setItems] = useState<Creative[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/v1/cms/creatives?placement=agent_feed")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => setItems(body?.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="stack" style={{ gap: 12 }}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="skeleton" style={{ height: 220, borderRadius: 12 }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="empty-state" style={{ padding: "32px 0" }}>
+        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          No campaign updates yet — new ads and announcements from your admin will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+      {items.map((c) => (
+        <article key={c.id} className="cc-card" style={{ overflow: "hidden", padding: 0 }}>
+          <CreativeMedia creative={c} height={220} />
+          <div style={{ padding: "12px 14px" }}>
+            <strong style={{ fontSize: 14, display: "block" }}>{c.title}</strong>
+            {c.cta_label && c.cta_href && (
+              <a className="btn btn-sm btn-primary" href={c.cta_href} target="_blank" rel="noreferrer" style={{ marginTop: 10 }}>
+                {c.cta_label}
+              </a>
+            )}
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
 export function AgentFeed() {
   const [items, setItems] = useState<Creative[]>([]);
 

@@ -34,3 +34,21 @@ export function formatTimer(seconds: number): string {
   const s = seconds % 60;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
+
+/**
+ * Google Drive share links (…/file/d/ID/view, …/open?id=ID) render as HTML
+ * pages — <img>/<video> show nothing. Rewrite to the direct-download form
+ * so pasted Drive links just work. Anything else passes through untouched.
+ */
+export function normalizeMediaUrl(url: string): string {
+  const raw = (url ?? "").trim();
+  if (!raw) return raw;
+  const fileMatch = raw.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return `https://drive.google.com/uc?export=download&id=${fileMatch[1]}`;
+  const openMatch = raw.match(/drive\.google\.com\/open\?([^#]*)/);
+  if (openMatch) {
+    const idMatch = openMatch[1].match(/(?:^|&)id=([a-zA-Z0-9_-]+)/);
+    if (idMatch) return `https://drive.google.com/uc?export=download&id=${idMatch[1]}`;
+  }
+  return raw;
+}

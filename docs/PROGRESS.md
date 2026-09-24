@@ -249,6 +249,27 @@
 - Next: client picks items from the remainder list.
 - Tests: `npm run typecheck` clean · `npm test` 669 passed | 5 skipped (85 files).
 
+## 2026-09-21 - assistant - DASHBOARD BATCH (activity graph, drive links, layout moves)
+- Did: (1) Call Activity now counts missed/failed (COALESCE started/ended + real per-state breakdowns, estimates only as legacy fallback). (2) Drive share links auto-rewritten to direct download at CMS save + render-time (old rows fixed too). (3) Agent home: Quick Actions ↔ Today's Goal swapped. (4) Onboarding gains Book Call / Campaign Updates tabs (full creative grid). (5) Take Calls: Live Campaigns search, Checklist↔Snapshot swap, equal 1fr/1fr grid. (6) CLIENT_TESTING_GUIDE refreshed with re-test list.
+- Decisions: render-time normalization covers pre-fix rows; equal grid is CSS-only (mobile stacks as before).
+- Broke / TODO: none. Deploy + visual check per guide.
+- Next: client UAT per guide.
+- Tests: `npm run typecheck` clean · `npm test` 680 passed | 5 skipped (86 files, +4 drive-link).
+
+## 2026-09-21 - assistant - CLIENT FEEDBACK BATCH 2 (accept-202, postpaid, exclusives, admin-wide)
+- Did: (11b) accept route 202-instant + background bridge + dedup guard + Cancel in connecting state; (1) agency postpaid_bypass (0061 live) in funding gate + routing tier 2, admin-only set, agency page invite-by-email + toggle; (2/3/4) own-agency GET for members, members refetch fix, auto-create stops silent joins, leave-create ensures agent rows; (5) exclusives hidden from browse unless assigned; (6) bidding exclusive-access panel + sectioned layout; admin lists (agents/campaigns/calls/invoices/leads/memberships) now platform-wide for admin, fail-closed otherwise; enum rebuilt to admin/agent/publisher live + 0062 guard migration.
+- Decisions: postpaid rides tier 2 (prepaid keeps priority); invite accept joins invite agency ?? inviter agency; connecting Cancel calls existing hangup path.
+- Broke / TODO: $1 Stripe triage + publisher explainer in chat; visual QA user-side.
+- Next: deploy, retest per client list.
+- Tests: `npm run typecheck` clean · `npm test` 676 passed | 5 skipped (86 files).
+
+## 2026-09-21 - assistant - CLIENT FEEDBACK BATCH (11 items)
+- Did: (11) accept route returns 202 instantly + background bridge loop with dedup guard; connecting state gains Cancel; (2/3/4) agency GET visible to own members, members-page refetch fix, auto-create stops silent first-agency join, leave-create ensures agent rows; (1) agency postpaid_bypass (0061, live) honored by funding gate + routing tier 2, admin-only to set, admin agency page gains invite-by-email + postpaid toggle; (5) exclusive campaigns hidden from agent browse unless assigned; (6) bidding tab exclusive-access panel (agency/agent multi-select) + sectioned layout; (9) seeded Terms body live (privacy already had content); toasts/loaders verified on touched flows.
+- Decisions: heads can't self-grant postpaid (403); invite accept joins invite.agency_id ?? inviter agency; unassign parks spare; publisher-assignment visibility was already fixed — needs VPS deploy to show.
+- Broke / TODO: $1 Stripe triage + publisher explainer in chat; visual QA user-side.
+- Next: deploy (0061), retest all 11 per client list.
+- Tests: `npm run typecheck` clean · `npm test` 674 passed | 5 skipped (86 files).
+
 ## 2026-09-21 - assistant - NEW ABOUT PAGE
 - Did: replaced old About with the new design (hero + globe + floating badges, animated stat counters, mission cards, impact map, CTA banner) as TSX + scoped CSS module; dropped its duplicate header/footer (public layout already renders them); links pointed at real routes (/register, /login, /contact, /blog); uses existing /images/globe.png + /images/map.png; reduced-motion guard on idle animations.
 - Decisions: CSS-module scoping (pasted global selectors would have collided with app styles); no duplicate nav/footer; "Meet the Team" → "Talk to Us" (/contact) since no team section exists.

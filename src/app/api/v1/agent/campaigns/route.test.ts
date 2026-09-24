@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const findManyWithBidMock = vi.hoisted(() => vi.fn());
 const findByMembershipIdMock = vi.hoisted(() => vi.fn());
-const dbQueryMock = vi.hoisted(() => vi.fn(async () => []));
+const dbQueryMock = vi.hoisted(() => vi.fn(async (): Promise<Array<{ campaign_id: string; agency_id: string | null; agent_id: string | null }>> => []));
 const findIdsForAgencyOrAgentMock = vi.hoisted(() => vi.fn(async () => []));
 const findAllAssignedMock = vi.hoisted(() => vi.fn(async () => []));
 
@@ -115,5 +115,37 @@ describe("payout strip for non-admins (Phase 4, point 2)", () => {
     );
     const adminBody = (await adminRes.json()) as { data: Record<string, unknown>[] };
     expect(adminBody.data[0].effective_payout_cents).toBe(3500);
+  });
+});
+
+describe("exclusive visibility (client feedback 5)", () => {
+  function get(url: string) {
+    return agentRoute.GET(new Request(`http://x${url}`), ctx);
+  }
+
+  it("hides unassigned exclusive campaigns from browse", async () => {
+    findManyWithBidMock.mockResolvedValue({
+      rows: [
+        { ...bidRow, id: "camp-open", is_exclusive: false, visibility: "default" },
+        { ...bidRow, id: "camp-vip", is_exclusive: true, visibility: "exclusive" },
+      ],
+      total: 2,
+    });
+    const res = await get("/api/v1/agent/campaigns?status=active");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { id: string }[] };
+    expect(body.data.map((r) => r.id)).toEqual(["camp-open"]);
+  });
+
+  it("shows exclusive campaigns assigned to the viewer's agency", async () => {
+    findManyWithBidMock.mockResolvedValue({
+      rows: [{ ...bidRow, id: "camp-vip", is_exclusive: true, visibility: "exclusive" }],
+      total: 1,
+    });
+    dbQueryMock.mockResolvedValue([{ campaign_id: "camp-vip", agency_id: "agency-1", agent_id: null }]);
+    const res = await get("/api/v1/agent/campaigns?status=active");
+    const body = (await res.json()) as { data: { id: string; assignment_status: string }[] };
+    expect(body.data.map((r) => r.id)).toEqual(["camp-vip"]);
+    expect(body.data[0].assignment_status).toBe("Assigned");
   });
 });

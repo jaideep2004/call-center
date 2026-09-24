@@ -12,6 +12,7 @@ interface Agency {
   status: string;
   currency: string;
   recording_retention_days: number;
+  postpaid_bypass: boolean;
   created_at: string;
   parent_agency_id?: string | null;
 }
@@ -29,6 +30,9 @@ export default function AgencyDetailPage() {
   const [status, setStatus] = useState("active");
   const [currency, setCurrency] = useState("USD");
   const [retention, setRetention] = useState("90");
+  const [postpaid, setPostpaid] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -42,6 +46,7 @@ export default function AgencyDetailPage() {
         setStatus(a.status);
         setCurrency(a.currency);
         setRetention(String(a.recording_retention_days));
+        setPostpaid(a.postpaid_bypass === true);
       } else {
         showToast("Agency not found", "error");
       }
@@ -64,6 +69,7 @@ export default function AgencyDetailPage() {
           status,
           currency: currency.toUpperCase().slice(0,3),
           recording_retention_days: parseInt(retention) || 90,
+          postpaid_bypass: postpaid,
         }),
       });
       const body = await res.json();
@@ -148,10 +154,59 @@ export default function AgencyDetailPage() {
                 <label className="form-label" htmlFor="retention">Recording Retention (days)</label>
                 <input id="retention" className="input" type="number" min={1} max={3650} value={retention} onChange={(e)=>setRetention(e.target.value)} />
               </div>
+              <div className="form-group">
+                <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input type="checkbox" checked={postpaid} onChange={(e)=>setPostpaid(e.target.checked)} />
+                  Postpaid agency
+                </label>
+                <span className="text-muted text-mono-sm" style={{fontSize:10, marginTop:4, display:"block"}}>Members take calls without prepay (billed post-usage). Admin-only.</span>
+              </div>
               {error && <p className="form-error" style={{marginTop:12, color:"#e89b79", fontSize:12}}>{error}</p>}
             </section>
           </div>
           <div className="stack" style={{flex:1, gap:"var(--space-5)"}}>
+            <section className="card" style={{padding:"var(--space-6)"}}>
+              <h2 style={{font:"500 18px var(--serif)", margin:"0 0 6px", letterSpacing:"-0.03em"}}>Invite agents</h2>
+              <p className="text-muted" style={{fontSize:11, margin:"0 0 12px"}}>Email invite scoped to this agency — they register, join as members, and get an agent profile automatically.</p>
+              <div style={{display:"flex", gap:8}}>
+                <input
+                  className="input"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e)=>setInviteEmail(e.target.value)}
+                  placeholder="agent@example.com"
+                  style={{flex:1}}
+                  aria-label="Agent email to invite"
+                />
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={inviting || !inviteEmail.trim()}
+                  onClick={async () => {
+                    if (!inviteEmail.trim() || inviting) return;
+                    setInviting(true);
+                    try {
+                      const res = await fetch("/api/v1/invites", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ invitee_email: inviteEmail.trim(), agency_id: id }),
+                      });
+                      const b = await res.json().catch(()=>({}));
+                      if (res.ok) {
+                        setInviteEmail("");
+                        showToast("Invite sent", "success");
+                      } else {
+                        showToast(b.message ?? "Invite failed", "error");
+                      }
+                    } catch {
+                      showToast("Network error", "error");
+                    }
+                    setInviting(false);
+                  }}
+                >
+                  {inviting ? "Sending…" : "Invite"}
+                </button>
+              </div>
+            </section>
             <section className="card" style={{padding:"var(--space-6)"}}>
               <h2 style={{font:"500 18px var(--serif)", margin:"0 0 var(--space-4)", letterSpacing:"-0.03em"}}>Summary</h2>
               <dl className="data-list">

@@ -8,6 +8,8 @@ export interface RecruitmentInviteRow {
   token: string;
   status: string;
   sub_agency_id: string | null;
+  /** Target agency override (admin invites into a specific agency). Null = inviter's agency. */
+  agency_id: string | null;
   created_at: string;
   expires_at: string;
 }

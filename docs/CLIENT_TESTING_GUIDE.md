@@ -58,10 +58,14 @@ Log in as an agent (use incognito).
 
 ### 2. Take Calls
 - Incoming calls pop up with Accept/Reject. Minimize anytime — the bottom-right pill keeps glowing (**green** = connected, **amber** = ringing, **blue** = connecting) with timer + Hang Up.
-- Browse Campaigns shows live campaigns with prices — **never publisher payouts** (hidden by design).
+- Layout: **Live Campaigns** (with search box) and **Call Readiness Checklist** sit side by side, equal width, on top; Device check + Agent Snapshot below.
+- Browse Campaigns shows live campaigns with prices — **never publisher payouts** (hidden by design). **Exclusive campaigns appear only if assigned to you.**
+- Accept returns instantly now — no more frozen "connecting" screen; a Cancel button is there while bridging. If the caller is already gone you'll get "no longer ringing" instead of a ghost accept.
 
 ### 3. Wallet, Book Call, Support
-- **My Wallet**: personal balance + top-up (Stripe, 3% shown). **Book Call**: book your onboarding call (GoHighLevel). **Support**: open tickets, replies arrive by inbox + email.
+- **My Wallet**: personal balance + top-up (Stripe, 3% shown). **Book Call**: book your onboarding call (GoHighLevel) — new **Campaign Updates** tab beside it shows every campaign creative full-size (images + videos play inline).
+- **Home layout**: Quick Actions now sits in the top row where Today's Goal was (Today's Goal moved to the side stack).
+- **Support**: open tickets, replies arrive by inbox + email.
 
 ---
 
@@ -100,3 +104,16 @@ Log in as a publisher (third window).
 - One honest limit: if *their* terms count sub-threshold calls as payable, that's a contract question — confirm with them that non-connected/short calls aren't billed.
 
 **If something looks wrong**, report it as: `page — did X, expected Y, got Z` (plus the pm2 log line if it's a call).
+
+---
+
+## Part 6 — Latest changes to re-test (this round)
+
+1. **Agency invite + postpaid**: Admin → Agencies → open an agency → **Invite agents** box (email → invite scoped to that agency) and **Postpaid agency** toggle. Flip postpaid ON → members of that agency go online with $0 wallet; toggle back → funding gate returns. Heads cannot set this (403 if attempted).
+2. **Signup flow**: register a brand-new user directly (no invite) → lands with **no agency** (can create their own) → create agency → appears in Admin → Agents with correct status; Members tab loads (was stuck on skeletons before).
+3. **Exclusives**: set a campaign to Exclusive → Bidding tab shows the amber **Exclusive access** panel with agency/agent dropdowns → assign one agency → only its agents see the campaign in Browse; everyone else doesn't.
+4. **Tracking numbers per campaign**: campaign → RTB & Numbers → Tracking numbers → add DID → appears; Unassign → parked as spare. Google Drive share links pasted in CMS ads now render (auto-rewritten to direct links).
+5. **Admin home Call Activity**: bars now show even when most calls missed (missed/failed used to be invisible, leaving the card empty). Numbers are real per-state counts, not estimates.
+6. **Instant accept**: Accept returns immediately; Cancel available while bridging; accepting a dead call gives "no longer ringing".
+7. **New pages**: `/blog` (archive + posts, CMS-managed), `/about` (new design), homepage FAQ section (CMS-managed) — linked in header/footer.
+8. **Migrations/code health**: 62/62 applied, `typecheck` clean, full suite green.

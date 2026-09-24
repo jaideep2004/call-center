@@ -334,7 +334,7 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
   // subscription-funded agents are tier 2.
   const priceCents = bidOverride?.price_cents ?? campaign?.price_cents ?? 10;
   const eligibilityRows = availableAgents.length > 0
-    ? await query<{ id: string; wallet_cents: string; has_sub: boolean }>(
+    ? await query<{ id: string; wallet_cents: string; has_sub: boolean; agency_postpaid: boolean }>(
         `SELECT a.id,
                 (${effectiveBalanceSql("a")})::text AS wallet_cents,
                 EXISTS (
@@ -343,7 +343,10 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
                   WHERE s.agent_id = a.id AND s.status = 'active'
                     AND (s.end_date IS NULL OR s.end_date > now())
                     AND s.calls_used < p.call_allowance
-                ) AS has_sub
+                ) AS has_sub,
+                COALESCE((
+                  SELECT ag.postpaid_bypass FROM app.agencies ag WHERE ag.id = a.agency_id
+                ), false) AS agency_postpaid
          FROM app.agents a
          WHERE a.id = ANY($1::uuid[])`,
         [availableAgents.map((a) => a.id)],
@@ -372,12 +375,15 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
       const elig = eligibility.get(a.id);
       const walletFunded = Number(elig?.wallet_cents ?? 0) >= priceCents;
       const hasSub = Boolean(elig?.has_sub);
+      // Agency postpaid bypass (admin-set): members ring without prepay.
+      // They ride tier 2 like subscribers — prepaid wallets keep priority.
+      const agencyPostpaid = Boolean(elig?.agency_postpaid);
       candidates.push({
         id: a.id,
         approved: a.approval_status === "approved",
         available: a.availability === "available",
         busy: a.is_busy ?? false,
-        walletEligible: priceCents <= 0 || walletFunded || hasSub,
+        walletEligible: priceCents <= 0 || walletFunded || hasSub || agencyPostpaid,
         // Phase 3.2 verdict: no schedule data model exists (no working hours
         // or timezone on agents/campaigns), so there is nothing real to check
         // here. The gate itself IS wired in domain/routing (scheduleOpen=false

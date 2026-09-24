@@ -22,11 +22,13 @@ export const POST = apiHandler(async (req, { params, user }) => {
   const inviterMembership = await memberships.findById(invite.inviter_membership_id);
   if (!inviterMembership) return fail("Inviter not found", 404);
 
-  const existingMember = await memberships.findByUserAndAgency(user.id, inviterMembership.agency_id);
+  // Target agency: explicit admin-scoped invite wins, else the inviter's agency.
+  const targetAgencyId = invite.agency_id ?? inviterMembership.agency_id;
+  const existingMember = await memberships.findByUserAndAgency(user.id, targetAgencyId);
   if (existingMember) return fail("Already a member of this agency", 409);
 
   const newMembership = await memberships.create({
-    agency_id: inviterMembership.agency_id,
+    agency_id: targetAgencyId,
     user_id: user.id,
     role: "agent",
   });
@@ -40,7 +42,7 @@ export const POST = apiHandler(async (req, { params, user }) => {
   }
 
   const newAgent = await agents.create({
-    agency_id: inviterMembership.agency_id,
+    agency_id: targetAgencyId,
     membership_id: newMembership.id,
     endpoint_types: ["webrtc"],
   });

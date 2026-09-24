@@ -1,4 +1,4 @@
-import { apiHandler, ok, created, paginated } from "@/server/api-utils";
+import { apiHandler, ok, created, paginated, fail } from "@/server/api-utils";
 import { leads } from "@/server/repositories";
 import { validate, createLeadSchema } from "@/server/validate";
 
@@ -15,8 +15,14 @@ export const GET = apiHandler(async (req, context) => {
   const startDate = url.searchParams.get("startDate") ?? undefined;
   const endDate = url.searchParams.get("endDate") ?? undefined;
 
+  // Platform admin sees every agency's leads; everyone else is confined to
+  // their own agency (and fails closed without one — never unscoped).
+  const isAdmin = context.user?.role === "admin";
+  const scopeAgency = isAdmin ? undefined : (context.agencyId ?? undefined);
+  if (!isAdmin && !scopeAgency) return fail("Agency scope required", 403);
+
   const { rows, pagination } = await leads.findManyWithFilters({
-    agencyId: context.agencyId!,
+    agencyId: scopeAgency,
     page, limit, sortBy, order, search,
     status, source, assignedAgentId, startDate, endDate,
   });

@@ -7,8 +7,9 @@ export const runtime = "nodejs";
 
 /**
  * GET /api/v1/agent/campaigns
- * Agent-browseable list of campaigns. For MVP we expose all active campaigns (or filtered status)
- * with enriched assignment metadata so the UI can show "Assigned" vs "Open" vs "Not assigned".
+ * Agent-browseable list of campaigns: active campaigns with enriched
+ * assignment metadata ("Assigned" vs "Open" vs "Not assigned").
+ * Exclusive campaigns are hidden unless assigned to the viewer.
  * Uses `calls:view` so agent role can access (mirrors calls export permission).
  */
 export const GET = apiHandler(async (req, context) => {
@@ -118,7 +119,9 @@ export const GET = apiHandler(async (req, context) => {
   // Phase 4 (point 2): agents must never see publisher payouts — strip every
   // payout field the query returns (effective + min/max). The Browse UI only
   // renders the buyer price; this closes the API leak.
-  const enriched = filtered.map((c) => {
+  // Exclusives are invisible unless assigned to the viewer (agency or agent):
+  // unassigned agents must not see exclusive offers anywhere, browse or portal.
+  const enriched = filtered.flatMap((c) => {
     const {
       effective_payout_cents: _stripped1,
       effective_max_payout_cents: _stripped2,
@@ -130,11 +133,14 @@ export const GET = apiHandler(async (req, context) => {
     const entry = assignmentMap.get((c as { id: string }).id);
     const hasAny = !!entry && (entry.agencyCount > 0 || entry.agentCount > 0);
     const isAssigned = assignedToMeSet.has(c.id);
+    const isExclusive = (c as { is_exclusive?: boolean }).is_exclusive === true
+      || (c as { visibility?: string }).visibility === "exclusive";
+    if (isExclusive && !isAssigned) return [];
     let assignment_status: "Assigned" | "Open" | "Not assigned";
     if (isAssigned) assignment_status = "Assigned";
     else if (!hasAny) assignment_status = "Open";
     else assignment_status = "Not assigned";
-    return {
+    return [{
       ...payoutFree,
       assigned_agency_count: entry?.agencyCount ?? 0,
       assigned_agent_count: entry?.agentCount ?? 0,
@@ -142,26 +148,16 @@ export const GET = apiHandler(async (req, context) => {
       is_assigned_to_me: isAssigned,
       has_assignments: hasAny,
       is_live_for_me: liveSet.has(c.id),
-    };
+    }];
   });
 
-  // If we filtered in-memory, adjust total accordingly (best-effort)
+  // Totals are best-effort: endpoint/state filters plus hidden exclusives
+  // shrink the visible set, so subtract everything removed on this page.
   let finalTotal = total;
   let finalTotalPages = Math.ceil(total / limit);
-  if (endpoint || stateFilter) {
-    // re-estimate total based on filtered ratio – for true accuracy we'd need COUNT(*) with same filter, but MVP approx is ok.
-    // Instead fetch more accurate: if filtered length differs from rows length on first page, we just keep total as enriched length for filtered view when limit=100 case.
-    // Keep simple: if filtering, set total based on filtered set extrapolation only when limit is large.
-    // To avoid confusing pagination, we return filtered length as total when filter active and page=1 and limit >= total.
-    // For production-grade we would need DB-level endpoint/state filter; for MVP we return filtered array and keep original pagination.
-    // Override total to filtered count if filtered less than limit (indicates filter reduced result set visibility)
-    if (filtered.length < rows.length || enriched.length !== rows.length) {
-      // If client requested limit=100 style browse, returning exact filtered count makes UI pagination correct for browse
-      // For paginated case, we keep original total but enriched pagination will still reflect correct page counts for unfiltered.
-      // To be safe, when filtering, compute total as total - (rows.length - filtered.length) as estimate
-      finalTotal = Math.max(0, total - (rows.length - filtered.length));
-      finalTotalPages = Math.ceil(finalTotal / limit);
-    }
+  if (enriched.length !== rows.length) {
+    finalTotal = Math.max(0, total - (rows.length - enriched.length));
+    finalTotalPages = Math.ceil(finalTotal / limit);
   }
 
   const pagination = { page, limit, total: finalTotal, totalPages: finalTotalPages };

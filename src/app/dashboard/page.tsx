@@ -280,23 +280,14 @@ export default function DashboardPage(){
           </div>
         </section>
 
-        {/* TODAY'S GOAL */}
-        <section className="cc-card" aria-label="Today's goal">
-          <div className="cc-card__head"><div><h2>Today&apos;s Goal</h2><small>{agentGoalPct}% complete</small></div><span className="cc-badge cc-badge--purple">{agentGoalPct}%</span></div>
-          <div className="cc-goal">
-            <div>
-              <div className="cc-goal__row"><span style={{fontWeight:600, color:"var(--ink)"}}>${agentEarningsToday.toFixed(2)} / ${agentGoal.toFixed(2)}</span><span>{agentGoalPct}%</span></div>
-              <div className="cc-goal__bar" style={{marginTop:6}}><i style={{width:`${agentGoalPct}%`, background:"linear-gradient(90deg,#A855F7,#7C3AED)"}}/></div>
-              <p className="text-muted" style={{fontSize:11, margin:"6px 0 0"}}>Earnings goal — keep closing to hit target.</p>
-            </div>
-            <div>
-              <div className="cc-goal__row"><span style={{fontWeight:600, color:"var(--ink)"}}>{agentCallsToday}/{agentGoalCalls} calls</span><span>{callsGoalPct}%</span></div>
-              <div className="cc-goal__bar" style={{marginTop:6}}><i style={{width:`${callsGoalPct}%`, background:"linear-gradient(90deg,#06B6D4,#0EA5E9)"}}/></div>
-            </div>
-            <div style={{ padding:"12px", borderRadius:10, background:"linear-gradient(135deg, rgba(251,113,133,.12), rgba(168,85,247,.08))", border:"1px solid rgba(251,113,133,.16)", textAlign:"center" }}>
-              <p style={{font:"600 13px var(--sans)", margin:0, color:"var(--ink)"}}>{agentCallsToday>=agentGoalCalls ? "Goal reached! 🎉" : "Keep going! 🎯"}</p>
-              <p className="text-muted" style={{fontSize:11, margin:"4px 0 0"}}>{agentCallsToday>=agentGoalCalls ? "You hit today's call target" : `${Math.max(0, agentGoalCalls-agentCallsToday)} more calls to hit today&apos;s goal`}</p>
-            </div>
+        {/* QUICK ACTIONS (swapped with Today's Goal per client layout) */}
+        <section className="cc-card" aria-label="Quick Actions">
+          <div className="cc-card__head"><div><h2>Quick Actions</h2><small>One click to act</small></div></div>
+          <div className="cc-quick" style={{ gridTemplateColumns:"1fr 1fr" }}>
+            <Link href="/dashboard/take-calls" className="btn btn-primary" style={{ borderRadius:10, minHeight:44, flexDirection:"column", gap:2 }}><span>Take Calls</span><small style={{fontSize:10, opacity:.8}}>Go live</small></Link>
+            <Link href="/dashboard/onboarding" className="btn" style={{ background:"rgba(255,255,255,.06)", border:"1px solid var(--line)", color:"var(--ink)", borderRadius:10, minHeight:44, flexDirection:"column", gap:2, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><span>Book a Call</span><small style={{fontSize:10, color:"var(--muted)"}}>Schedule</small></Link>
+            <Link href="/dashboard/scripts" className="btn" style={{ background:"rgba(255,255,255,.06)", border:"1px solid var(--line)", color:"var(--ink)", borderRadius:10, minHeight:44, flexDirection:"column", gap:2, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><span>View Scripts</span><small style={{fontSize:10, color:"var(--muted)"}}>Pitch</small></Link>
+            <Link href="/dashboard/reports" className="btn btn-ghost" style={{ border:"1px solid var(--line)", borderRadius:10, minHeight:44, flexDirection:"column", gap:2, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><span>View Reports</span><small style={{fontSize:10, color:"var(--muted)"}}>Stats</small></Link>
           </div>
         </section>
       </div>
@@ -367,13 +358,22 @@ export default function DashboardPage(){
 
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           <AgentHero />
-          <section className="cc-card" aria-label="Quick Actions">
-            <div className="cc-card__head"><div><h2>Quick Actions</h2><small>One click to act</small></div></div>
-            <div className="cc-quick" style={{ gridTemplateColumns:"1fr 1fr" }}>
-              <Link href="/dashboard/take-calls" className="btn btn-primary" style={{ borderRadius:10, minHeight:44, flexDirection:"column", gap:2 }}><span>Take Calls</span><small style={{fontSize:10, opacity:.8}}>Go live</small></Link>
-              <Link href="/dashboard/onboarding" className="btn" style={{ background:"rgba(255,255,255,.06)", border:"1px solid var(--line)", color:"var(--ink)", borderRadius:10, minHeight:44, flexDirection:"column", gap:2, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><span>Book a Call</span><small style={{fontSize:10, color:"var(--muted)"}}>Schedule</small></Link>
-              <Link href="/dashboard/scripts" className="btn" style={{ background:"rgba(255,255,255,.06)", border:"1px solid var(--line)", color:"var(--ink)", borderRadius:10, minHeight:44, flexDirection:"column", gap:2, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><span>View Scripts</span><small style={{fontSize:10, color:"var(--muted)"}}>Pitch</small></Link>
-              <Link href="/dashboard/reports" className="btn btn-ghost" style={{ border:"1px solid var(--line)", borderRadius:10, minHeight:44, flexDirection:"column", gap:2, display:"inline-flex", alignItems:"center", justifyContent:"center" }}><span>View Reports</span><small style={{fontSize:10, color:"var(--muted)"}}>Stats</small></Link>
+          <section className="cc-card" aria-label="Today's goal">
+            <div className="cc-card__head"><div><h2>Today&apos;s Goal</h2><small>{agentGoalPct}% complete</small></div><span className="cc-badge cc-badge--purple">{agentGoalPct}%</span></div>
+            <div className="cc-goal">
+              <div>
+                <div className="cc-goal__row"><span style={{fontWeight:600, color:"var(--ink)"}}>${agentEarningsToday.toFixed(2)} / ${agentGoal.toFixed(2)}</span><span>{agentGoalPct}%</span></div>
+                <div className="cc-goal__bar" style={{marginTop:6}}><i style={{width:`${agentGoalPct}%`, background:"linear-gradient(90deg,#A855F7,#7C3AED)"}}/></div>
+                <p className="text-muted" style={{fontSize:11, margin:"6px 0 0"}}>Earnings goal — keep closing to hit target.</p>
+              </div>
+              <div>
+                <div className="cc-goal__row"><span style={{fontWeight:600, color:"var(--ink)"}}>{agentCallsToday}/{agentGoalCalls} calls</span><span>{callsGoalPct}%</span></div>
+                <div className="cc-goal__bar" style={{marginTop:6}}><i style={{width:`${callsGoalPct}%`, background:"linear-gradient(90deg,#06B6D4,#0EA5E9)"}}/></div>
+              </div>
+              <div style={{ padding:"12px", borderRadius:10, background:"linear-gradient(135deg, rgba(251,113,133,.12), rgba(168,85,247,.08))", border:"1px solid rgba(251,113,133,.16)", textAlign:"center" }}>
+                <p style={{font:"600 13px var(--sans)", margin:0, color:"var(--ink)"}}>{agentCallsToday>=agentGoalCalls ? "Goal reached! 🎉" : "Keep going! 🎯"}</p>
+                <p className="text-muted" style={{fontSize:11, margin:"4px 0 0"}}>{agentCallsToday>=agentGoalCalls ? "You hit today's call target" : `${Math.max(0, agentGoalCalls-agentCallsToday)} more calls to hit today&apos;s goal`}</p>
+              </div>
             </div>
           </section>
           <AgentFeed />

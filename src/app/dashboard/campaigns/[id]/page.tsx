@@ -875,7 +875,8 @@ function CampaignDetailInner() {
             <p className='text-muted' style={{ fontSize: 11, margin: "0 0 var(--space-4)" }}>
               Manual bid — applies immediately to billing and publisher payout. No schedule. Leave empty to use campaign price. Max payout caps what the platform can pay the publisher for this offer.
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 12 }}>
+            <p className='text-mono-sm' style={{ fontSize: 11, fontWeight: 700, margin: "0 0 8px", color: "var(--ink)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Offer economics</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 16 }}>
               <label className='text-mono-sm' style={{ fontSize: 11, color: "var(--muted)" }}>Max publisher payout ($)
                 <input
                   className='input'
@@ -900,6 +901,7 @@ function CampaignDetailInner() {
                 </select>
               </label>
             </div>
+            <p className='text-mono-sm' style={{ fontSize: 11, fontWeight: 700, margin: "4px 0 8px", color: "var(--ink)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Manual bid override</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
               <label className='text-mono-sm' style={{ fontSize: 11, color: "var(--muted)" }}>$ / call
                 <input
@@ -947,6 +949,70 @@ function CampaignDetailInner() {
                 <p className='text-mono-sm' style={{ fontSize: 11, margin: 0, color: "var(--muted)" }}>
                   Active override: <span style={{ color: "var(--ink)" }}>{bidOverride.price_cents != null ? `$${(bidOverride.price_cents/100).toFixed(2)}/call` : "—"}</span> • payout <span style={{ color: "var(--ink)" }}>{bidOverride.payout_cents != null ? `$${(bidOverride.payout_cents/100).toFixed(2)}` : "—"}</span> {bidOverride.note ? `• ${bidOverride.note}` : ""}
                 </p>
+              </div>
+            )}
+            {(campaign.visibility === "exclusive" || campaign.is_exclusive) && (
+              <div style={{ marginTop: 16, padding: 14, borderRadius: 12, border: "1px solid rgba(245,158,11,.35)", background: "rgba(245,158,11,.06)" }}>
+                <p className='text-mono-sm' style={{ fontSize: 12, fontWeight: 700, margin: "0 0 4px", color: "var(--ink)" }}>
+                  Exclusive access — only selected agencies/agents see and receive this campaign
+                </p>
+                <p className='text-muted' style={{ fontSize: 11, margin: "0 0 12px" }}>
+                  Everyone else is hidden from browse, portal offers, ping and routing. Save below to apply.
+                </p>
+                {assignmentLoading || !assignments ? (
+                  <div className='stack' style={{ gap: 8 }}>
+                    <div className='skeleton skeleton-text' />
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <label className='text-mono-sm' style={{ fontSize: 11, color: "var(--muted)" }}>Agencies
+                        <select
+                          className='input'
+                          multiple
+                          size={Math.min(5, Math.max(3, assignments.agencies.length))}
+                          value={assignments.assigned_agency_ids}
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
+                            selected.forEach((v) => { if (!assignments.assigned_agency_ids.includes(v)) toggleAssignment("agency", v); });
+                            assignments.assigned_agency_ids.forEach((v) => { if (!selected.includes(v)) toggleAssignment("agency", v); });
+                          }}
+                          style={{ marginTop: 4, display: "block", minHeight: 84 }}
+                        >
+                          {assignments.agencies.map((a) => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className='text-mono-sm' style={{ fontSize: 11, color: "var(--muted)" }}>Agents
+                        <select
+                          className='input'
+                          multiple
+                          size={Math.min(5, Math.max(3, assignments.agents.length))}
+                          value={assignments.assigned_agent_ids}
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
+                            selected.forEach((v) => { if (!assignments.assigned_agent_ids.includes(v)) toggleAssignment("agent", v); });
+                            assignments.assigned_agent_ids.forEach((v) => { if (!selected.includes(v)) toggleAssignment("agent", v); });
+                          }}
+                          style={{ marginTop: 4, display: "block", minHeight: 84 }}
+                        >
+                          {assignments.agents.map((a) => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
+                      <button className='btn btn-sm btn-primary' onClick={saveAssignments} disabled={assignmentSaving}>
+                        {assignmentSaving ? "Saving…" : "Save exclusive access"}
+                      </button>
+                      <span className='text-muted' style={{ fontSize: 11 }}>
+                        {assignments.assigned_agency_ids.length} agencies · {assignments.assigned_agent_ids.length} agents selected
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </section>

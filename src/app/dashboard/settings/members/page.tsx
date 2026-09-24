@@ -52,10 +52,16 @@ function MembersInner() {
       if (res.ok) {
         const body = await res.json();
         setMembers(body.data ?? []);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        showToast(body.message ?? "Failed to load members", "error");
       }
       setLoading(false);
+    }).catch(() => {
+      showToast("Network error loading members", "error");
+      setLoading(false);
     });
-  }, []);
+  }, [roleChecked]);
 
   useEffect(() => {
     const t = setTimeout(() => {

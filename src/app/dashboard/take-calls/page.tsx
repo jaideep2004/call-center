@@ -195,6 +195,12 @@ function TakeCallsInner() {
 	const [liveCampaigns, setLiveCampaigns] = useState<
 		Array<{ id: string; name: string; is_live_for_me?: boolean }>
 	>([]);
+	const [campaignSearch, setCampaignSearch] = useState("");
+	const visibleCampaigns = useMemo(() => {
+		const q = campaignSearch.trim().toLowerCase();
+		if (!q) return liveCampaigns;
+		return liveCampaigns.filter((c) => c.name.toLowerCase().includes(q));
+	}, [liveCampaigns, campaignSearch]);
 	const [togglingCampaign, setTogglingCampaign] = useState<string | null>(null);
 	const hasMounted = useRef(false);
 	const webrtc = useTelnyxWebRTC(agentId);
@@ -861,13 +867,28 @@ function TakeCallsInner() {
 								{campaignsReady ? `${liveCount} live` : "Select one"}
 							</span>
 						</div>
+						<div style={{ margin: "0 0 10px" }}>
+							<input
+								className='input'
+								type='search'
+								placeholder='Search campaigns…'
+								value={campaignSearch}
+								onChange={(e) => setCampaignSearch(e.target.value)}
+								aria-label='Search live campaigns'
+								style={{ fontSize: 12 }}
+							/>
+						</div>
 						{liveCampaigns.length === 0 ? (
 							<p className='text-muted' style={{ fontSize: 12, margin: 0 }}>
 								No active campaigns available. Contact your admin.
 							</p>
+						) : visibleCampaigns.length === 0 ? (
+							<p className='text-muted' style={{ fontSize: 12, margin: 0 }}>
+								No campaigns match “{campaignSearch.trim()}”.
+							</p>
 						) : (
 							<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-								{liveCampaigns.map((c) => {
+								{visibleCampaigns.map((c) => {
 									const live = !!c.is_live_for_me;
 									const busy = togglingCampaign === c.id;
 									return (
@@ -985,174 +1006,7 @@ function TakeCallsInner() {
 						)}
 					</section>
 
-					{/* Readiness Checklist */}
-					<section
-						className='card card--spacious tc-card'
-						aria-labelledby='tc-checklist-title'>
-						<div className='tc-card__head' style={{ marginBottom: 14 }}>
-							<div>
-								<h2
-									id='tc-checklist-title'
-									style={{
-										margin: 0,
-										font: "600 16px var(--serif)",
-										letterSpacing: "-0.03em",
-									}}>
-									Call Readiness Checklist
-								</h2>
-								<p
-									className='text-muted'
-									style={{ margin: "4px 0 0", fontSize: 12 }}>
-									All green to receive calls. Mirrors routing gates.
-								</p>
-							</div>
-							<span
-								className='text-mono-sm'
-								style={{
-									fontSize: 10,
-									letterSpacing: 0.6,
-									textTransform: "uppercase",
-									color: allReady ? "var(--success, #22c55e)" : "var(--muted)",
-									border: `1px solid ${allReady ? "rgba(34,197,94,0.28)" : "var(--line)"}`,
-									padding: "4px 8px",
-									borderRadius: 999,
-									background: allReady
-										? "rgba(34,197,94,0.10)"
-										: "rgba(255,255,255,0.03)",
-								}}>
-								{passCount}/5 PASS
-							</span>
-						</div>
-
-						<div className='tc-checklist'>
-							<ChecklistRow
-								ok={isApproved}
-								pending={!isApproved && !!agentInfo}
-								label='Admin approval'
-								desc={
-									isApproved
-										? "You are approved — routing is enabled."
-										: agentInfo
-											? `Status: ${agentInfo.approval_status}. Contact admin to approve.`
-											: "Loading…"
-								}
-								meta={
-									isApproved ? "Approved" : (agentInfo?.approval_status ?? "…")
-								}
-							/>
-							<ChecklistRow
-								ok={deviceReady}
-								label='Device (mic + speaker)'
-								desc={
-									deviceReady
-										? "Mic started and speaker tone played — stored for this device."
-										: "Grant mic, confirm level moves, then play tone. Both emit ✓ TESTED."
-								}
-								meta={deviceReady ? "Verified" : "Required"}
-							/>
-							<ChecklistRow
-								ok={campaignsReady}
-								label='Live campaigns'
-								desc={
-									campaignsReady
-										? `Live for ${liveCount} campaign${liveCount === 1 ? "" : "s"} — calls will route.`
-										: "Pick at least one campaign in Live Campaigns above."
-								}
-								meta={campaignsReady ? `${liveCount} live` : "Required"}
-							/>
-							<ChecklistRow
-								ok={statesReady}
-								label='Licensed states'
-								desc={
-									agentInfo?.states?.length
-										? `${agentInfo.states.length} states filtered — only matching caller states will route.`
-										: "No restriction — eligible for calls from any state."
-								}
-								meta={
-									agentInfo?.states?.length
-										? `${agentInfo.states.length} set`
-										: "Any"
-								}
-							/>
-							<ChecklistRow
-								ok={endpointReady}
-								pending={!endpointReady && hasEndpoint}
-								label='WebRTC / PSTN endpoint'
-								desc={
-									!hasEndpoint
-										? "No endpoint assigned — routing will skip you."
-										: !pstnForwardingOk
-											? "PSTN needs a forwarding number."
-											: hasWebRTC && hasPSTN
-												? `Hybrid — browser + PSTN fallback to ${agentInfo?.forwarding_number ?? ""} · ${webrtcLabel}`
-												: hasWebRTC
-													? `Browser softphone — ${webrtcLabel}`
-													: `PSTN forward to ${agentInfo?.forwarding_number ?? ""}`
-								}
-								meta={
-									endpointReady
-										? hasWebRTC && hasPSTN
-											? "Hybrid"
-											: hasWebRTC
-												? webrtc.isReady
-													? "WebRTC live"
-													: "WebRTC…"
-												: "PSTN"
-										: "Missing"
-								}
-							/>
-						</div>
-
-						<div
-							style={{
-								marginTop: 14,
-								padding: "10px 12px",
-								borderRadius: 10,
-								border: `1px solid ${allReady ? "rgba(34,197,94,0.22)" : "var(--line)"}`,
-								background: allReady
-									? "rgba(34,197,94,0.06)"
-									: "rgba(255,255,255,0.02)",
-								display: "flex",
-								justifyContent: "space-between",
-								alignItems: "center",
-								gap: 12,
-								flexWrap: "wrap",
-							}}>
-							<span
-								className='text-mono-sm'
-								style={{
-									fontSize: 11,
-									color: allReady ? "#b9d7c3" : "var(--muted)",
-								}}>
-								{allReady
-									? "All checks pass — you can go online."
-									: `${5 - passCount} check(s) still needed — Go Online is disabled.`}
-							</span>
-							<span style={{ display: "inline-flex", gap: 6 }}>
-								{readyChecks.map((c) => (
-									<i
-										key={c.label}
-										aria-hidden
-										style={{
-											width: 8,
-											height: 8,
-											borderRadius: 999,
-											background: c.ok
-												? "var(--success, #22c55e)"
-												: "var(--line)",
-											boxShadow: c.ok ? "0 0 8px rgba(34,197,94,0.45)" : "none",
-											display: "inline-block",
-										}}
-									/>
-								))}
-							</span>
-						</div>
-					</section>
-				</div>
-
-				{/* RIGHT */}
-				<div className='tc-grid__right'>
-					{/* Agent Snapshot */}
+					{/* Agent Snapshot (swapped with Checklist: snapshot lives left now) */}
 					{agentId && agentInfo && (
 						<section
 							className='card card--spacious tc-card tc-card--snapshot'
@@ -1324,6 +1178,173 @@ function TakeCallsInner() {
 							)}
 						</section>
 					)}
+				</div>
+
+				{/* RIGHT */}
+				<div className='tc-grid__right'>
+					{/* Readiness Checklist (swapped with Snapshot: checklist lives right now) */}
+					<section
+						className='card card--spacious tc-card'
+						aria-labelledby='tc-checklist-title'>
+						<div className='tc-card__head' style={{ marginBottom: 14 }}>
+							<div>
+								<h2
+									id='tc-checklist-title'
+									style={{
+										margin: 0,
+										font: "600 16px var(--serif)",
+										letterSpacing: "-0.03em",
+									}}>
+									Call Readiness Checklist
+								</h2>
+								<p
+									className='text-muted'
+									style={{ margin: "4px 0 0", fontSize: 12 }}>
+									All green to receive calls. Mirrors routing gates.
+								</p>
+							</div>
+							<span
+								className='text-mono-sm'
+								style={{
+									fontSize: 10,
+									letterSpacing: 0.6,
+									textTransform: "uppercase",
+									color: allReady ? "var(--success, #22c55e)" : "var(--muted)",
+									border: `1px solid ${allReady ? "rgba(34,197,94,0.28)" : "var(--line)"}`,
+									padding: "4px 8px",
+									borderRadius: 999,
+									background: allReady
+										? "rgba(34,197,94,0.10)"
+										: "rgba(255,255,255,0.03)",
+								}}>
+								{passCount}/5 PASS
+							</span>
+						</div>
+
+						<div className='tc-checklist'>
+							<ChecklistRow
+								ok={isApproved}
+								pending={!isApproved && !!agentInfo}
+								label='Admin approval'
+								desc={
+									isApproved
+										? "You are approved — routing is enabled."
+										: agentInfo
+											? `Status: ${agentInfo.approval_status}. Contact admin to approve.`
+											: "Loading…"
+								}
+								meta={
+									isApproved ? "Approved" : (agentInfo?.approval_status ?? "…")
+								}
+							/>
+							<ChecklistRow
+								ok={deviceReady}
+								label='Device (mic + speaker)'
+								desc={
+									deviceReady
+										? "Mic started and speaker tone played — stored for this device."
+										: "Grant mic, confirm level moves, then play tone. Both emit ✓ TESTED."
+								}
+								meta={deviceReady ? "Verified" : "Required"}
+							/>
+							<ChecklistRow
+								ok={campaignsReady}
+								label='Live campaigns'
+								desc={
+									campaignsReady
+										? `Live for ${liveCount} campaign${liveCount === 1 ? "" : "s"} — calls will route.`
+										: "Pick at least one campaign in Live Campaigns."
+								}
+								meta={campaignsReady ? `${liveCount} live` : "Required"}
+							/>
+							<ChecklistRow
+								ok={statesReady}
+								label='Licensed states'
+								desc={
+									agentInfo?.states?.length
+										? `${agentInfo.states.length} states filtered — only matching caller states will route.`
+										: "No restriction — eligible for calls from any state."
+								}
+								meta={
+									agentInfo?.states?.length
+										? `${agentInfo.states.length} set`
+										: "Any"
+								}
+							/>
+							<ChecklistRow
+								ok={endpointReady}
+								pending={!endpointReady && hasEndpoint}
+								label='WebRTC / PSTN endpoint'
+								desc={
+									!hasEndpoint
+										? "No endpoint assigned — routing will skip you."
+										: !pstnForwardingOk
+											? "PSTN needs a forwarding number."
+											: hasWebRTC && hasPSTN
+												? `Hybrid — browser + PSTN fallback to ${agentInfo?.forwarding_number ?? ""} · ${webrtcLabel}`
+												: hasWebRTC
+													? `Browser softphone — ${webrtcLabel}`
+													: `PSTN forward to ${agentInfo?.forwarding_number ?? ""}`
+								}
+								meta={
+									endpointReady
+										? hasWebRTC && hasPSTN
+											? "Hybrid"
+											: hasWebRTC
+												? webrtc.isReady
+													? "WebRTC live"
+													: "WebRTC…"
+												: "PSTN"
+										: "Missing"
+								}
+							/>
+						</div>
+
+						<div
+							style={{
+								marginTop: 14,
+								padding: "10px 12px",
+								borderRadius: 10,
+								border: `1px solid ${allReady ? "rgba(34,197,94,0.22)" : "var(--line)"}`,
+								background: allReady
+									? "rgba(34,197,94,0.06)"
+									: "rgba(255,255,255,0.02)",
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+								gap: 12,
+								flexWrap: "wrap",
+							}}>
+							<span
+								className='text-mono-sm'
+								style={{
+									fontSize: 11,
+									color: allReady ? "#b9d7c3" : "var(--muted)",
+								}}>
+								{allReady
+									? "All checks pass — you can go online."
+									: `${5 - passCount} check(s) still needed — Go Online is disabled.`}
+							</span>
+							<span style={{ display: "inline-flex", gap: 6 }}>
+								{readyChecks.map((c) => (
+									<i
+										key={c.label}
+										aria-hidden
+										style={{
+											width: 8,
+											height: 8,
+											borderRadius: 999,
+											background: c.ok
+												? "var(--success, #22c55e)"
+												: "var(--line)",
+											boxShadow: c.ok ? "0 0 8px rgba(34,197,94,0.45)" : "none",
+											display: "inline-block",
+										}}
+									/>
+								))}
+							</span>
+						</div>
+					</section>
 
 					{/* States Editor */}
 					{agentId && (

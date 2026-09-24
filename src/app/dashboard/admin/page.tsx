@@ -83,7 +83,7 @@ export default function AdminPage() {
         fetch("/api/v1/reports/conversion?days=7").then(r=>r.ok?r.json():null).catch(()=>null),
       ]).then(([vol, conv])=>{
         if(vol?.data && Array.isArray(vol.data) && vol.data.length){
-          const volData:{date:string; count:number}[] = vol.data;
+          const volData:{date:string; count:number; connected?:number; missed?:number; failed?:number}[] = vol.data;
           const convMap=new Map<string, number>();
           if(conv?.data){ for(const c of conv.data as {date:string; connected:number}[]) convMap.set(String(c.date).slice(0,10), c.connected); }
           const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -91,9 +91,11 @@ export default function AdminPage() {
             const d=new Date(v.date);
             const label = isNaN(d.getTime()) ? String(v.date).slice(5,10) : days[d.getDay()];
             const total=v.count;
-            const connected=convMap.get(String(v.date).slice(0,10)) ?? Math.round(total*0.62);
-            const missed=Math.round(total*0.18);
-            const failed=Math.max(0, total - connected - missed);
+            // Prefer real per-state breakdowns from the API; fall back to the
+            // old ratio estimates only for legacy shapes.
+            const connected=v.connected ?? convMap.get(String(v.date).slice(0,10)) ?? Math.round(total*0.62);
+            const missed=v.missed ?? Math.round(total*0.18);
+            const failed=v.failed ?? Math.max(0, total - connected - missed);
             return { label, total, connected, missed, failed };
           });
           if(mapped.length) setCallActivity(mapped);

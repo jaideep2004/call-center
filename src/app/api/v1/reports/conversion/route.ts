@@ -19,7 +19,7 @@ export const GET = apiHandler(async (req) => {
 
   const rows = await query<ConversionRow>(`
     SELECT
-      DATE(started_at) as date,
+      DATE(COALESCE(started_at, ended_at)) as date,
       COUNT(*)::int as total,
       COUNT(*) FILTER (WHERE state = 'connected' OR state = 'ended')::int as connected,
       ROUND(
@@ -27,8 +27,8 @@ export const GET = apiHandler(async (req) => {
         / GREATEST(COUNT(*), 1) * 100, 1
       ) as conversion_rate
     FROM app.calls
-    WHERE started_at >= NOW() - ($1::int || ' days')::interval
-    GROUP BY DATE(started_at)
+    WHERE COALESCE(started_at, ended_at) >= NOW() - ($1::int || ' days')::interval
+    GROUP BY DATE(COALESCE(started_at, ended_at))
     ORDER BY date ASC
   `, [days]);
 

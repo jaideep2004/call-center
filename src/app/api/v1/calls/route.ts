@@ -1,4 +1,4 @@
-import { apiHandler, ok, created, paginated } from "@/server/api-utils";
+import { apiHandler, ok, created, paginated, fail } from "@/server/api-utils";
 import { calls } from "@/server/repositories";
 import { validate, createCallSchema, paginationSchema, searchSchema, sortSchema } from "@/server/validate";
 
@@ -13,12 +13,18 @@ export const GET = apiHandler(async (req, context) => {
   const agentId = url.searchParams.get("agent_id") ?? undefined;
   const providerAgentCallId = url.searchParams.get("provider_agent_call_id") ?? undefined;
 
+  // Platform admin sees every agency's calls; everyone else is confined to
+  // their own agency (and fails closed without one).
+  const isAdmin = context.user?.role === "admin";
+  const scopeAgency = isAdmin ? undefined : (context.agencyId ?? undefined);
+  if (!isAdmin && !scopeAgency) return fail("Agency scope required", 403);
+
   const { rows, pagination } = await calls.findMany({
     pagination: { page, limit },
     search,
     sortBy,
     order,
-    agencyId: context.agencyId ?? undefined,
+    agencyId: scopeAgency,
     state,
     filters: {
       ...(agentId ? { agent_id: agentId } : {}),

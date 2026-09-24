@@ -33,6 +33,8 @@ export const updateAgencySchema = z.object({
   status: z.enum(["pending", "active", "suspended", "closed"]).optional(),
   currency: z.string().length(3).optional(),
   recording_retention_days: z.number().int().min(0).optional(),
+  // Admin-only (enforced in routes): postpaid bypass for the whole agency.
+  postpaid_bypass: z.boolean().optional(),
 });
 
 export const createPublisherSchema = z.object({
@@ -413,6 +415,9 @@ export const createSubAgencySchema = z.object({
 
 export const createInviteSchema = z.object({
   invitee_email: z.string().email().max(255),
+  // Admin-only: scope this invite to a specific agency (honored only for
+  // platform admins; everyone else invites into their own agency).
+  agency_id: z.string().min(1).optional(),
 });
 
 export const featureRequestStatuses = ["open", "in_review", "planned", "in_progress", "completed", "declined"] as const;

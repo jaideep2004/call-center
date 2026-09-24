@@ -760,7 +760,7 @@
 .tc-callout--success strong { color: #86efac; }
 .tc-callout--muted { border-color: var(--line); background: rgba(255,255,255,0.02); }
 .tc-callout--muted strong { color: var(--ink); }
-.tc-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: var(--space-6); align-items: start; }
+.tc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); align-items: start; }
 /* Campaign detail 2-col (General / RTB / Assignments tabs) — same rhythm as take-calls */
 .camp-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: var(--space-6); align-items: start; }
 .tc-grid__left { display: flex; flex-direction: column; gap: var(--space-6); }

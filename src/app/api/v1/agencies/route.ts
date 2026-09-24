@@ -43,6 +43,19 @@ export const POST = apiHandler(async (req, context) => {
       name: body.name,
       slug: body.slug,
     }, client);
+    // Every head needs an agent row too — otherwise they never appear in the
+    // agents list and can never take calls (the old flow created memberships
+    // only, stranding fresh heads).
+    const ensureAgentRow = async (membershipId: string) => {
+      const existing = await client.query("SELECT id FROM app.agents WHERE membership_id = $1", [membershipId]);
+      if (existing.rows.length === 0) {
+        await client.query(
+          `INSERT INTO app.agents (agency_id, membership_id, endpoint_types, display_code)
+           VALUES ($1, $2, '{webrtc}', 'AG-' || LPAD(nextval('app.agent_code_seq')::text, 4, '0'))`,
+          [agencyRow.id, membershipId],
+        );
+      }
+    };
     if (isAgent && context.membership) {
       await client.query(
         `UPDATE app.agencies SET head_membership_id = $1 WHERE id = $2`,
@@ -53,6 +66,7 @@ export const POST = apiHandler(async (req, context) => {
         [agencyRow.id, context.membership.id],
       );
       await client.query(`UPDATE "user" SET role = 'agent' WHERE id = $1`, [context.user!.id]);
+      await ensureAgentRow(context.membership.id);
     } else if (isAgent && context.user) {
       // Brand-new account with no membership yet: create one as head.
       // Heads are agents (Phase 5) — headship lives in head_membership_id,
@@ -67,6 +81,7 @@ export const POST = apiHandler(async (req, context) => {
         [m.rows[0].id, agencyRow.id],
       );
       await client.query(`UPDATE "user" SET role = 'agent' WHERE id = $1`, [context.user.id]);
+      await ensureAgentRow(m.rows[0].id);
     }
     return agencyRow;
   });
