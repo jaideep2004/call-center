@@ -18,6 +18,7 @@ interface Payment {
   fee_cents: number;
   currency: string;
   status: string;
+  livemode: boolean;
   created_at: string;
   completed_at: string | null;
 }
@@ -32,19 +33,21 @@ function statusBadge(status: string) {
 export default function AdminPaymentsPage() {
   const [rows, setRows] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  // Live money only by default — test-mode payments never mix into revenue.
+  const [mode, setMode] = useState<"live" | "test" | "all">("live");
   const [verifying, setVerifying] = useState<string | null>(null);
   const [sessionInput, setSessionInput] = useState("");
   const [reconciling, setReconciling] = useState(false);
 
   const refresh = useCallback(() => {
-    fetch("/api/v1/payments?limit=200").then(async (res) => {
+    fetch(`/api/v1/payments?limit=200&mode=${mode}`).then(async (res) => {
       if (res.ok) {
         const body = await res.json();
         setRows(body.data ?? []);
       }
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, [mode]);
 
   useEffect(refresh, [refresh]);
 
@@ -129,6 +132,12 @@ export default function AdminPaymentsPage() {
       render: (p) => <span className={statusBadge(p.status)}>{p.status}</span>,
     },
     {
+      key: "livemode", header: "Mode",
+      render: (p) => p.livemode === false
+        ? <span className="cc-badge" style={{ background: "rgba(245,158,11,.12)", borderColor: "rgba(245,158,11,.3)", color: "#fbbf24" }}>TEST</span>
+        : <span className="cc-badge cc-badge--green">LIVE</span>,
+    },
+    {
       key: "stripe_session_id", header: "Stripe",
       render: (p) => (
         <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
@@ -204,7 +213,29 @@ export default function AdminPaymentsPage() {
       </section>
 
       <section className="card card--spacious" style={{ padding: 18 }}>
-        <h2 className="settings-card-title" style={{ fontSize: 14 }}>Payment history</h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <h2 className="settings-card-title" style={{ fontSize: 14 }}>Payment history</h2>
+          <div style={{ display: "inline-flex", gap: 4, padding: 3, borderRadius: 9999, border: "1px solid var(--line)", background: "rgba(255,255,255,0.03)" }} role="tablist" aria-label="Stripe mode filter">
+            {(["live", "test", "all"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => { setLoading(true); setMode(m); }}
+                title={m === "live" ? "Real charges only" : m === "test" ? "Stripe test-mode payments" : "Everything"}
+                style={{
+                  border: 0, cursor: "pointer", borderRadius: 9999, padding: "6px 14px", fontSize: 11, fontWeight: mode === m ? 700 : 500,
+                  color: mode === m ? "#fff" : "var(--muted)",
+                  background: mode === m ? (m === "live" ? "linear-gradient(135deg, #059669, #10B981)" : m === "test" ? "linear-gradient(135deg, #D97706, #F59E0B)" : "linear-gradient(135deg, #7C3AED, #A855F7)") : "transparent",
+                  textTransform: "capitalize",
+                }}
+              >
+                {m === "live" ? "● Live" : m === "test" ? "◐ Test" : "All"}
+              </button>
+            ))}
+          </div>
+        </div>
         {loading ? (
           <div className="stack" style={{ gap: 8, marginTop: 12 }}>
             {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}

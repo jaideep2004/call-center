@@ -8,6 +8,7 @@ export interface StripeTopupSession {
   payment_intent?: string | null;
   metadata?: Record<string, string> | null;
   amount_total?: number | null;
+  livemode?: boolean | null;
 }
 
 function parseCents(v: string | undefined): number | null {
@@ -31,6 +32,12 @@ export async function findOrCreateTopupPayment(
 ): Promise<{ payment: PaymentRow; kind: TopupKind } | null> {
   const existing = await payments.findBySessionId(session.id);
   if (existing) {
+    // Confirm the mode from Stripe truth (rows created before livemode
+    // tracking, or mode switches mid-flight, get corrected here).
+    if (session.livemode != null && session.livemode !== existing.livemode) {
+      await payments.setLivemode(session.id, session.livemode).catch(() => {});
+      existing.livemode = session.livemode;
+    }
     const kind: TopupKind =
       session.metadata?.type === "agent_wallet_topup" || existing.agent_id != null
         ? "agent"
@@ -43,25 +50,45 @@ export async function findOrCreateTopupPayment(
   const agencyId = meta.agency_id;
   const creditCents = parseCents(meta.credit_cents);
   if (!agencyId || creditCents == null) return null;
+  const feeCents = parseCents(meta.fee_cents) ?? 0;
   if (meta.type === "agent_wallet_topup") {
     if (!meta.agent_id) return null;
-    const payment = await payments.create({
-      agency_id: agencyId,
-      agent_id: meta.agent_id,
-      stripe_session_id: session.id,
-      amount_cents: creditCents,
-      fee_cents: parseCents(meta.fee_cents) ?? 0,
-    });
-    return { payment, kind: "agent" };
+    try {
+      const payment = await payments.create({
+        agency_id: agencyId,
+        agent_id: meta.agent_id,
+        stripe_session_id: session.id,
+        amount_cents: creditCents,
+        fee_cents: feeCents,
+        livemode: session.livemode ?? true,
+      });
+      return { payment, kind: "agent" };
+    } catch (e: any) {
+      // Concurrent webhook/reconcile both healing the same orphan: the loser
+      // re-reads the winner's row instead of 500ing into a retry storm.
+      if (e?.code !== "23505") throw e;
+      const winner = await payments.findBySessionId(session.id);
+      return winner ? { payment: winner, kind: "agent" } : null;
+    }
   }
   if (meta.type === "agency_wallet_topup" || meta.type == null || meta.type === "") {
-    const payment = await payments.create({
-      agency_id: agencyId,
-      stripe_session_id: session.id,
-      amount_cents: creditCents,
-      fee_cents: parseCents(meta.fee_cents) ?? 0,
-    });
-    return { payment, kind: meta.type === "agency_wallet_topup" ? "agency-pool" : "agency" };
+    try {
+      const payment = await payments.create({
+        agency_id: agencyId,
+        stripe_session_id: session.id,
+        amount_cents: creditCents,
+        fee_cents: feeCents,
+        livemode: session.livemode ?? true,
+      });
+      return { payment, kind: meta.type === "agency_wallet_topup" ? "agency-pool" : "agency" };
+    } catch (e: any) {
+      if (e?.code !== "23505") throw e;
+      const winner = await payments.findBySessionId(session.id);
+      if (!winner) return null;
+      const kind: TopupKind =
+        meta.type === "agency_wallet_topup" ? "agency-pool" : winner.agent_id != null ? "agent" : "agency";
+      return { payment: winner, kind };
+    }
   }
   return null;
 }
@@ -81,6 +108,7 @@ export async function creditTopupPayment(
 ): Promise<{ credited: boolean }> {
   if (payment.status === "completed") return { credited: false };
   const key = `stripe_${sessionId}`;
+  let duplicate = false;
   try {
     if (kind === "agent") {
       await walletEntries.create({
@@ -107,10 +135,12 @@ export async function creditTopupPayment(
     }
   } catch (e: any) {
     if (e?.code !== "23505") throw e;
-    // Duplicate key: a concurrent delivery already credited. Converge by
-    // flipping the status below instead of 500ing.
+    // Duplicate key: a concurrent delivery already credited. Converge the
+    // status below but report honestly — no second receipt goes out.
+    duplicate = true;
   }
   await payments.markCompleted(payment.id, paymentIntentId);
+  if (duplicate) return { credited: false };
   if (kind === "agency-pool") {
     const { syncOfferWalletPauses } = await import("@/server/services/offer-wallet-sync");
     void syncOfferWalletPauses(payment.agency_id).catch((e) =>

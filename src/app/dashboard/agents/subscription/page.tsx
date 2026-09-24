@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { showToast } from "@/lib/use-toast";
 
@@ -33,7 +32,6 @@ export default function AgentSubscriptionPage() {
 }
 
 function AgentSubscriptionContent() {
-  const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
@@ -43,6 +41,9 @@ function AgentSubscriptionContent() {
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // subscribe=success from Stripe proves payment, NOT activation — the
+  // webhook may still be in flight. Verify via reconcile before celebrating.
+  const [verifyState, setVerifyState] = useState<"idle" | "verifying" | "active" | "pending">("idle");
 
   useEffect(() => {
     if (!user) return;
@@ -54,16 +55,51 @@ function AgentSubscriptionContent() {
     });
   }, [user]);
 
+  const refreshSubs = async (id: string) => {
+    const subsBody = await fetch(`/api/v1/agent-subscriptions?agent_id=${id}`).then(r => r.ok ? r.json() : { data: [] });
+    setMySubs(subsBody.data ?? []);
+  };
+
   useEffect(() => {
-    Promise.all([
-      fetch("/api/v1/agent-plans?active=true").then(r => r.ok ? r.json() : { data: [] }),
-      agentId ? fetch(`/api/v1/agent-subscriptions?agent_id=${agentId}`).then(r => r.ok ? r.json() : { data: [] }) : Promise.resolve({ data: [] }),
-    ]).then(([plansBody, subsBody]) => {
+    fetch("/api/v1/agent-plans?active=true").then(r => r.ok ? r.json() : { data: [] }).then((plansBody) => {
       setPlans(plansBody.data ?? []);
-      setMySubs(subsBody.data ?? []);
       setLoading(false);
     });
+    if (agentId) void refreshSubs(agentId);
   }, [agentId]);
+
+  // Post-Stripe verification: ?subscribe=success only proves payment.
+  // Reconcile (Stripe-verified) then refetch — the banner tells the truth.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("subscribe") !== "success") return;
+    const sessionId = params.get("session_id");
+    window.history.replaceState({}, "", "/dashboard/agents/subscription");
+    if (!sessionId) {
+      setVerifyState("pending");
+      return;
+    }
+    setVerifyState("verifying");
+    fetch("/api/v1/payments/reconcile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId }),
+    }).then(async (res) => {
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.data?.subscription_active) {
+        if (agentId) await refreshSubs(agentId);
+        setVerifyState("active");
+        showToast("Subscription activated", "success");
+      } else {
+        setVerifyState("pending");
+        showToast(body.message ?? "Payment received — activation pending, refresh shortly", "warning");
+      }
+    }).catch(() => {
+      setVerifyState("pending");
+      showToast("Payment received — activation pending, refresh shortly", "warning");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFreeSubscribe = async (planId: string) => {
     setSubscribing(planId);
@@ -132,9 +168,19 @@ function AgentSubscriptionContent() {
         </div>
       </div>
 
-      {searchParams.get("subscribe") === "success" && (
+      {verifyState === "verifying" && (
+        <div className="card" style={{ borderColor: "var(--line)", padding: "var(--space-5)" }}>
+          <p style={{ color: "var(--muted)", fontWeight: 600, margin: 0 }}>Verifying payment with Stripe…</p>
+        </div>
+      )}
+      {verifyState === "active" && (
         <div className="card" style={{ borderColor: "var(--accent)", padding: "var(--space-5)" }}>
-          <p style={{ color: "var(--accent)", fontWeight: 600 }}>&checkmark; Payment successful! Your subscription is now active.</p>
+          <p style={{ color: "var(--accent)", fontWeight: 600, margin: 0 }}>&checkmark; Payment successful! Your subscription is now active.</p>
+        </div>
+      )}
+      {verifyState === "pending" && (
+        <div className="card" style={{ borderColor: "rgba(245,158,11,.4)", padding: "var(--space-5)" }}>
+          <p style={{ color: "#fbbf24", fontWeight: 600, margin: 0 }}>Payment received — activation is pending. Refresh this page shortly; no need to pay again.</p>
         </div>
       )}
 

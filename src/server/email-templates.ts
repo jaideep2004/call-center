@@ -56,6 +56,9 @@ function logoUrl(): string {
 
 function ctaButton(label: string, href: string): string {
   const safeLabel = escapeHtml(label);
+  // href is always an app URL, but escape it anyway — raw interpolation into
+  // href="…" would break the attribute (and the layout) on a stray quote.
+  const safeHref = escapeHtml(href);
   // Bulletproof button: padding lives on the <td>, NOT the <a> — several
   // Gmail render paths ignore anchor padding and collapse the button into
   // a shrunk pill with overflowing text. 48px tall, min-width 240, centered.
@@ -65,12 +68,12 @@ function ctaButton(label: string, href: string): string {
       <tr>
         <td align="center" bgcolor="${ACCENT}" style="border-radius: 10px; background-color: ${ACCENT}; background: ${ACCENT}; padding: 16px 32px; border: 1px solid ${ACCENT};">
           <!--[if mso]>
-          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href}" style="height:48px;v-text-anchor:middle;width:280px;" arcsize="14%" strokecolor="${ACCENT}" fillcolor="${ACCENT}">
+          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${safeHref}" style="height:48px;v-text-anchor:middle;width:280px;" arcsize="14%" strokecolor="${ACCENT}" fillcolor="${ACCENT}">
             <center style="color:#ffffff;font-family:${FONT};font-size:16px;font-weight:700;letter-spacing:0.02em;">${safeLabel}</center>
           </v:roundrect>
           <![endif]-->
           <!--[if !mso]><!-->
-          <a href="${href}" target="_blank" rel="noopener" style="display: inline-block; min-width: 240px; color: #FFFFFF; font-family: ${FONT}; font-size: 17px; font-weight: 800; line-height: 24px; letter-spacing: 0.02em; mso-line-height-rule: exactly; text-decoration: none; text-align: center;">${safeLabel}</a>
+          <a href="${safeHref}" target="_blank" rel="noopener" style="display: inline-block; min-width: 240px; color: #FFFFFF; font-family: ${FONT}; font-size: 17px; font-weight: 800; line-height: 24px; letter-spacing: 0.02em; mso-line-height-rule: exactly; text-decoration: none; text-align: center;">${safeLabel}</a>
           <!--<![endif]-->
         </td>
       </tr>
@@ -258,8 +261,10 @@ export interface WalletTopupEmailInput {
 
 export function walletTopupEmail(input: WalletTopupEmailInput): string {
   const who = input.forHead && input.agentName ? `<strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.agentName)}</strong> topped up` : "Your wallet was topped up";
+  // Preheader must be plain text — tags would show literally in inbox previews.
+  const whoText = input.forHead && input.agentName ? `${input.agentName} topped up` : "Your wallet was topped up";
   return emailLayout({
-    preheader: `${who} — ${formatUsd(input.amountCents)} credited.`,
+    preheader: `${whoText} — ${formatUsd(input.amountCents)} credited.`,
     bodyHtml: `
       <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">${formatUsd(input.amountCents)} credited</h1>
       <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">${who} — <strong style="color:${TEXT}; font-weight: 700;">${formatUsd(input.amountCents)}</strong> credit${input.feeCents > 0 ? ` (plus ${formatUsd(input.feeCents)} Stripe processing fee charged)` : ""}.${input.agencyName ? ` Agency: <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.agencyName)}</strong>.` : ""}</p>

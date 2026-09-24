@@ -70,6 +70,44 @@ export default function PoolWalletPage() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Post-Stripe verification: ?payment=success only proves payment — the
+  // pool credit may still be in flight. Reconcile (Stripe-verified) then
+  // refresh, so the balance tells the truth on first paint.
+  const [verifying, setVerifying] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      const sessionId = params.get("session_id");
+      window.history.replaceState({}, "", "/dashboard/wallet/pool");
+      if (!sessionId) {
+        showToast("Payment received — balance updates shortly", "success");
+        void refresh();
+        return;
+      }
+      setVerifying(true);
+      fetch("/api/v1/payments/reconcile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      }).then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && body.data?.credited) showToast("Pool topped up", "success");
+        else if (res.ok) showToast("Payment verified — balance is up to date", "success");
+        else showToast(body.message ?? "Payment pending — balance updates shortly", "warning");
+        setVerifying(false);
+        void refresh();
+      }).catch(() => {
+        showToast("Payment received — balance updates shortly", "success");
+        setVerifying(false);
+        void refresh();
+      });
+    } else if (params.get("payment") === "cancelled") {
+      showToast("Payment cancelled", "error");
+      window.history.replaceState({}, "", "/dashboard/wallet/pool");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleToggle() {
     if (!data) return;
     setToggling(true);
@@ -208,6 +246,7 @@ export default function PoolWalletPage() {
           );
         })()}
         <p className="text-muted" style={{ fontSize: 11, marginTop: 6 }}>A 3% Stripe payment processing fee applies to the top-up amount.</p>
+        {verifying && <p className="text-mono-sm" style={{ fontSize: 11, marginTop: 6, color: "var(--muted)" }}>Verifying payment with Stripe…</p>}
       </section>
 
       <section className="card card--spacious" aria-labelledby="alloc-title" style={{ marginTop: 16 }}>

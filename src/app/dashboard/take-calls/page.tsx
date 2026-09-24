@@ -196,6 +196,7 @@ function TakeCallsInner() {
 	// the server enforces on Go Online. Null while loading — never blocks
 	// the checklist on its own; the server is the final gate.
 	const [funding, setFunding] = useState<{ funded: boolean; needs_subscription: boolean; needs_topup: boolean } | null>(null);
+	const [fundingChecked, setFundingChecked] = useState(false);
 	const [liveCampaigns, setLiveCampaigns] = useState<
 		Array<{ id: string; name: string; is_live_for_me?: boolean }>
 	>([]);
@@ -207,6 +208,9 @@ function TakeCallsInner() {
 	}, [liveCampaigns, campaignSearch]);
 	const [togglingCampaign, setTogglingCampaign] = useState<string | null>(null);
 	const hasMounted = useRef(false);
+	// Shared ref-counted client (same instance as Softphone): keeps the SIP
+	// registration alive while this page is open and reads status from the
+	// same snapshot. Never answer from here — Softphone owns answering.
 	const webrtc = useTelnyxWebRTC(agentId);
 
 	const loadAgent = useCallback(async () => {
@@ -322,7 +326,7 @@ function TakeCallsInner() {
 					needs_topup: b.data.needs_topup ?? false,
 				});
 			}
-		}).catch(() => {});
+		}).catch(() => {}).finally(() => setFundingChecked(true));
 	}, [agentId, fetchLiveCampaigns]);
 
 	const toggleLiveCampaign = useCallback(
@@ -584,16 +588,19 @@ function TakeCallsInner() {
 			: "Not set";
 	const liveCount = liveCampaigns.filter((c) => c.is_live_for_me).length;
 	const campaignsReady = liveCount > 0;
-	const fundingOk = funding == null ? true : funding.funded;
-	const fundingDesc = funding == null
+	const fundingOk = funding != null ? funding.funded : fundingChecked;
+	const fundingPending = !fundingChecked || (fundingChecked && funding == null);
+	const fundingDesc = !fundingChecked
 		? "Checking subscription + wallet…"
-		: funding.funded
-			? "Subscription active + wallet topped up"
-			: funding.needs_subscription && funding.needs_topup
-				? "Buy a subscription plan and top up your wallet"
-				: funding.needs_subscription
-					? "Buy a subscription plan to go online"
-					: "Top up your wallet to go online";
+		: funding == null
+			? "Couldn't verify automatically — the server confirms on Go Online."
+			: funding.funded
+				? "Subscription active + wallet topped up"
+				: funding.needs_subscription && funding.needs_topup
+					? "Buy a subscription plan and top up your wallet"
+					: funding.needs_subscription
+						? "Buy a subscription plan to go online"
+						: "Top up your wallet to go online";
 	const readyChecks = [
 		{
 			ok: isApproved,
@@ -609,7 +616,7 @@ function TakeCallsInner() {
 			ok: fundingOk,
 			label: "Funding",
 			desc: fundingDesc,
-			meta: funding == null ? "Checking…" : funding.funded ? "Funded" : "Required",
+			meta: !fundingChecked ? "…" : funding == null ? "Unverified" : funding.funded ? "Funded" : "Required",
 		},
 		{
 			ok: deviceReady,
@@ -879,7 +886,7 @@ function TakeCallsInner() {
 							<span>
 								{allReady
 									? "Click Go Online to start receiving inbound calls."
-									: `Complete ${4 - passCount} more check(s) to unlock Go Online.`}
+									: `Complete ${readyChecks.length - passCount} more check(s) to unlock Go Online.`}
 							</span>
 						</div>
 					)}
@@ -1286,7 +1293,7 @@ function TakeCallsInner() {
 										? "rgba(34,197,94,0.10)"
 										: "rgba(255,255,255,0.03)",
 								}}>
-								{passCount}/5 PASS
+								{passCount}/{readyChecks.length} PASS
 							</span>
 						</div>
 
@@ -1304,6 +1311,15 @@ function TakeCallsInner() {
 								}
 								meta={
 									isApproved ? "Approved" : (agentInfo?.approval_status ?? "…")
+								}
+							/>
+							<ChecklistRow
+								ok={fundingOk}
+								pending={fundingPending}
+								label='Funding (plan + wallet)'
+								desc={fundingDesc}
+								meta={
+									!fundingChecked ? "…" : funding == null ? "Unverified" : funding.funded ? "Funded" : "Required"
 								}
 							/>
 							<ChecklistRow
@@ -1392,7 +1408,7 @@ function TakeCallsInner() {
 								}}>
 								{allReady
 									? "All checks pass — you can go online."
-									: `${5 - passCount} check(s) still needed — Go Online is disabled.`}
+									: `${readyChecks.length - passCount} check(s) still needed — Go Online is disabled.`}
 							</span>
 							<span style={{ display: "inline-flex", gap: 6 }}>
 								{readyChecks.map((c) => (

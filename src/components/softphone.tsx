@@ -318,10 +318,27 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
         setSdkError("Browser pickup failed — bridge continuing without it.");
       }
     }
-    const res = await acceptReq;
+    let res: Response | null = null;
+    try {
+      res = await acceptReq;
+    } catch {
+      res = null;
+    }
     const t2 = performance.now();
+    if (!res || !res.ok) {
+      // Bridge failed AFTER the browser answered: hang up the browser leg or
+      // it stays live in the tracker and blocks the next answer. (When the
+      // browser never answered there is nothing to hang up — hangup() is a
+      // safe no-op then.)
+      addDebug(`Accept: bridge POST ${res ? `HTTP ${res.status}` : "threw"} at +${Math.round(t2 - t0)}ms — releasing browser leg`);
+      try {
+        webrtc.hangup();
+      } catch { /* best-effort */ }
+      setError("Failed to accept call");
+      setCallState("idle");
+      return;
+    }
     addDebug(`Accept: bridge POST → HTTP ${res.status} at +${Math.round(t2 - t0)}ms`);
-    if (!res.ok) { setError("Failed to accept call"); setCallState("idle"); }
   }, [incoming, webrtc, addDebug]);
 
   const reject = useCallback(async () => {

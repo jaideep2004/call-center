@@ -4,13 +4,18 @@ const {
   walletCreateMock,
   findBySessionIdMock,
   markCompletedMock,
+  setLivemodeMock,
 } = vi.hoisted(() => ({
   walletCreateMock: vi.fn(),
   findBySessionIdMock: vi.fn(),
   markCompletedMock: vi.fn(),
+  setLivemodeMock: vi.fn(),
 }));
 
-const fakeEvent = {
+const fakeEvent: {
+  type: string;
+  data: { object: { id: string; payment_intent: string | null; metadata: Record<string, string>; amount_total: number; livemode?: boolean | null } };
+} = {
   type: "checkout.session.completed",
   data: {
     object: {
@@ -37,6 +42,7 @@ vi.mock("@/server/repositories/payments", () => ({
   payments: {
     findBySessionId: findBySessionIdMock,
     markCompleted: markCompletedMock,
+    setLivemode: setLivemodeMock,
     create: vi.fn(),
   },
 }));
@@ -135,5 +141,15 @@ describe("stripe webhook — agent top-up credits the AGENT wallet", () => {
     const res = await POST(makeRequest());
     expect(res.status).toBe(200);
     expect(markCompletedMock).toHaveBeenCalled();
+  });
+
+  it("stamps livemode from the Stripe session (test money never mixes into live)", async () => {
+    setLivemodeMock.mockResolvedValue(undefined);
+    fakeEvent.data.object.livemode = false;
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    expect(setLivemodeMock).toHaveBeenCalledWith("cs_test_123", false);
+    expect(walletCreateMock).toHaveBeenCalled();
+    fakeEvent.data.object.livemode = undefined;
   });
 });

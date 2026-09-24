@@ -26,6 +26,7 @@ export async function POST(request: Request) {
       payment_intent: string | null;
       metadata: Record<string, string>;
       amount_total: number | null;
+      livemode: boolean | null;
     };
 
     if (session.metadata?.type === "agent_wallet_topup") {
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
         payment_intent: session.payment_intent,
         metadata: session.metadata,
         amount_total: session.amount_total,
+        livemode: session.livemode,
       });
       if (!found) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
@@ -51,6 +53,7 @@ export async function POST(request: Request) {
         payment_intent: session.payment_intent,
         metadata: session.metadata,
         amount_total: session.amount_total,
+        livemode: session.livemode,
       });
       if (!found) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
@@ -64,6 +67,11 @@ export async function POST(request: Request) {
       const agentId = session.metadata.agent_id;
       const planId = session.metadata.plan_id;
       const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : "";
+      // Malformed sessions must never 500 the webhook into a retry storm.
+      if (!agentId || !planId) {
+        console.warn(`[stripe-webhook] subscription session ${session.id} missing agent_id/plan_id — acknowledged without action`);
+        return NextResponse.json({ received: true });
+      }
 
       const payment = await payments.findBySessionId(session.id);
       if (payment && payment.status !== "completed") {
@@ -110,6 +118,7 @@ export async function POST(request: Request) {
         payment_intent: session.payment_intent,
         metadata: session.metadata,
         amount_total: session.amount_total,
+        livemode: session.livemode,
       });
       if (!found) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 

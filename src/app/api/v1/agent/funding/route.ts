@@ -1,16 +1,19 @@
 import { apiHandler, ok, fail } from "@/server/api-utils";
-import { agents, walletEntries, agentSubscriptions, agentCampaignSelections } from "@/server/repositories";
+import { agents, agentCampaignSelections } from "@/server/repositories";
+import { fundingStatus } from "@/server/services/agent-funding";
 import { queryOne } from "@/server/db";
 
 export const runtime = "nodejs";
 
 /**
  * GET /api/v1/agent/funding — can this agent actually receive calls, money-wise?
- * funded = active subscription AND effective balance (personal ledger +
- * agency-pool allocation) covers the cheapest live+active campaign price
- * (bid override wins). The availability toggle enforces the same AND rule —
- * this endpoint just surfaces it so Take Calls can refuse Go Online with a
- * useful message instead of letting agents sit online unrung.
+ * `funded` is the SAME verdict the availability toggle enforces (single
+ * helper: subscription AND top-up, postpaid agencies exempt). On top it
+ * reports whether the wallet covers the cheapest live+active campaign price
+ * (bid override wins) so Take Calls can show the more specific "top up $X"
+ * hint. The router enforces affordability per call — this endpoint just
+ * surfaces both so Take Calls can refuse Go Online with a useful message
+ * instead of letting agents sit online unrung.
  */
 export const GET = apiHandler(async (req, context) => {
   let agentId: string | null = null;
@@ -21,47 +24,34 @@ export const GET = apiHandler(async (req, context) => {
   }
   if (!agentId) return fail("Agent profile not found", 404);
 
-  const [effective, sub, liveIds] = await Promise.all([
-    walletEntries.sumEffectiveByAgent(agentId).catch(() => 0),
-    agentSubscriptions.findActiveByAgent(agentId).catch(() => null),
+  const [status, liveIds, agentRow] = await Promise.all([
+    fundingStatus(agentId),
     agentCampaignSelections.getLiveCampaignIds(agentId).catch(() => [] as string[]),
+    agents.findById(agentId).catch(() => null),
   ]);
-  const agentRow = await agents.findById(agentId).catch(() => null);
-  const postpaidRow = agentRow
-    ? await queryOne<{ postpaid_bypass: boolean }>(
-        `SELECT postpaid_bypass FROM app.agencies WHERE id = $1`,
-        [(agentRow as { agency_id?: string }).agency_id],
-      ).catch(() => null)
-    : null;
-  const agencyPostpaid = postpaidRow?.postpaid_bypass === true;
 
   let minLivePrice: number | null = null;
-  if (liveIds.length > 0) {
+  if (liveIds.length > 0 && agentRow) {
     const row = await queryOne<{ min_price: string | null }>(
       `SELECT MIN(COALESCE(bo.price_cents, c.price_cents))::text AS min_price
          FROM app.campaigns c
          LEFT JOIN app.bid_overrides bo ON bo.campaign_id = c.id
-        WHERE c.id = ANY($1::uuid[]) AND c.status = 'active' AND c.deleted_at IS NULL`,
-      [liveIds],
+        WHERE c.id = ANY($1::uuid[]) AND c.status = 'active' AND c.deleted_at IS NULL
+          AND c.agency_id = $2`,
+      [liveIds, (agentRow as { agency_id?: string }).agency_id],
     ).catch(() => null);
     minLivePrice = row?.min_price != null ? parseInt(row.min_price, 10) : null;
   }
 
-  const hasSub = Boolean(sub);
-  // No live+active campaign to price against: nothing to fund (the campaign
-  // checks handle that case separately) — do not block on money here.
-  // Matches the availability gate: subscription AND top-up, postpaid exempt.
-  const affordable = minLivePrice == null || effective >= minLivePrice;
-  const funded = agencyPostpaid || (hasSub && affordable);
-
   return ok({
-    effective_balance_cents: effective,
-    has_active_subscription: hasSub,
-    agency_postpaid: agencyPostpaid,
-    needs_subscription: !agencyPostpaid && !hasSub,
-    needs_topup: !agencyPostpaid && effective <= 0,
+    effective_balance_cents: status.effectiveCents,
+    has_active_subscription: status.hasSubscription,
+    agency_postpaid: status.agencyPostpaid,
+    needs_subscription: status.needsSubscription,
+    needs_topup: status.needsTopup,
     min_live_price_cents: minLivePrice,
+    covers_min_live_price: minLivePrice == null || status.effectiveCents >= minLivePrice,
     live_campaign_count: liveIds.length,
-    funded,
+    funded: status.funded,
   });
 }, { resource: "calls", action: "view" });

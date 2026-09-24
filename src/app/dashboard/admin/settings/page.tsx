@@ -8,14 +8,38 @@ interface StripeStatus {
   configured: boolean;
   source: "db" | "env" | null;
   webhook_configured: boolean;
+  mode: "test" | "live" | null;
+  test_configured: boolean;
+  live_configured: boolean;
+  active_key_mode: "test" | "live" | null;
+}
+
+function KeyInput({ label, value, onChange, placeholder, configuredNote }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  configuredNote: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div>
+      <label className="settings-label">{label} {configuredNote ? <span className="text-muted">({configuredNote})</span> : null}</label>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input className="input" type={show ? "text" : "password"} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoComplete="off" style={{ flex: 1, minHeight: 42 }} />
+        <button type="button" className="btn btn-sm" onClick={() => setShow((v) => !v)} aria-label={show ? `Hide ${label}` : `Show ${label}`} title={show ? "Hide" : "Show"}>{show ? "🙈" : "👁"}</button>
+      </div>
+    </div>
+  );
 }
 
 function StripeIntegrationCard() {
   const [status, setStatus] = useState<StripeStatus | null>(null);
-  const [secretKey, setSecretKey] = useState("");
-  const [webhookSecret, setWebhookSecret] = useState("");
-  const [showSecret, setShowSecret] = useState(false);
-  const [showWebhook, setShowWebhook] = useState(false);
+  const [mode, setMode] = useState<"test" | "live">("test");
+  const [testSecret, setTestSecret] = useState("");
+  const [testWebhook, setTestWebhook] = useState("");
+  const [liveSecret, setLiveSecret] = useState("");
+  const [liveWebhook, setLiveWebhook] = useState("");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   // Null = never verified this session. The badge is green ONLY after a live
@@ -27,6 +51,7 @@ function StripeIntegrationCard() {
       if (res.ok) {
         const body = await res.json();
         setStatus(body.data ?? null);
+        if (body.data?.mode === "test" || body.data?.mode === "live") setMode(body.data.mode);
       }
     }).catch(() => {});
   };
@@ -34,28 +59,44 @@ function StripeIntegrationCard() {
   useEffect(refresh, []);
 
   async function save() {
-    if (!secretKey && !webhookSecret) return;
-    if (secretKey && !secretKey.trim().startsWith("sk_")) {
-      showToast("Secret key should start with sk_…", "warning");
+    const payload: Record<string, string> = { mode };
+    if (testSecret.trim()) payload.test_secret_key = testSecret.trim();
+    if (testWebhook.trim()) payload.test_webhook_secret = testWebhook.trim();
+    if (liveSecret.trim()) payload.live_secret_key = liveSecret.trim();
+    if (liveWebhook.trim()) payload.live_webhook_secret = liveWebhook.trim();
+    for (const [k, v] of Object.entries(payload)) {
+      if (k === "mode") continue;
+      if (k.endsWith("secret_key") && !v.startsWith("sk_")) {
+        showToast("Secret keys should start with sk_…", "warning");
+        return;
+      }
+      if (k.endsWith("webhook_secret") && !v.startsWith("whsec_")) {
+        showToast("Webhook secrets should start with whsec_…", "warning");
+        return;
+      }
     }
-    if (webhookSecret && !webhookSecret.trim().startsWith("whsec_")) {
-      showToast("Webhook secret should start with whsec_…", "warning");
+    if (mode === "test" && !status?.test_configured && !payload.test_secret_key) {
+      showToast("Paste the test secret key first — nothing to switch to", "warning");
+      return;
+    }
+    if (mode === "live" && !status?.live_configured && !payload.live_secret_key) {
+      showToast("Paste the live secret key first — nothing to switch to", "warning");
+      return;
     }
     setSaving(true);
     try {
       const res = await fetch("/api/v1/settings/stripe", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(secretKey ? { secret_key: secretKey.trim() } : {}),
-          ...(webhookSecret ? { webhook_secret: webhookSecret.trim() } : {}),
-        }),
+        body: JSON.stringify(payload),
       });
       const body = await res.json();
       showToast(body.message ?? (res.ok ? "Saved" : "Failed"), res.ok ? "success" : "error");
       if (res.ok) {
-        setSecretKey("");
-        setWebhookSecret("");
+        setTestSecret("");
+        setTestWebhook("");
+        setLiveSecret("");
+        setLiveWebhook("");
         // PUT verifies server-side; adopt the result (null = unverified).
         setVerified(body.data?.verified === true ? true : body.data?.verified === false ? false : null);
         refresh();
@@ -74,7 +115,7 @@ function StripeIntegrationCard() {
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.data?.verified) {
         setVerified(true);
-        showToast("Stripe verified — live API responded", "success");
+        showToast(`Stripe verified — ${body.data?.mode === "live" ? "LIVE" : body.data?.mode === "test" ? "TEST" : ""} API responded`.trim(), "success");
       } else {
         setVerified(false);
         showToast(body.message ?? "Stripe verification failed — check the key", "error");
@@ -87,49 +128,82 @@ function StripeIntegrationCard() {
     }
   }
 
+  const badge = verified === true
+    ? { cls: "badge-success", text: `${mode === "live" ? "Live" : "Test"} mode — verified` }
+    : status?.configured
+      ? { cls: "badge-danger", text: "Keys saved — not verified" }
+      : { cls: "badge-danger", text: "Not connected" };
+
   return (
     <section className="card card--spacious" style={{ padding: 22 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap:"wrap" }}>
-        <div style={{ minWidth:0 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
           <h2 className="settings-card-title">Stripe Integration</h2>
-          <p className="settings-card-sub">Live or test keys from Stripe Dashboard → Developers → API keys. Stored encrypted, never displayed again.</p>
+          <p className="settings-card-sub">Test and live keys from Stripe Dashboard → Developers → API keys. Stored encrypted, never displayed again. Switching mode activates that pair everywhere instantly.</p>
         </div>
-        <span className={`badge ${verified === true ? "badge-success" : "badge-danger"}`} style={{ whiteSpace:"nowrap" }} title={verified === true ? "Live API ping succeeded" : "Not verified against the live Stripe API"}>
-          {verified === true
-            ? `Connected — verified (${status?.source === "db" ? "admin-set" : "env"} key)`
-            : status?.configured
-              ? "Keys saved — not verified"
-              : "Not connected"}
+        <span className={`badge ${badge.cls}`} style={{ whiteSpace: "nowrap" }} title={verified === true ? "API ping succeeded in the active mode" : "Not verified against the Stripe API"}>
+          {badge.text}
         </span>
       </div>
-      <p className="text-muted" style={{ fontSize: 11, margin:"12px 0 0", border:"1px solid var(--line)", borderRadius:9, padding:"8px 10px", background:"rgba(255,255,255,.02)", fontFamily:"var(--mono)" }}>
-        Webhook endpoint: <code style={{ color:"var(--ink)" }}>&lt;your-domain&gt;/api/webhooks/stripe</code>
+
+      {/* Mode switcher */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 16, flexWrap: "wrap" }}>
+        <span className="text-muted" style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em" }}>MODE</span>
+        <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: 9999, border: "1px solid var(--line)", background: "rgba(255,255,255,0.03)" }} role="tablist" aria-label="Stripe mode">
+          {(["test", "live"] as const).map((m) => {
+            const active = mode === m;
+            const configured = m === "test" ? status?.test_configured : status?.live_configured;
+            const current = status?.mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setMode(m)}
+                title={m === "test" ? "Stripe test mode — no real charges" : "Stripe live mode — REAL charges"}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8, border: 0, cursor: "pointer", borderRadius: 9999,
+                  padding: "8px 16px", fontSize: 12, fontWeight: active ? 700 : 500,
+                  color: active ? "#fff" : "var(--muted)",
+                  background: active ? (m === "live" ? "linear-gradient(135deg, #059669, #10B981)" : "linear-gradient(135deg, #D97706, #F59E0B)") : "transparent",
+                }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: configured ? "var(--green)" : "var(--muted)" }} />
+                {m === "test" ? "Test" : "Live"}
+                {current ? <span style={{ fontSize: 9, opacity: 0.85 }}>(active)</span> : null}
+              </button>
+            );
+          })}
+        </div>
+        {mode === "live" && (
+          <span className="badge badge-danger" style={{ fontSize: 10 }}>REAL charges in live mode</span>
+        )}
+      </div>
+
+      <p className="text-muted" style={{ fontSize: 11, margin: "12px 0 0", border: "1px solid var(--line)", borderRadius: 9, padding: "8px 10px", background: "rgba(255,255,255,.02)", fontFamily: "var(--mono)" }}>
+        Webhook endpoint: <code style={{ color: "var(--ink)" }}>&lt;your-domain&gt;/api/webhooks/stripe</code>
+        <span style={{ display: "block", marginTop: 6, fontFamily: "var(--sans)" }}>Localhost testing: run <code style={{ color: "var(--ink)" }}>stripe listen --forward-to localhost:30001/api/webhooks/stripe</code> — it prints a <code style={{ color: "var(--ink)" }}>whsec_…</code> secret; paste it as the Test webhook secret above.</span>
       </p>
-      <div style={{ display:"flex", flexDirection:"column", gap: 14, marginTop: 18 }}>
-        <div>
-          <label className="settings-label">Secret Key</label>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input className="input" type={showSecret ? "text" : "password"} value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={status?.configured ? "•••••••• (saved — paste to replace)" : "sk_live_... / sk_test_..."} autoComplete="off" style={{ flex: 1, minHeight:42 }} />
-            <button type="button" className="btn btn-sm" onClick={() => setShowSecret((v) => !v)} aria-label={showSecret ? "Hide secret key" : "Show secret key"} title={showSecret ? "Hide" : "Show"}>{showSecret ? "🙈" : "👁"}</button>
-          </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, marginTop: 18 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: 14, border: "1px solid var(--line)", borderRadius: 12, background: mode === "test" ? "rgba(245,158,11,0.05)" : "transparent" }}>
+          <strong style={{ fontSize: 12 }}>Test keys <span className="text-muted" style={{ fontWeight: 400 }}>— no real charges</span></strong>
+          <KeyInput label="Test secret key" value={testSecret} onChange={setTestSecret} placeholder={status?.test_configured ? "•••••••• (saved)" : "sk_test_..."} configuredNote={status?.test_configured ? "saved" : ""} />
+          <KeyInput label="Test webhook secret" value={testWebhook} onChange={setTestWebhook} placeholder="whsec_... (from stripe listen)" configuredNote="" />
         </div>
-        <div>
-          <label className="settings-label">
-            Webhook Signing Secret {status?.webhook_configured ? "(✓ configured)" : "(required for payments to credit wallets)"}
-          </label>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input className="input" type={showWebhook ? "text" : "password"} value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={status?.webhook_configured ? "•••••••• (saved — paste to replace)" : "whsec_..."} autoComplete="off" style={{ flex: 1, minHeight:42 }} />
-            <button type="button" className="btn btn-sm" onClick={() => setShowWebhook((v) => !v)} aria-label={showWebhook ? "Hide webhook secret" : "Show webhook secret"} title={showWebhook ? "Hide" : "Show"}>{showWebhook ? "🙈" : "👁"}</button>
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: 14, border: "1px solid var(--line)", borderRadius: 12, background: mode === "live" ? "rgba(16,185,129,0.05)" : "transparent" }}>
+          <strong style={{ fontSize: 12 }}>Live keys <span className="text-muted" style={{ fontWeight: 400 }}>— real charges</span></strong>
+          <KeyInput label="Live secret key" value={liveSecret} onChange={setLiveSecret} placeholder={status?.live_configured ? "•••••••• (saved)" : "sk_live_..."} configuredNote={status?.live_configured ? "saved" : ""} />
+          <KeyInput label="Live webhook secret" value={liveWebhook} onChange={setLiveWebhook} placeholder="whsec_... (from Stripe dashboard)" configuredNote="" />
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap", marginTop:4 }}>
-          <button className="btn btn-sm" onClick={testConnection} disabled={testing} title="Check Stripe connectivity" style={{ minHeight:36 }}>
-            {testing ? "Testing…" : "Test Connection"}
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={save} disabled={saving || (!secretKey && !webhookSecret)} style={{ minHeight:36, minWidth:128 }}>
-            {saving ? "Verifying..." : "Save & Connect"}
-          </button>
-        </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
+        <button className="btn btn-sm" onClick={testConnection} disabled={testing} title="Check Stripe connectivity in the active mode" style={{ minHeight: 36 }}>
+          {testing ? "Testing…" : "Test Connection"}
+        </button>
+        <button className="btn btn-primary btn-sm" onClick={save} disabled={saving} style={{ minHeight: 36, minWidth: 128 }} title={`Save keys and switch to ${mode} mode`}>
+          {saving ? "Verifying..." : `Save & Use ${mode === "test" ? "Test" : "Live"}`}
+        </button>
       </div>
     </section>
   );

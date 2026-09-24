@@ -27,7 +27,9 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
 
   // Env-first base URL: req origin is wrong behind proxies/tunnels.
   const base = getAppBaseUrl(new URL(req.url).origin);
-  const successUrl = `${base}/dashboard/agents/subscription?subscribe=success`;
+  // {CHECKOUT_SESSION_ID} lets the success page reconcile (verify + create
+  // the subscription) even when the webhook was delayed or lost.
+  const successUrl = `${base}/dashboard/agents/subscription?subscribe=success&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${base}/dashboard/agents/subscription?subscribe=cancelled`;
 
   const session = await (await getStripe()).checkout.sessions.create({
@@ -52,13 +54,25 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
     cancel_url: cancelUrl,
   });
 
-  await payments.create({
-    agency_id: agencyId,
-    agent_id: agent.id,
-    plan_id: plan.id,
-    stripe_session_id: session.id,
-    amount_cents: plan.price_cents,
-  });
+  try {
+    await payments.create({
+      agency_id: agencyId,
+      agent_id: agent.id,
+      plan_id: plan.id,
+      stripe_session_id: session.id,
+      amount_cents: plan.price_cents,
+      livemode: session.livemode ?? true,
+    });
+  } catch (e) {
+    // Never leave a payable session without an app row — expire it; the
+    // webhook/reconcile self-heals any race regardless.
+    try {
+      await (await getStripe()).checkout.sessions.expire(session.id);
+    } catch {
+      /* best-effort */
+    }
+    throw e;
+  }
 
   return ok({ url: session.url, sessionId: session.id });
 }, { resource: "wallet", action: "recharge" });

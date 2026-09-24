@@ -114,6 +114,7 @@ describe("agency pool wallet API (P1.4)", () => {
       stripe_session_id: "cs_pool_1",
       amount_cents: 5000,
       fee_cents: 150,
+      livemode: true,
     });
     const body = await res.json();
     expect(body.data).toMatchObject({

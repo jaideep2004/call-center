@@ -4,7 +4,14 @@ import { validate, createAgentSubscriptionSchema } from "@/server/validate";
 
 export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
-  const agentId = url.searchParams.get("agent_id") || "";
+  let agentId = url.searchParams.get("agent_id") || "";
+  // Plain agents see ONLY their own subscriptions — the query param is never
+  // trusted for them. Heads/admins keep the team view.
+  if (context.user?.role !== "admin" && !context.isHead) {
+    const me = context.membership ? await agents.findByMembershipId(context.membership.id).catch(() => null) : null;
+    if (!me) return fail("Agent profile not found", 403);
+    agentId = me.id;
+  }
   if (!agentId) return ok([]);
   const rows = await agentSubscriptions.findByAgent(agentId);
   return ok(rows);
@@ -17,6 +24,9 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
   const plan = await agentPlans.findById(body.plan_id).catch(() => null);
   if (!plan) return fail("Plan not found", 404);
   if (plan.agency_id !== agencyId) return fail("Plan not available", 403);
+  // This is the $0-plan path (the UI only offers it for free plans) — paid
+  // plans must go through Stripe checkout, never a direct insert.
+  if (plan.price_cents !== 0) return fail("Paid plans require checkout", 402);
 
   const agent = await agents.findByMembershipId(membership.id);
   if (!agent) return fail("Agent profile not found", 404);

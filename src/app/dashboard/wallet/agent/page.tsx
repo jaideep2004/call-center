@@ -74,7 +74,7 @@ function AgentWalletInner() {
         setEffective(body.data?.effective_balance_cents ?? body.data?.balance_cents ?? 0);
       }
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
     fetch("/api/v1/wallet/entries?limit=100").then(async (res) => {
       if (res.ok) {
         const body = await res.json();

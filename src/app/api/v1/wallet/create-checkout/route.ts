@@ -60,6 +60,7 @@ export const POST = apiHandler(async (req, context) => {
       stripe_session_id: session.id,
       amount_cents: creditCents,
       fee_cents: feeCents,
+      livemode: session.livemode ?? true,
     });
   } catch (e) {
     // Never leave a payable Stripe session without an app row (Sept-22 $1

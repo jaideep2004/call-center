@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
+import Modal from "@/components/modal";
 import { showToast } from "@/lib/use-toast";
 import { stripeFeeCents } from "@/lib/format";
 
@@ -83,7 +84,7 @@ function WalletInner() {
   const [agentDebounced, setAgentDebounced] = useState(initialAgentQ);
   const [agentPage, setAgentPage] = useState(1);
   // Ledger summary (last 500 entries) + direction/type filters for the table.
-  const [summary, setSummary] = useState<{ inCents: number; outCents: number; count: number } | null>(null);
+  const [summary, setSummary] = useState<{ inCents: number; outCents: number; total: number; fetched: number } | null>(null);
   const [dirFilter, setDirFilter] = useState<"all" | "in" | "out">("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const hasMounted = useRef(false);
@@ -108,6 +109,22 @@ function WalletInner() {
     fetchData();
   }, [page]);
 
+  const refreshLedger = async () => {
+    const [entriesRes, balanceRes] = await Promise.all([
+      fetch(`/api/v1/wallet/entries?page=${page}&limit=${PAGE_SIZE}`),
+      fetch(`/api/v1/wallet/balance`),
+    ]);
+    if (entriesRes.ok) {
+      const body = await entriesRes.json();
+      setEntries(body.data ?? []);
+      setTotalPages(body.pagination?.totalPages ?? 1);
+    }
+    if (balanceRes.ok) {
+      const body = await balanceRes.json();
+      setBalance(body.data?.balance_cents ?? 0);
+    }
+  };
+
   // Ledger totals once per visit (last 500 entries) — not per page turn.
   useEffect(() => {
     fetch(`/api/v1/wallet/entries?page=1&limit=500`).then(async (res) => {
@@ -119,7 +136,7 @@ function WalletInner() {
         if (e.amount_cents > 0) inCents += e.amount_cents;
         else outCents += Math.abs(e.amount_cents);
       }
-      setSummary({ inCents, outCents, count: body.pagination?.total ?? list.length });
+      setSummary({ inCents, outCents, total: body.pagination?.total ?? list.length, fetched: list.length });
     }).catch(() => {});
   }, []);
 
@@ -132,33 +149,50 @@ function WalletInner() {
       .catch(() => {});
   }, []);
 
+  // Post-Stripe verification: the checkout returns ?payment=success (NOT
+  // ?success=true — the old handler below never fired). Reconcile
+  // (Stripe-verified) then refresh, so the ledger tells the truth.
+  const [verifying, setVerifying] = useState(false);
   useEffect(() => {
-    const success = searchParams.get("success");
-    const canceled = searchParams.get("canceled");
-    if (success === "true") {
-      showToast("Payment successful — refreshing balance...", "success");
-      let attempts = 0;
-      const iv = setInterval(async () => {
-        attempts++;
-        try {
-          const res = await fetch("/api/v1/wallet/balance", { cache: "no-store" });
-          if (res.ok) {
-            const body = await res.json();
-            setBalance(body.data.balance_cents);
-            const er = await fetch("/api/v1/wallet/entries?page=1&limit=10", { cache: "no-store" });
-            if (er.ok) setEntries((await er.json()).data ?? []);
-          }
-        } catch {}
-        if (attempts >= 5) clearInterval(iv);
-      }, 1500);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      const sessionId = params.get("session_id");
       window.history.replaceState({}, "", window.location.pathname);
-      return () => clearInterval(iv);
-    }
-    if (canceled === "true") {
+      const done = () => {
+        setVerifying(false);
+        fetch(`/api/v1/wallet/entries?page=1&limit=${PAGE_SIZE}`, { cache: "no-store" }).then(async (er) => {
+          if (er.ok) setEntries((await er.json()).data ?? []);
+        }).catch(() => {});
+        fetch(`/api/v1/wallet/balance`, { cache: "no-store" }).then(async (br) => {
+          if (br.ok) setBalance((await br.json()).data?.balance_cents ?? 0);
+        }).catch(() => {});
+      };
+      if (!sessionId) {
+        showToast("Payment received — balance updates shortly", "success");
+        done();
+        return;
+      }
+      setVerifying(true);
+      fetch("/api/v1/payments/reconcile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      }).then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && body.data?.credited) showToast("Top-up credited to the ledger", "success");
+        else if (res.ok) showToast("Payment verified — ledger is up to date", "success");
+        else showToast(body.message ?? "Payment pending — ledger updates shortly", "warning");
+        done();
+      }).catch(() => {
+        showToast("Payment received — ledger updates shortly", "success");
+        done();
+      });
+    } else if (params.get("payment") === "cancelled") {
       showToast("Payment canceled", "error");
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -221,6 +255,7 @@ function WalletInner() {
         setTransferTarget(null);
         setTransferAmount("");
         setTransferReason("");
+        void refreshLedger();
       } else showToast(body.message ?? "Transfer failed", "error");
     } catch { showToast("Network error", "error"); }
     setTransferring(false);
@@ -294,12 +329,6 @@ function WalletInner() {
         <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
       ) : (
         <>
-          <div className="card card--spacious wallet-balance-card">
-            <label className="form-label" style={{ fontSize: 11, letterSpacing: "0.08em", margin: 0 }}>CURRENT BALANCE</label>
-            <p style={{ font: "500 48px/1 var(--serif)", margin: "10px 0 0", letterSpacing: "-0.03em" }}>{formatCents(balance)}</p>
-            <p className="text-muted" style={{ fontSize: 12, marginTop: 6 }}>USD · Available for top-up and transfers</p>
-          </div>
-
           {showRecharge && (
             <div className="card card--spacious">
               <h3 style={{ margin: "0 0 4px", font: "500 16px var(--serif)" }}>Top up</h3>
@@ -332,10 +361,19 @@ function WalletInner() {
           <div className="card card--spacious">
             <div className="card-header" style={{ padding: 0, border: 0, marginBottom: 0 }}>
               <h2 style={{ margin: 0, font: "500 16px var(--serif)" }}>Transaction History</h2>
-              <span className="filter-bar__meta">{entries.length} shown · page {page}/{totalPages}</span>
+              <span className="filter-bar__meta">
+                {verifying ? "Verifying payment with Stripe…" : dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim()
+                  ? `${entries.length} shown · page ${page}/${totalPages}`
+                  : `${visibleEntries.length} match filters`}
+              </span>
             </div>
-            {/* Money movement at a glance (last {summary ? summary.count : "…"} entries) */}
+            {/* Money movement at a glance (last 500 of N entries) */}
             <div className="cc-metrics cc-metrics--5" style={{ marginTop: 14 }} aria-label="Ledger totals">
+              <article className="cc-metric">
+                <span className="cc-metric__label">Current Balance</span>
+                <span className="cc-metric__value">{formatCents(balance)}</span>
+                <span className="cc-metric__foot">USD · for top-up & transfers</span>
+              </article>
               <article className="cc-metric">
                 <span className="cc-metric__label">Money In</span>
                 <span className="cc-metric__value" style={{ color: "var(--accent)" }}>{summary ? `+${formatCents(summary.inCents)}` : "—"}</span>
@@ -349,7 +387,7 @@ function WalletInner() {
               <article className="cc-metric">
                 <span className="cc-metric__label">Net Movement</span>
                 <span className="cc-metric__value">{summary ? formatCents(summary.inCents - summary.outCents) : "—"}</span>
-                <span className="cc-metric__foot">{summary ? `Across ${summary.count} entries` : "Loading…"}</span>
+                <span className="cc-metric__foot">{summary ? `Last ${summary.fetched} of ${summary.total} entries` : "Loading…"}</span>
               </article>
             </div>
             {/* Direction + type filters (apply to the loaded page) */}
@@ -377,14 +415,16 @@ function WalletInner() {
                 <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => { setDirFilter("all"); setTypeFilter("all"); }}>Clear</button>
               )}
             </div>
+            {/* Filters apply to the loaded page: while any is active the table
+                shows the filtered rows as one page so counts never lie. */}
             <div style={{ overflowX: "auto", marginTop: 12 }}>
             <DataTable
               columns={entryColumns}
-              data={visibleEntries}
+              data={dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim() ? entries : visibleEntries}
               emptyMessage="No transactions match these filters."
-              page={page}
-              totalPages={totalPages}
-              total={entries.length}
+              page={dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim() ? page : 1}
+              totalPages={dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim() ? totalPages : 1}
+              total={dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim() ? entries.length : visibleEntries.length}
               onPageChange={setPage}
               sortBy="created_at"
               order="desc"
@@ -424,8 +464,10 @@ function WalletInner() {
           </div>
 
           {transferTarget && (
-            <div className="card card--spacious">
-              <h3 style={{ margin: "0 0 var(--space-4)", font: "500 16px var(--serif)" }}>Transfer to {transferTarget.name}</h3>
+            <Modal label={`Transfer to ${transferTarget.name}`} onClose={() => setTransferTarget(null)}>
+            <div className="card card--spacious" style={{ width: "min(480px, 100%)" }}>
+              <h3 style={{ margin: "0 0 4px", font: "500 16px var(--serif)" }}>Transfer to {transferTarget.name}</h3>
+              <p className="text-muted" style={{ fontSize: 11, margin: "0 0 var(--space-4)" }}>Internal ledger move — no Stripe charge. The amount leaves the agency balance and lands in the agent's wallet instantly.</p>
               <div style={{ display: "grid", gap: 12, maxWidth: 420 }}>
                 <input className="input" type="number" placeholder="Amount $" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
                 <input className="input" placeholder="Reason (optional)" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} />
@@ -435,6 +477,7 @@ function WalletInner() {
                 </div>
               </div>
             </div>
+            </Modal>
           )}
         </>
       )}

@@ -6,6 +6,9 @@ const paymentsCreateMock = vi.hoisted(() => vi.fn());
 const markCompletedMock = vi.hoisted(() => vi.fn());
 const walletCreateMock = vi.hoisted(() => vi.fn());
 const findAgentMock = vi.hoisted(() => vi.fn());
+const findActiveSubMock = vi.hoisted(() => vi.fn());
+const createSubMock = vi.hoisted(() => vi.fn());
+const findPlanMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/stripe", () => ({
   getStripe: vi.fn(async () => ({ checkout: { sessions: { retrieve: retrieveMock } } })),
@@ -25,6 +28,8 @@ vi.mock("@/server/repositories", () => ({
   walletEntries: { create: walletCreateMock },
   agencyWallets: { creditPool: vi.fn() },
   agents: { findByMembershipId: findAgentMock },
+  agentSubscriptions: { findActiveByAgent: findActiveSubMock, create: createSubMock },
+  agentPlans: { findById: findPlanMock },
 }));
 
 vi.mock("@/server/services/offer-wallet-sync", () => ({
@@ -123,5 +128,53 @@ describe("POST /api/v1/payments/reconcile", () => {
     const res = await POST(req({ session_id: "cs_rec_1" }), ctx);
     expect(res.status).toBe(403);
     expect(walletCreateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/v1/payments/reconcile subscription recovery", () => {
+  const subSession = {
+    id: "cs_sub_1",
+    payment_status: "paid",
+    payment_intent: "pi_sub_1",
+    amount_total: 5000,
+    livemode: true,
+    metadata: { type: "subscription", agent_id: "agent-9", plan_id: "plan-1", agency_id: "agency-1" },
+  };
+
+  beforeEach(() => {
+    retrieveMock.mockResolvedValue({ ...subSession });
+    findAgentMock.mockResolvedValue({ id: "agent-9" });
+    findActiveSubMock.mockResolvedValue(null);
+    findBySessionIdMock.mockResolvedValue(null);
+    paymentsCreateMock.mockResolvedValue({
+      id: "pay-sub", agency_id: "agency-1", agent_id: "agent-9", plan_id: "plan-1",
+      stripe_session_id: "cs_sub_1", amount_cents: 5000, fee_cents: 0,
+      currency: "usd", status: "pending", livemode: true,
+    });
+    findPlanMock.mockResolvedValue({ id: "plan-1", name: "Pro 500" });
+  });
+
+  it("creates a missing subscription from a paid session (lost-webhook recovery)", async () => {
+    const res = await POST(req({ session_id: "cs_sub_1" }), ctx);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toMatchObject({ credited: true, subscription_active: true, subscription_created: true });
+    expect(createSubMock).toHaveBeenCalledWith(
+      expect.objectContaining({ agent_id: "agent-9", plan_id: "plan-1" }),
+    );
+  });
+
+  it("never duplicates an active subscription on redelivery", async () => {
+    findActiveSubMock.mockResolvedValue({ id: "sub-1", status: "active" });
+    findBySessionIdMock.mockResolvedValue({
+      id: "pay-sub", agency_id: "agency-1", agent_id: "agent-9", plan_id: "plan-1",
+      stripe_session_id: "cs_sub_1", amount_cents: 5000, fee_cents: 0,
+      currency: "usd", status: "completed", livemode: true,
+    });
+    const res = await POST(req({ session_id: "cs_sub_1" }), ctx);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toMatchObject({ credited: false, subscription_active: true, subscription_created: false });
+    expect(createSubMock).not.toHaveBeenCalled();
   });
 });

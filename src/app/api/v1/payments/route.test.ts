@@ -57,7 +57,7 @@ describe("GET /api/v1/payments", () => {
     findByAgencyMock.mockResolvedValue([{ id: "pay-2" }]);
     const res = await GET(new Request("http://x/api/v1/payments"), { params: Promise.resolve({}) } as never);
     expect(res.status).toBe(200);
-    expect(findByAgencyMock).toHaveBeenCalledWith("agency-1");
+    expect(findByAgencyMock).toHaveBeenCalledWith("agency-1", undefined);
     expect(listRecentMock).not.toHaveBeenCalled();
   });
 
@@ -67,7 +67,23 @@ describe("GET /api/v1/payments", () => {
     findByAgentMock.mockResolvedValue([{ id: "pay-3" }]);
     const res = await GET(new Request("http://x/api/v1/payments"), { params: Promise.resolve({}) } as never);
     expect(res.status).toBe(200);
-    expect(findByAgentMock).toHaveBeenCalledWith("agent-9");
+    expect(findByAgentMock).toHaveBeenCalledWith("agent-9", undefined);
     expect(listRecentMock).not.toHaveBeenCalled();
+  });
+
+  it("passes the mode filter through (admin live-only view)", async () => {
+    setCtx(adminCtx);
+    listRecentMock.mockResolvedValue([]);
+    const res = await GET(new Request("http://x/api/v1/payments?mode=live"), { params: Promise.resolve({}) } as never);
+    expect(res.status).toBe(200);
+    expect(listRecentMock).toHaveBeenCalledWith(100, true);
+  });
+
+  it("passes mode=test through for heads", async () => {
+    setCtx(headCtx);
+    findByAgencyMock.mockResolvedValue([]);
+    const res = await GET(new Request("http://x/api/v1/payments?mode=test"), { params: Promise.resolve({}) } as never);
+    expect(res.status).toBe(200);
+    expect(findByAgencyMock).toHaveBeenCalledWith("agency-1", false);
   });
 });

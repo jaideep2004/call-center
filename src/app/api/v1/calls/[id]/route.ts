@@ -3,6 +3,8 @@ import { calls, callEvents, agents } from "@/server/repositories";
 import { ForbiddenError, ConflictError } from "@/server/errors";
 import { validate, updateCallSchema } from "@/server/validate";
 import { assertTransition, type CallState } from "@/domain/calls";
+import type { CallRow } from "@/server/repositories/calls";
+import type { NextResponse } from "next/server";
 
 const PLATFORM_ROLES = ["admin"];
 
@@ -14,30 +16,55 @@ function scopeFor(context: { agencyId?: string | null; user?: { role?: string } 
   return scope;
 }
 
-export const GET = apiHandler(async (req, { params, agencyId, user, membership, isHead }) => {
+interface CallAccessContext {
+  user?: { role?: string } | null;
+  membership?: { id: string } | null;
+  isHead?: boolean;
+}
+
+/**
+ * Plain agents may touch ONLY their own calls (unassigned ringing calls stay
+ * visible so popup/accept flows never break). Returns the call, or a 40x
+ * Response when the caller must not see it. Heads/admins bypass.
+ */
+async function requireCallAccess(
+  id: string,
+  scope: string | undefined,
+  context: CallAccessContext,
+): Promise<{ call: CallRow } | { error: NextResponse }> {
+  const call = await calls.findById(id, scope).catch(() => null);
+  if (!call) return { error: fail("Call not found", 404) };
+  if (context.user?.role !== "admin" && !context.isHead) {
+    const me = context.membership ? await agents.findByMembershipId(context.membership.id).catch(() => null) : null;
+    if (!me) return { error: fail("Agent profile not found", 403) };
+    if (call.agent_id && call.agent_id !== me.id) return { error: fail("Call not found", 404) };
+  }
+  return { call };
+}
+
+export const GET = apiHandler(async (req, context) => {
+  const { params, agencyId, user, membership, isHead } = context;
   const { id } = await params;
   const scope = scopeFor({ agencyId, user });
-  const [call, events] = await Promise.all([
-    calls.findById(id, scope),
-    callEvents.findByCallId(id, scope),
-  ]);
-  // Plain agents may open ONLY their own calls (unassigned ringing calls
-  // stay visible so the softphone/popup flow never breaks).
-  if (user?.role !== "admin" && !isHead) {
-    const me = membership ? await agents.findByMembershipId(membership.id).catch(() => null) : null;
-    if (!me) return fail("Agent profile not found", 403);
-    if (call.agent_id && call.agent_id !== me.id) return fail("Call not found", 404);
-  }
-  return ok({ ...call, events });
+  const access = await requireCallAccess(id, scope, { user, membership, isHead });
+  if ("error" in access) return access.error;
+  const events = await callEvents.findByCallId(id, scope);
+  return ok({ ...access.call, events });
 }, { resource: "calls", action: "view" });
 
-export const PATCH = apiHandler(async (req, { params, agencyId, user }) => {
+export const PATCH = apiHandler(async (req, context) => {
+  const { params, agencyId, user, membership, isHead } = context;
   const { id } = await params;
   const body = validate(updateCallSchema, await req.json());
   const scope = scopeFor({ agencyId, user });
+  // Ownership mirrors GET: without this any agent could force a teammate's
+  // call into missed/ended/connected via generic update (dedicated
+  // accept/reject/hold/hangup routes carry their own checks).
+  const access = await requireCallAccess(id, scope, { user, membership, isHead });
+  if ("error" in access) return access.error;
+  const current = access.call;
 
   if (body.state) {
-    const current = await calls.findById(id, scope);
     assertTransition(current.state as CallState, body.state as CallState);
     const extra: Record<string, unknown> = { ...body };
     delete extra.state;

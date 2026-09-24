@@ -326,3 +326,31 @@
 - Broke / TODO: none. Live: SMTP must be configured or mails queue as warnings only; verify gate as agent (sub-only and topup-only both blocked).
 - Next: client UAT funding gate + live $1 with mailbox open.
 - Tests: `npm run typecheck` clean · `npm test` 727 passed | 5 skipped (94 files: +funding AND, +12 isolation, +ticket mail, +template subjects) · `npm run build` clean.
+
+## 2026-09-24 - assistant - REVIEW FIXES (reviewer FAIL → all findings addressed)
+- Did: independent reviewer FAIL on funding/mail/isolation/ledger/call-connect — fixed every finding: (crit) calls PATCH now enforces same ownership as GET (shared requireCallAccess helper; generic update can no longer hijack teammates' calls); singleton subscribe is global (first mounter no longer stuck), creation deduped, 30s grace teardown (StrictMode/nav-safe). (major) /agent/funding unified on fundingStatus (agency-scoped min-price as info only); credit loser returns credited:false + no second receipt; orphan-create 23505 converges via re-read; subscription webhook validates agent/plan + isolated mail; take-calls all counts use readyChecks.length + Funding visual row + checking/unverified tri-state; softphone hangs up browser leg on bridge failure + catches POST throw; ledger summary labeled last-500 + filters paginate honestly. (minor) preheader plain-text, CTA href escaped, wallet catch, take-calls comment. Acknowledged without change: earnings agency-missing ok([]) pattern, pool reconcile head-only, tickets GET agency-wide (queue by design).
+- Decisions: DELETE calls stays permission-gated (agents lack calls:delete); routing tiers untouched; logout teardown delayed 30s (harmless SIP linger).
+- Broke / TODO: none. Deploy + live call test with console open remains the final proof.
+- Next: client UAT.
+- Tests: `npm run typecheck` clean · `npm test` 735 passed | 5 skipped (96 files: +payment-credit races, +PATCH ownership) · `npm run build` clean.
+
+## 2026-09-24 - assistant - STRIPE MODES + LIVE-ONLY PAYMENTS + LEDGER TWEAKS
+- Did: (modes) test/live switcher in Admin → System Settings — per-mode key pairs stored encrypted, switching mirrors the pair into the active slots (single switch, zero checkout/webhook code paths touched), per-mode verify + configured dots + REAL-charges warning; STATUS/PUT/POST APIs extended. (payments) migration 0063 adds payments.livemode (backfilled true — pre-mode rows were real charges); captured at checkout + confirmed at webhook/reconcile; admin Payments defaults to LIVE with Live/Test/All pills + Mode column; API ?mode filter for all roles. (ledger) Current Balance moved into the metrics strip (Balance/In/Out/Net), big card removed; Transfer is now a popup (shared Modal) with "internal ledger move, no Stripe" note + ledger refreshes after send. Transfer = pure internal ledger (agency→agent paired entries, one DB txn, no Stripe).
+- Decisions: livemode default true (history predates test mode); mode null = legacy single-key behavior (nothing breaks until admin switches); test secret naming sk_test/whsec enforced server-side.
+- Broke / TODO: 0063 needs live apply (`npm run migrate` on VPS). Localhost webhook secret: `stripe login` once, then `stripe listen --forward-to localhost:30001/api/webhooks/stripe` (prints whsec_… → paste as Test webhook secret). Then test checkout → session paid → wallet credits via webhook.
+- Next: client saves test keys, switches to test, runs $1 test payment end-to-end.
+- Tests: `npm run typecheck` clean · `npm test` 745 passed | 5 skipped (98 files: +stripe-mode, +settings-stripe, +livemode stamp, +mode filter) · `npm run build` clean · `migrate` applied 0063 locally, `check:migrations` 63/63.
+
+## 2026-09-24 - assistant - SUBSCRIPTION RECOVERY (paid but not reflected)
+- Did: root-caused — subscription activation depended ENTIRELY on the webhook (no reconcile path) while the success page showed a static "now active" banner on URL param alone. Fixed 4-layer: checkout expire-on-failure + livemode + session-id success URL; reconcile now activates subscriptions too (find-or-create payment, 23505-tolerant sub create, receipt mail on first activation, idempotent redelivery); success page verifies via reconcile then refetches (honest verifying/active/pending banners, no more false celebration). Bonus holes closed: GET subscriptions forced to own agent (was any-agent_id + unscoped), POST free path now 402s paid plans (direct insert could mint paid plans free).
+- Decisions: reconcile doubles as the subscription backstop (same authZ as top-ups); AND-gate unchanged (new subscribers still need a top-up to go online — Take Calls Funding row says so).
+- Broke / TODO: none. Live triage for the stuck purchase: Stripe dashboard → payment + webhook deliveries; app.payments row status; agent_subscriptions row; then Admin → Payments → Verify or agent reopens Subscriptions (auto-reconciles).
+- Next: client re-tests paid subscription end-to-end.
+- Tests: `npm run typecheck` clean · `npm test` 751 passed | 5 skipped (99 files: +reconcile-subscription, +sub isolation/guard) · `npm run build` clean.
+
+## 2026-09-24 - assistant - LIVE-FAILURE CLASS AUDIT (unverified success + webhook-only activation)
+- Did: swept all 4 Stripe checkout routes + all 4 return pages for the subscription bug class (celebrate-on-URL, no reconcile). Found + fixed 2 more: pool page ignored returns entirely (no toast/refresh/reconcile — silent), admin Ledger read ?success=true while its own checkout sends ?payment=success (dead handler, no reconcile). Both now verify-then-refresh like the others. Confirmed clean: all checkout routes expire orphans + stamp livemode + return session ids; both wallet pages + subscription + pool + ledger all reconcile; no other Stripe API surfaces (no recurring/portal/invoice-charge code paths exist); webhook handles only checkout.session.completed.
+- Decisions: no new APIs — reuse reconcile everywhere; pool/ledger toasts mirror agent-wallet wording.
+- Broke / TODO: none. The money-in path now has no single point of failure: webhook OR success-page reconcile credits, orphans expire, duplicates converge, admin can Verify anything.
+- Next: deploy + live $1 top-up and $X subscription re-test per flow.
+- Tests: `npm run typecheck` clean · `npm test` 751 passed | 5 skipped (99 files) · `npm run build` clean.

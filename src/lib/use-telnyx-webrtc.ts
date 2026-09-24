@@ -35,8 +35,8 @@ interface Shared {
   isReady: boolean;
   error: string | null;
   refs: number;
+  teardownTimer: ReturnType<typeof setTimeout> | null;
   snapshot: Snapshot;
-  listeners: Set<() => void>;
   dead: boolean;
 }
 
@@ -51,6 +51,14 @@ interface Shared {
  * navigation, closing the missed-INVITE-during-navigation race.
  */
 let shared: Shared | null = null;
+/** In-flight creation (dedup: concurrent mounters share one client). */
+let creating: { agentId: string; promise: Promise<Shared> } | null = null;
+/** Render subscribers — global, so instances that mount before the client
+ *  exists still re-render once it connects (a per-entry set would miss them). */
+const subscribers = new Set<() => void>();
+/** Grace before disconnecting an unreferenced client (covers StrictMode
+ *  double-effects and navigation gaps where refs briefly hit zero). */
+const TEARDOWN_GRACE_MS = 30_000;
 
 /**
  * Stable empty snapshot. getSnapshot/getServerSnapshot MUST return cached
@@ -67,9 +75,8 @@ function wlog(agentId: string, msg: string) {
   console.log(`[webrtc:${agentId.slice(0, 8)}] ${msg}`);
 }
 
-function emit(s: Shared) {
-  s.snapshot = { isReady: s.isReady, error: s.error, phase: s.tracker.currentPhase, callId: s.tracker.currentCallId };
-  for (const l of s.listeners) {
+function emitAll() {
+  for (const l of subscribers) {
     try {
       l();
     } catch {
@@ -78,9 +85,18 @@ function emit(s: Shared) {
   }
 }
 
+function emit(s: Shared) {
+  s.snapshot = { isReady: s.isReady, error: s.error, phase: s.tracker.currentPhase, callId: s.tracker.currentCallId };
+  emitAll();
+}
+
 function teardown(s: Shared) {
   if (s.dead) return;
   s.dead = true;
+  if (s.teardownTimer) {
+    clearTimeout(s.teardownTimer);
+    s.teardownTimer = null;
+  }
   wlog(s.agentId, "teardown (no subscribers left)");
   try {
     s.client?.off?.("telnyx.ready");
@@ -95,6 +111,25 @@ function teardown(s: Shared) {
   if (shared === s) shared = null;
 }
 
+function retain(s: Shared) {
+  if (s.dead) return;
+  if (s.teardownTimer) {
+    clearTimeout(s.teardownTimer);
+    s.teardownTimer = null;
+  }
+  s.refs += 1;
+}
+
+function release(s: Shared) {
+  s.refs = Math.max(0, s.refs - 1);
+  if (s.refs > 0 || s.dead) return;
+  if (s.teardownTimer) return;
+  s.teardownTimer = setTimeout(() => {
+    s.teardownTimer = null;
+    if (s.refs === 0) teardown(s);
+  }, TEARDOWN_GRACE_MS);
+}
+
 async function createShared(agentId: string): Promise<Shared> {
   const s: Shared = {
     agentId,
@@ -104,8 +139,8 @@ async function createShared(agentId: string): Promise<Shared> {
     isReady: false,
     error: null,
     refs: 0,
-    snapshot: { isReady: false, error: null, phase: "idle", callId: null },
-    listeners: new Set(),
+    teardownTimer: null,
+    snapshot: { ...EMPTY_SNAPSHOT },
     dead: false,
   };
   const res = await fetch("/api/v1/me/sip-credentials");
@@ -169,19 +204,52 @@ async function createShared(agentId: string): Promise<Shared> {
   return s;
 }
 
+/** One client per agentId; concurrent callers share the in-flight creation. */
+async function getOrCreate(agentId: string): Promise<Shared> {
+  if (shared && !shared.dead && shared.agentId === agentId) return shared;
+  let active = creating && creating.agentId === agentId ? creating : null;
+  if (!active) {
+    if (shared && !shared.dead) teardown(shared);
+    const p = createShared(agentId);
+    active = { agentId, promise: p };
+    creating = active;
+    try {
+      await p;
+    } finally {
+      if (creating === active) creating = null;
+    }
+  }
+  const s = await active.promise;
+  if (!shared || shared.dead || shared.agentId !== agentId) {
+    shared = s;
+  }
+  return shared;
+}
+
+function failedEntry(agentId: string, message: string): Shared {
+  return {
+    agentId,
+    client: null,
+    call: null,
+    tracker: new SdkCallTracker(),
+    isReady: false,
+    error: message,
+    refs: 0,
+    teardownTimer: null,
+    snapshot: { isReady: false, error: message, phase: "idle", callId: null },
+    dead: false,
+  };
+}
+
 export function useTelnyxWebRTC(agentId: string | null | undefined) {
   const key = agentId ?? null;
 
-  const subscribe = useCallback(
-    (notify: () => void) => {
-      if (!key || !shared || shared.agentId !== key || shared.dead) return () => {};
-      shared.listeners.add(notify);
-      return () => {
-        shared?.listeners.delete(notify);
-      };
-    },
-    [key],
-  );
+  const subscribe = useCallback((_notify: () => void) => {
+    subscribers.add(_notify);
+    return () => {
+      subscribers.delete(_notify);
+    };
+  }, []);
 
   const getSnapshot = useCallback((): Snapshot => {
     if (!key || !shared || shared.agentId !== key || shared.dead) {
@@ -193,50 +261,44 @@ export function useTelnyxWebRTC(agentId: string | null | undefined) {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   // Attach/detach this instance. Softphone stays mounted for the whole agent
-  // session, so the client persists across page navigation.
+  // session, so the client persists across page navigation. Instances share
+  // one ref-counted client — Take Calls included (it keeps the client alive
+  // and reads status from the same snapshot).
   useEffect(() => {
     if (!key) return;
     let cancelled = false;
+    let mine: Shared | null = null;
     (async () => {
       try {
-        if (!shared || shared.dead || shared.agentId !== key) {
-          if (shared && !shared.dead) teardown(shared);
-          shared = await createShared(key);
-          if (cancelled) {
-            teardown(shared);
-            return;
-          }
+        mine = await getOrCreate(key);
+        if (cancelled || mine.dead || mine.agentId !== key) {
+          if (mine) release(mine);
+          mine = null;
+          return;
         }
-        if (cancelled) return;
-        shared.refs += 1;
+        retain(mine);
+        emitAll();
       } catch (e: any) {
         if (cancelled) return;
         // Publish init failure through a live entry so the UI shows it.
+        const message = e?.message || "WebRTC init failed";
+        wlog(key, `init FAILED: ${message}`);
         if (!shared || shared.dead || shared.agentId !== key) {
-          shared = {
-            agentId: key,
-            client: null,
-            call: null,
-            tracker: new SdkCallTracker(),
-            isReady: false,
-            error: e?.message || "WebRTC init failed",
-            refs: 0,
-            snapshot: { isReady: false, error: e?.message || "WebRTC init failed", phase: "idle", callId: null },
-            listeners: new Set(),
-            dead: false,
-          };
+          shared = failedEntry(key, message);
         } else {
-          shared.error = e?.message || "WebRTC init failed";
+          shared.error = message;
           emit(shared);
         }
-        wlog(key, `init FAILED: ${shared.error}`);
+        mine = shared;
+        retain(mine);
+        emitAll();
       }
     })();
     return () => {
       cancelled = true;
-      if (shared && !shared.dead && shared.agentId === key) {
-        shared.refs = Math.max(0, shared.refs - 1);
-        if (shared.refs === 0) teardown(shared);
+      if (mine) {
+        release(mine);
+        mine = null;
       }
     };
   }, [key]);
