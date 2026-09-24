@@ -1,5 +1,5 @@
 import { apiHandler, ok, created, paginated, fail } from "@/server/api-utils";
-import { calls } from "@/server/repositories";
+import { calls, agents } from "@/server/repositories";
 import { validate, createCallSchema, paginationSchema, searchSchema, sortSchema } from "@/server/validate";
 
 export const GET = apiHandler(async (req, context) => {
@@ -10,14 +10,22 @@ export const GET = apiHandler(async (req, context) => {
   const { sortBy, order } = validate(sortSchema, params);
   const stateParam = url.searchParams.get("state") ?? undefined;
   const state = stateParam ? (stateParam.includes(",") ? stateParam.split(",").map((s) => s.trim()).filter(Boolean) : stateParam) : undefined;
-  const agentId = url.searchParams.get("agent_id") ?? undefined;
   const providerAgentCallId = url.searchParams.get("provider_agent_call_id") ?? undefined;
 
-  // Platform admin sees every agency's calls; everyone else is confined to
-  // their own agency (and fails closed without one).
+  // Platform admin sees every agency's calls; heads see their agency;
+  // plain agents see ONLY their own calls (agent_id is forced, never
+  // trusted from the query string — otherwise agents could list teammates'
+  // calls by omitting it). Everyone else fails closed without an agency.
   const isAdmin = context.user?.role === "admin";
   const scopeAgency = isAdmin ? undefined : (context.agencyId ?? undefined);
   if (!isAdmin && !scopeAgency) return fail("Agency scope required", 403);
+
+  let agentId = url.searchParams.get("agent_id") ?? undefined;
+  if (!isAdmin && !context.isHead) {
+    const me = context.membership ? await agents.findByMembershipId(context.membership.id).catch(() => null) : null;
+    if (!me) return fail("Agent profile not found", 403);
+    agentId = me.id;
+  }
 
   const { rows, pagination } = await calls.findMany({
     pagination: { page, limit },

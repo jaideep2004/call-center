@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { normalizeMediaUrl } from "@/lib/format";
+import { drivePreviewUrl, normalizeMediaUrl } from "@/lib/format";
 
 interface Creative {
   id: string;
@@ -41,6 +41,32 @@ function CreativeMedia({ creative, height }: { creative: Creative; height: numbe
   );
 }
 
+/**
+ * Per-creative actions: Drive share links don't render inside <img>/<video>
+ * and `uc?export=download` forces a download instead of a preview, so every
+ * card gets explicit actions — Preview (Drive viewer, Drive files only),
+ * Download (direct file), and Open (original link in a new tab).
+ */
+function CreativeActions({ creative, compact = false }: { creative: Creative; compact?: boolean }) {
+  const preview = drivePreviewUrl(creative.media_url);
+  const direct = normalizeMediaUrl(creative.media_url);
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: compact ? 6 : 10 }}>
+      {preview && (
+        <a className="btn btn-sm btn-primary" href={preview} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>
+          Preview
+        </a>
+      )}
+      <a className="btn btn-sm btn-ghost" href={direct} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>
+        Download
+      </a>
+      <a className="btn btn-sm btn-ghost" href={creative.media_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>
+        {preview ? "Open in Drive" : "View full size"}
+      </a>
+    </div>
+  );
+}
+
 /** Hero carousel: top-3 agent_hero creatives, auto-advancing with dots. */
 export function AgentHero() {
   const [items, setItems] = useState<Creative[]>([]);
@@ -73,6 +99,7 @@ export function AgentHero() {
           </a>
         )}
       </div>
+      <CreativeActions creative={current} />
       {items.length > 1 && (
         <div style={{ display: "flex", gap: 6, marginTop: 8 }} role="tablist" aria-label="Featured slides">
           {items.map((item, i) => (
@@ -145,6 +172,7 @@ export function CampaignUpdatesList() {
                 {c.cta_label}
               </a>
             )}
+            <CreativeActions creative={c} />
           </div>
         </article>
       ))}
@@ -179,6 +207,9 @@ export function AgentFeed() {
                   {c.cta_label}
                 </a>
               )}
+            </div>
+            <div style={{ padding: "0 10px 10px" }}>
+              <CreativeActions creative={c} compact />
             </div>
           </article>
         ))}

@@ -1,4 +1,5 @@
-import { apiHandler, ok } from "@/server/api-utils";
+import { apiHandler, ok, fail } from "@/server/api-utils";
+import { agents } from "@/server/repositories";
 import { query } from "@/server/db";
 
 export interface AgentEarningsRow {
@@ -14,9 +15,17 @@ export const GET = apiHandler(async (req, context) => {
   if (!agencyId) return ok([]);
 
   const url = new URL(req.url);
-  const agentId = url.searchParams.get("agent_id");
+  let agentId = url.searchParams.get("agent_id");
   const startDate = url.searchParams.get("start_date");
   const endDate = url.searchParams.get("end_date");
+
+  // Plain agents see ONLY their own earnings — the query param is never
+  // trusted for them (otherwise teammates' payouts leak).
+  if (context.user?.role !== "admin" && !context.isHead) {
+    const me = context.membership ? await agents.findByMembershipId(context.membership.id).catch(() => null) : null;
+    if (!me) return fail("Agent profile not found", 403);
+    agentId = me.id;
+  }
 
   const params: unknown[] = [agencyId];
   const clauses: string[] = [];

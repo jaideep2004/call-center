@@ -65,6 +65,20 @@ export class PaymentRepository {
       [agencyId],
     );
   }
+
+  async findByAgent(agentId: string): Promise<PaymentRow[]> {
+    return query<PaymentRow>(
+      "SELECT * FROM app.payments WHERE agent_id = $1 ORDER BY created_at DESC",
+      [agentId],
+    );
+  }
+
+  async listRecent(limit = 100): Promise<PaymentRow[]> {
+    return query<PaymentRow>(
+      "SELECT * FROM app.payments ORDER BY created_at DESC LIMIT $1",
+      [Math.max(1, Math.min(limit, 500))],
+    );
+  }
 }
 
 export const payments = new PaymentRepository();

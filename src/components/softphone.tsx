@@ -57,6 +57,10 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   const elapsed = useCallTimer(timerRunning);
   const [error, setError] = useState<string | null>(null);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  // Browser-leg failure surfaced in the popup (e.g. this tab never received
+  // the Telnyx INVITE). Distinct from server `error` so the agent knows the
+  // bridge ran without a browser pickup.
+  const [sdkError, setSdkError] = useState<string | null>(null);
   const [debug, setDebug] = useState<string[]>([]);
   const debugRef = useRef(debug);
   debugRef.current = debug;
@@ -165,6 +169,7 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
       setNoteBody("");
       setNotes([]);
       setIsRecording(true);
+      setSdkError(null);
       autoAcceptedRef.current = null;
     }
   }, [callState]);
@@ -185,6 +190,7 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     setCallState("ringing");
     setActiveCallId(data.callId);
     setError(null);
+    setSdkError(null);
   });
 
   useSocketEvent(socket as Socket | null, "call:connected", (data: any) => {
@@ -280,25 +286,41 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   const accept = useCallback(async () => {
     if (!incoming) return;
     setError(null);
+    setSdkError(null);
     setCallState("connecting");
     setShowScriptModal(false);
     const t0 = performance.now();
-    const sdkAnswerPromise = webrtc.answer("remoteMedia");
-    const t1 = performance.now();
-    if (!sdkAnswerPromise) {
-      addDebug("SDK answer unavailable (sdk call not registered yet) — proceeding to server bridge");
+    // ZERO-DELAY connect: fire browser pickup AND server bridge concurrently.
+    // Previously answer() was awaited before the POST, serializing media
+    // negotiation (~seconds) in front of the bridge. Both race now; the
+    // server retry loop bridges the moment the leg answers.
+    const ans = webrtc.answer("remoteMedia");
+    const acceptReq = fetch(`/api/v1/calls/${incoming.callId}/accept`, { method: "POST" });
+    if (ans.ok) {
+      addDebug(`SDK answer → leg ${(ans.callId ?? "?").slice(0, 8)}… + bridge POST fired together`);
     } else {
-      addDebug(`SDK answer started at +${Math.round(t1 - t0)}ms, waiting for media...`);
+      // No browser leg to answer (this tab never got the INVITE, or a stale
+      // call object). The bridge still runs server-side and will take the
+      // normal missed path — but say so loudly instead of spinning silently.
+      addDebug(`SDK answer SKIPPED (${ans.reason}) — bridge running without browser pickup`);
+      setSdkError(
+        ans.reason === "no-sdk-call"
+          ? "Browser didn't receive this call — audio may be on another tab. If it fails, ask the caller to redial."
+          : "Browser call isn't answerable — bridge running without browser pickup.",
+      );
+    }
+    if (ans.ok) {
       try {
-        await sdkAnswerPromise;
-        addDebug(`SDK media negotiation done at +${Math.round(performance.now() - t0)}ms — now bridging`);
+        await ans.settled;
+        addDebug(`SDK answer settled at +${Math.round(performance.now() - t0)}ms`);
       } catch (e: any) {
-        addDebug(`SDK media negotiation failed: ${e?.message ?? e} — still trying server bridge`);
+        addDebug(`SDK answer FAILED: ${e?.message ?? e} — bridge continues`);
+        setSdkError("Browser pickup failed — bridge continuing without it.");
       }
     }
-    const res = await fetch(`/api/v1/calls/${incoming.callId}/accept`, { method: "POST" });
+    const res = await acceptReq;
     const t2 = performance.now();
-    addDebug(`Accept: sdk.answer() returned in ${Math.round(t1 - t0)}ms, accept HTTP ${res.status} at +${Math.round(t2 - t0)}ms`);
+    addDebug(`Accept: bridge POST → HTTP ${res.status} at +${Math.round(t2 - t0)}ms`);
     if (!res.ok) { setError("Failed to accept call"); setCallState("idle"); }
   }, [incoming, webrtc, addDebug]);
 
@@ -561,8 +583,18 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
               </div>
             </div>
             <div className="softphone-body">
-              <p className="softphone-status">Connecting</p>
+              {/* Real browser-leg phase, not a static spinner label: the agent
+                  sees Answering… only while the SDK leg is actually ringing /
+                  answering / early media, otherwise Bridging…. */}
+              <p className="softphone-status">
+                {webrtc.sdkPhase === "ringing" || webrtc.sdkPhase === "answering" || webrtc.sdkPhase === "early"
+                  ? "Answering…"
+                  : "Bridging…"}
+              </p>
               <p className="softphone-caller">{formatPhone(incoming?.fromHash ?? "")}</p>
+              {sdkError && (
+                <p style={{ marginTop: 6, fontSize: 11, color: "#fbbf24", lineHeight: 1.5 }}>{sdkError}</p>
+              )}
               <button className="softphone-btn softphone-btn-hangup" onClick={hangup} style={{ marginTop: 10 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />

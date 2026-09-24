@@ -123,7 +123,7 @@ function NotificationBell({ membershipId }: { membershipId: string | null }) {
   }
 
   return (
-    <div ref={bellRef} style={{ position: "fixed", top: 14, right: 16, zIndex: 9000 }}>
+    <div ref={bellRef} style={{ position: "relative" }}>
       <button
         type="button"
         className="btn btn-sm"
@@ -132,7 +132,7 @@ function NotificationBell({ membershipId }: { membershipId: string | null }) {
         aria-expanded={open}
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
         title="Notifications"
-        style={{ position: "relative", borderRadius: 9999, width: 36, height: 36, display: "grid", placeItems: "center", background: "rgba(168,85,247,0.10)", border: "1px solid var(--line)" }}
+        style={{ position: "relative", borderRadius: 9999, width: 36, height: 36, display: "grid", placeItems: "center", background: "transparent", border: "1px solid transparent" }}
       >
         <Bell size={16} aria-hidden />
         {unread > 0 && (
@@ -206,14 +206,14 @@ function TopActions({
     padding: "0 12px",
     fontSize: 11,
     fontWeight: 700,
-    background: "rgba(168,85,247,0.10)",
-    border: "1px solid var(--line)",
+    background: "transparent",
+    border: "1px solid transparent",
     color: "var(--ink)",
     cursor: "pointer",
     whiteSpace: "nowrap",
   };
   return (
-    <div style={{ position: "fixed", top: 14, right: 60, zIndex: 9000, display: "flex", gap: 8 }}>
+    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
       {showOnline && (
         <button
           type="button"
@@ -221,7 +221,7 @@ function TopActions({
           disabled={availToggling || !agentId}
           title={online ? "Go offline" : "Go online and start receiving calls"}
           aria-label={online ? "Go offline" : "Go online"}
-          style={{ ...pill, borderColor: online ? "var(--green)" : "var(--line)" }}
+          style={pill}
         >
           <span
             aria-hidden
@@ -293,6 +293,7 @@ const adminNavGroups = [
       { label: "Plans", href: "/dashboard/admin/plans", icon: "05f" },
       { label: "Fees", href: "/dashboard/admin/fees", icon: "05g" },
       { label: "Revenue", href: "/dashboard/admin/revenue", icon: "08b" },
+      { label: "Payments", href: "/dashboard/admin/payments", icon: "07c" },
       { label: "Ledger", href: "/dashboard/wallet", icon: "07" },
     ]
   },
@@ -361,10 +362,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Shared availability toggle (sidebar dropdown + sticky top-bar button).
   // Surfaces the funding-gate 422 so unfunded agents learn why they can't go online.
+  // Device gate: going online requires the mic+speaker check (Take Calls
+  // checklist), which is verified per-browser and stored under
+  // cc-device-ready:<agentId>. Without it the agent would receive calls on
+  // a browser with untested audio, so we block + redirect instead.
+  function deviceVerified(): boolean {
+    if (!agentId) return false;
+    try {
+      return window.localStorage.getItem(`cc-device-ready:${agentId}`) === "1";
+    } catch {
+      return false;
+    }
+  }
   async function toggleAvailability() {
     if (!agentId || availToggling) return;
-    setAvailToggling(true);
     const next = agentAvailability === "available" ? "offline" : "available";
+    if (next === "available" && !deviceVerified()) {
+      showToast("Test your mic & speaker on Take Calls first", "warning");
+      setDropdownOpen(false);
+      router.push("/dashboard/take-calls");
+      return;
+    }
+    setAvailToggling(true);
     try {
       const res = await fetch(`/api/v1/agents/${agentId}`, {
         method: "PATCH",
@@ -434,6 +453,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace("/dashboard");
     }
   }, [user, sessionPending, roleReady, isAdmin, isPublisher, pathname, router]);
+
+  // Self-heal (mirrors Take Calls): an agent left online from an earlier
+  // session whose mic+speaker check is missing on THIS browser is forced
+  // offline once, so stale online presence can't receive calls with
+  // untested audio. Skipped on the Take Calls page itself (it heals there
+  // with full checklist context).
+  const layoutHealDone = useRef(false);
+  useEffect(() => {
+    if (layoutHealDone.current) return;
+    if (!agentId || isAdmin || isPublisher) return;
+    if (agentAvailability !== "available") return;
+    if (pathname.startsWith("/dashboard/take-calls")) return;
+    let verified = false;
+    try {
+      verified = window.localStorage.getItem(`cc-device-ready:${agentId}`) === "1";
+    } catch { /* storage unavailable — leave presence alone */ return; }
+    if (verified) return;
+    layoutHealDone.current = true;
+    fetch(`/api/v1/agents/${agentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ availability: "offline" }),
+    }).then(async (res) => {
+      if (res.ok) {
+        setAgentAvailability("offline");
+        showToast("You were set offline — test mic & speaker on Take Calls to go back online", "warning");
+      }
+    }).catch(() => {});
+  }, [agentId, agentAvailability, isAdmin, isPublisher, pathname]);
 
   async function handleSignOut() {
     setDropdownOpen(false);
@@ -596,10 +644,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {role && <span className="badge" style={{ marginTop: 4, fontSize: 9, textTransform: "uppercase" }}>{isHead ? "agency head" : role}</span>}
                 </div>
               </div>
+                {!isAdmin && !isPublisher && (
                 <div className="dropdown-availability">
                   <span className="online-dot" style={{ background: agentAvailability === "available" ? "var(--accent)" : "var(--muted)", width: 8, height: 8 }} />
                   <span style={{ fontSize: 12 }}>{agentAvailability === "available" ? "Online" : "Offline"}</span>
-                  {!isAdmin && !isPublisher && (
                     <button
                       className="btn btn-sm"
                       style={{ marginLeft: "auto", fontSize: 10 }}
@@ -608,11 +656,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     >
                       {availToggling ? "..." : agentAvailability === "available" ? "Go Offline" : "Go Online"}
                     </button>
-                  )}
-                  {isAdmin || isPublisher ? (
-                    <span className="text-muted" style={{ marginLeft: "auto", fontSize: 10 }}>N/A</span>
-                  ) : null}
                 </div>
+                )}
               <button className="dropdown-item" onClick={handleSignOut}>
                 Sign out
               </button>
@@ -623,17 +668,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <section className="console-main">
         {children}
       </section>
-      {/* Layout-level bell: fixed top-right in ALL three dashboards. */}
-      {user && <NotificationBell membershipId={membershipId} />}
+      {/* Single header capsule (all dashboards): online toggle + logout + bell
+          share one pill background instead of three floating buttons. */}
       {user && (
-        <TopActions
-          showOnline={!isAdmin && !isPublisher}
-          agentId={agentId}
-          agentAvailability={agentAvailability}
-          availToggling={availToggling}
-          onToggleAvailability={toggleAvailability}
-          onSignOut={handleSignOut}
-        />
+        <div
+          style={{
+            position: "fixed",
+            top: 14,
+            right: 16,
+            zIndex: 9000,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            background: "rgba(20,12,40,0.88)",
+            border: "1px solid var(--line)",
+            borderRadius: 9999,
+            padding: "4px 6px",
+            backdropFilter: "blur(12px)",
+            boxShadow: "0 8px 28px rgba(0,0,0,0.45)",
+          }}
+        >
+          <TopActions
+            showOnline={!isAdmin && !isPublisher}
+            agentId={agentId}
+            agentAvailability={agentAvailability}
+            availToggling={availToggling}
+            onToggleAvailability={toggleAvailability}
+            onSignOut={handleSignOut}
+          />
+          <NotificationBell membershipId={membershipId} />
+        </div>
       )}
       {!isAdmin && !isPublisher && <Softphone membershipId={membershipId} agentId={agentId} />}
       {toasts.length > 0 && (

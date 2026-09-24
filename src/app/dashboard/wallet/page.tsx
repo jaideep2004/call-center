@@ -14,6 +14,7 @@ interface WalletEntry {
   amount_cents: number;
   currency: string;
   call_id: string | null;
+  agent_id: string | null;
   provider_reference: string | null;
   created_at: string;
 }
@@ -81,6 +82,10 @@ function WalletInner() {
   const [agentSearch, setAgentSearch] = useState(initialAgentQ);
   const [agentDebounced, setAgentDebounced] = useState(initialAgentQ);
   const [agentPage, setAgentPage] = useState(1);
+  // Ledger summary (last 500 entries) + direction/type filters for the table.
+  const [summary, setSummary] = useState<{ inCents: number; outCents: number; count: number } | null>(null);
+  const [dirFilter, setDirFilter] = useState<"all" | "in" | "out">("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const hasMounted = useRef(false);
 
   useEffect(() => {
@@ -102,6 +107,21 @@ function WalletInner() {
     }
     fetchData();
   }, [page]);
+
+  // Ledger totals once per visit (last 500 entries) — not per page turn.
+  useEffect(() => {
+    fetch(`/api/v1/wallet/entries?page=1&limit=500`).then(async (res) => {
+      if (!res.ok) return;
+      const body = await res.json();
+      const list: WalletEntry[] = body.data ?? [];
+      let inCents = 0, outCents = 0;
+      for (const e of list) {
+        if (e.amount_cents > 0) inCents += e.amount_cents;
+        else outCents += Math.abs(e.amount_cents);
+      }
+      setSummary({ inCents, outCents, count: body.pagination?.total ?? list.length });
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/v1/wallet/agents")
@@ -214,12 +234,38 @@ function WalletInner() {
   const agentTotalPages = Math.max(1, Math.ceil(filteredAgents.length / PAGE_SIZE));
   const paginatedAgents = useMemo(() => filteredAgents.slice((agentPage - 1) * PAGE_SIZE, agentPage * PAGE_SIZE), [filteredAgents, agentPage]);
 
+  // Ledger filters apply to the loaded page; search narrows further.
+  const typeOptions = useMemo(() => {
+    const set = new Set(entries.map((e) => e.type));
+    return ["all", ...Array.from(set).sort()];
+  }, [entries]);
+  const visibleEntries = useMemo(() => {
+    const q = debouncedQ.trim().toLowerCase();
+    return entries.filter((e) => {
+      if (dirFilter === "in" && e.amount_cents <= 0) return false;
+      if (dirFilter === "out" && e.amount_cents >= 0) return false;
+      if (typeFilter !== "all" && e.type !== typeFilter) return false;
+      if (q && !`${e.type} ${e.call_id ?? ""} ${e.provider_reference ?? ""} ${e.agent_id ?? ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [entries, dirFilter, typeFilter, debouncedQ]);
+
   const entryColumns: Column<WalletEntry>[] = [
+    { key: "created_at", header: "Date", render: (e) => <span className="text-mono-sm" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{new Date(e.created_at).toLocaleString()}</span> },
+    {
+      key: "direction", header: "Direction",
+      render: (e) => e.amount_cents > 0
+        ? <span className="cc-badge cc-badge--green">IN</span>
+        : <span className="cc-badge cc-badge--red">OUT</span>,
+    },
     { key: "type", header: "Type", render: (e) => <span className={`badge ${TYPE_COLORS[e.type] ?? ""}`}>{TYPE_LABELS[e.type] ?? e.type}</span> },
-    { key: "amount_cents", header: "Amount", render: (e) => <span style={{ color: e.amount_cents > 0 ? "var(--accent)" : "var(--orange)", fontWeight: 600 }}>{formatCents(e.amount_cents)}</span> },
-    { key: "call_id", header: "Call", render: (e) => <span className="text-mono-sm">{e.call_id?.slice(0, 8) ?? "—"}</span> },
-    { key: "provider_reference", header: "Reference", render: (e) => <span className="text-mono-sm">{e.provider_reference ? e.provider_reference.slice(0, 12) : "—"}</span> },
-    { key: "created_at", header: "Date", render: (e) => <span className="text-mono-sm">{new Date(e.created_at).toLocaleDateString()}</span> },
+    {
+      key: "agent_id", header: "Agent",
+      render: (e) => <span className="text-mono-sm" style={{ fontSize: 11 }}>{e.agent_id ? e.agent_id.slice(0, 8) : <span className="text-muted">Agency</span>}</span>,
+    },
+    { key: "amount_cents", header: "Amount", render: (e) => <span className="text-mono-sm" style={{ color: e.amount_cents > 0 ? "var(--accent)" : "var(--orange)", fontWeight: 700, fontSize: 12 }}>{e.amount_cents > 0 ? "+" : "−"}{formatCents(Math.abs(e.amount_cents))}</span> },
+    { key: "call_id", header: "Call", render: (e) => <span className="text-mono-sm" style={{ fontSize: 11 }}>{e.call_id?.slice(0, 8) ?? "—"}</span> },
+    { key: "provider_reference", header: "Reference", render: (e) => <span className="text-mono-sm" style={{ fontSize: 11 }}>{e.provider_reference ? e.provider_reference.slice(0, 12) : "—"}</span> },
   ];
 
   const agentColumns: Column<AgentPerformance>[] = [
@@ -288,10 +334,54 @@ function WalletInner() {
               <h2 style={{ margin: 0, font: "500 16px var(--serif)" }}>Transaction History</h2>
               <span className="filter-bar__meta">{entries.length} shown · page {page}/{totalPages}</span>
             </div>
+            {/* Money movement at a glance (last {summary ? summary.count : "…"} entries) */}
+            <div className="cc-metrics cc-metrics--5" style={{ marginTop: 14 }} aria-label="Ledger totals">
+              <article className="cc-metric">
+                <span className="cc-metric__label">Money In</span>
+                <span className="cc-metric__value" style={{ color: "var(--accent)" }}>{summary ? `+${formatCents(summary.inCents)}` : "—"}</span>
+                <span className="cc-metric__foot">Top-ups · payouts in</span>
+              </article>
+              <article className="cc-metric">
+                <span className="cc-metric__label">Money Out</span>
+                <span className="cc-metric__value" style={{ color: "var(--orange)" }}>{summary ? `−${formatCents(summary.outCents)}` : "—"}</span>
+                <span className="cc-metric__foot">Charges · transfers out</span>
+              </article>
+              <article className="cc-metric">
+                <span className="cc-metric__label">Net Movement</span>
+                <span className="cc-metric__value">{summary ? formatCents(summary.inCents - summary.outCents) : "—"}</span>
+                <span className="cc-metric__foot">{summary ? `Across ${summary.count} entries` : "Loading…"}</span>
+              </article>
+            </div>
+            {/* Direction + type filters (apply to the loaded page) */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
+              <div style={{ display: "inline-flex", gap: 4, padding: 3, borderRadius: 9999, border: "1px solid var(--line)", background: "rgba(255,255,255,0.03)" }}>
+                {(["all", "in", "out"] as const).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDirFilter(d)}
+                    style={{
+                      border: 0, cursor: "pointer", borderRadius: 9999, padding: "6px 14px", fontSize: 11, fontWeight: dirFilter === d ? 700 : 500,
+                      color: dirFilter === d ? "#fff" : "var(--muted)",
+                      background: dirFilter === d ? "linear-gradient(135deg, #7C3AED, #A855F7)" : "transparent",
+                    }}
+                  >
+                    {d === "all" ? "All" : d === "in" ? "Money In" : "Money Out"}
+                  </button>
+                ))}
+              </div>
+              <select className="input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ maxWidth: 190, fontSize: 11 }} aria-label="Filter by entry type">
+                {typeOptions.map((t) => <option key={t} value={t}>{t === "all" ? "All types" : (TYPE_LABELS[t] ?? t)}</option>)}
+              </select>
+              {(dirFilter !== "all" || typeFilter !== "all") && (
+                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11 }} onClick={() => { setDirFilter("all"); setTypeFilter("all"); }}>Clear</button>
+              )}
+            </div>
+            <div style={{ overflowX: "auto", marginTop: 12 }}>
             <DataTable
               columns={entryColumns}
-              data={entries}
-              emptyMessage="No transactions yet."
+              data={visibleEntries}
+              emptyMessage="No transactions match these filters."
               page={page}
               totalPages={totalPages}
               total={entries.length}
@@ -300,6 +390,7 @@ function WalletInner() {
               order="desc"
               onSort={() => {}}
             />
+            </div>
           </div>
 
           <div className="filter-bar">

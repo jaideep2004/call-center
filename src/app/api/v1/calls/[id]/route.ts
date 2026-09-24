@@ -1,5 +1,5 @@
-import { apiHandler, ok, noContent } from "@/server/api-utils";
-import { calls, callEvents } from "@/server/repositories";
+import { apiHandler, ok, noContent, fail } from "@/server/api-utils";
+import { calls, callEvents, agents } from "@/server/repositories";
 import { ForbiddenError, ConflictError } from "@/server/errors";
 import { validate, updateCallSchema } from "@/server/validate";
 import { assertTransition, type CallState } from "@/domain/calls";
@@ -14,13 +14,20 @@ function scopeFor(context: { agencyId?: string | null; user?: { role?: string } 
   return scope;
 }
 
-export const GET = apiHandler(async (req, { params, agencyId, user }) => {
+export const GET = apiHandler(async (req, { params, agencyId, user, membership, isHead }) => {
   const { id } = await params;
   const scope = scopeFor({ agencyId, user });
   const [call, events] = await Promise.all([
     calls.findById(id, scope),
     callEvents.findByCallId(id, scope),
   ]);
+  // Plain agents may open ONLY their own calls (unassigned ringing calls
+  // stay visible so the softphone/popup flow never breaks).
+  if (user?.role !== "admin" && !isHead) {
+    const me = membership ? await agents.findByMembershipId(membership.id).catch(() => null) : null;
+    if (!me) return fail("Agent profile not found", 403);
+    if (call.agent_id && call.agent_id !== me.id) return fail("Call not found", 404);
+  }
   return ok({ ...call, events });
 }, { resource: "calls", action: "view" });
 

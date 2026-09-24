@@ -29,6 +29,8 @@ function MembersInner() {
   const [loading, setLoading] = useState(true);
   // Admin is platform-level: this agency-scoped tab redirects to the platform view.
   const [roleChecked, setRoleChecked] = useState(false);
+  // Phone Numbers is head-managed infra — hidden here for plain agents.
+  const [isHead, setIsHead] = useState<boolean | null>(null);
   const [searchInput, setSearchInput] = useState(initialQ);
   const [debouncedQ, setDebouncedQ] = useState(initialQ);
   const [roleFilter, setRoleFilter] = useState(initialRole);
@@ -41,6 +43,7 @@ function MembersInner() {
         const body = await res.json();
         const r = body.data?.publisherId || body.data?.publisher?.id ? "publisher" : body.data?.user?.role;
         if (r === "admin") { router.replace("/dashboard/settings"); return; }
+        setIsHead(body.data?.isHead === true);
       }
       setRoleChecked(true);
     }).catch(() => setRoleChecked(true));
@@ -159,7 +162,7 @@ function MembersInner() {
       <nav className="tabs" style={{ marginBottom: "var(--space-4)" }}>
         <Link className="tab" href="/dashboard/settings">Agency</Link>
         <Link className="tab active" href="/dashboard/settings/members">Members</Link>
-        <Link className="tab" href="/dashboard/settings/phone-numbers">Phone Numbers</Link>
+        {isHead && <Link className="tab" href="/dashboard/settings/phone-numbers">Phone Numbers</Link>}
       </nav>
       <div className="dashboard-page-header">
         <div>

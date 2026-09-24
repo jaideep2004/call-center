@@ -6,11 +6,11 @@ export const runtime = "nodejs";
 
 /**
  * GET /api/v1/agent/funding — can this agent actually receive calls, money-wise?
- * funded = active subscription with allowance OR effective balance
- * (personal ledger + agency-pool allocation) covers the cheapest live+active
- * campaign price (bid override wins). The router enforces the same rule per
- * call — this endpoint just surfaces it so Take Calls can refuse Go Online
- * with a useful message instead of letting agents sit online unrung.
+ * funded = active subscription AND effective balance (personal ledger +
+ * agency-pool allocation) covers the cheapest live+active campaign price
+ * (bid override wins). The availability toggle enforces the same AND rule —
+ * this endpoint just surfaces it so Take Calls can refuse Go Online with a
+ * useful message instead of letting agents sit online unrung.
  */
 export const GET = apiHandler(async (req, context) => {
   let agentId: string | null = null;
@@ -26,6 +26,14 @@ export const GET = apiHandler(async (req, context) => {
     agentSubscriptions.findActiveByAgent(agentId).catch(() => null),
     agentCampaignSelections.getLiveCampaignIds(agentId).catch(() => [] as string[]),
   ]);
+  const agentRow = await agents.findById(agentId).catch(() => null);
+  const postpaidRow = agentRow
+    ? await queryOne<{ postpaid_bypass: boolean }>(
+        `SELECT postpaid_bypass FROM app.agencies WHERE id = $1`,
+        [(agentRow as { agency_id?: string }).agency_id],
+      ).catch(() => null)
+    : null;
+  const agencyPostpaid = postpaidRow?.postpaid_bypass === true;
 
   let minLivePrice: number | null = null;
   if (liveIds.length > 0) {
@@ -42,11 +50,16 @@ export const GET = apiHandler(async (req, context) => {
   const hasSub = Boolean(sub);
   // No live+active campaign to price against: nothing to fund (the campaign
   // checks handle that case separately) — do not block on money here.
-  const funded = hasSub || minLivePrice == null || effective >= minLivePrice;
+  // Matches the availability gate: subscription AND top-up, postpaid exempt.
+  const affordable = minLivePrice == null || effective >= minLivePrice;
+  const funded = agencyPostpaid || (hasSub && affordable);
 
   return ok({
     effective_balance_cents: effective,
     has_active_subscription: hasSub,
+    agency_postpaid: agencyPostpaid,
+    needs_subscription: !agencyPostpaid && !hasSub,
+    needs_topup: !agencyPostpaid && effective <= 0,
     min_live_price_cents: minLivePrice,
     live_campaign_count: liveIds.length,
     funded,

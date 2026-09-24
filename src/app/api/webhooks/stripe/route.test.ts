@@ -127,4 +127,13 @@ describe("stripe webhook — agent top-up credits the AGENT wallet", () => {
       }),
     );
   });
+
+  it("converges on wallet idempotency conflict (crash between credit and status flip)", async () => {
+    const dup = new Error("duplicate key value violates unique constraint");
+    (dup as { code?: string }).code = "23505";
+    walletCreateMock.mockRejectedValueOnce(dup);
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    expect(markCompletedMock).toHaveBeenCalled();
+  });
 });

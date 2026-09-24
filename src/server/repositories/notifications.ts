@@ -25,10 +25,12 @@ export class NotificationRepository {
 
   /**
    * Viewer-scoped feed for GET /api/v1/notifications. Admin is platform-level
-   * and sees every row. Agents/publishers see their agency's rows plus global
-   * (agency_id IS NULL) platform announcements.
+   * and sees every row. Everyone else sees their agency's rows plus global
+   * (agency_id IS NULL) platform announcements — AND only personal rows
+   * addressed to them: a row carrying payload.userId for another user is
+   * invisible (welcome/approval/assignment mails stay private).
    */
-  async findForViewer(limit = 50, agencyId?: string | null, isAdmin = false): Promise<NotificationRow[]> {
+  async findForViewer(limit = 50, agencyId?: string | null, isAdmin = false, userId?: string | null): Promise<NotificationRow[]> {
     if (isAdmin) {
       return query<NotificationRow>(
         "SELECT * FROM app.outbox ORDER BY occurred_at DESC LIMIT $1",
@@ -37,13 +39,19 @@ export class NotificationRepository {
     }
     if (agencyId) {
       return query<NotificationRow>(
-        "SELECT * FROM app.outbox WHERE agency_id = $1 OR agency_id IS NULL ORDER BY occurred_at DESC LIMIT $2",
-        [agencyId, limit],
+        `SELECT * FROM app.outbox
+         WHERE (agency_id = $1 OR agency_id IS NULL)
+           AND (payload->>'userId' IS NULL OR payload->>'userId' = $3)
+         ORDER BY occurred_at DESC LIMIT $2`,
+        [agencyId, limit, userId ?? null],
       );
     }
     return query<NotificationRow>(
-      "SELECT * FROM app.outbox WHERE agency_id IS NULL ORDER BY occurred_at DESC LIMIT $1",
-      [limit],
+      `SELECT * FROM app.outbox
+       WHERE agency_id IS NULL
+         AND (payload->>'userId' IS NULL OR payload->>'userId' = $2)
+       ORDER BY occurred_at DESC LIMIT $1`,
+      [limit, userId ?? null],
     );
   }
 
@@ -67,29 +75,35 @@ export class NotificationRepository {
 
   /**
    * Idempotent viewer-scoped mark-read: repeated calls succeed and only touch
-   * rows visible to the viewer. Returns the row, or null when the id is
-   * unknown or belongs to another agency.
+   * rows visible to the viewer (agency + personal addressee). Returns the row,
+   * or null when the id is unknown, belongs to another agency, or is
+   * addressed to someone else.
    */
   async markDispatchedScoped(
     id: string,
     agencyId?: string | null,
     isAdmin = false,
+    userId?: string | null,
   ): Promise<NotificationRow | null> {
-    if (isAdmin || !agencyId) {
-      if (isAdmin) {
-        return queryOne<NotificationRow>(
-          "UPDATE app.outbox SET dispatched_at = NOW() WHERE id = $1 RETURNING *",
-          [id],
-        );
-      }
+    if (isAdmin) {
       return queryOne<NotificationRow>(
-        "UPDATE app.outbox SET dispatched_at = NOW() WHERE id = $1 AND agency_id IS NULL RETURNING *",
+        "UPDATE app.outbox SET dispatched_at = NOW() WHERE id = $1 RETURNING *",
         [id],
       );
     }
+    if (!agencyId) {
+      return queryOne<NotificationRow>(
+        `UPDATE app.outbox SET dispatched_at = NOW()
+         WHERE id = $1 AND agency_id IS NULL
+           AND (payload->>'userId' IS NULL OR payload->>'userId' = $2) RETURNING *`,
+        [id, userId ?? null],
+      );
+    }
     return queryOne<NotificationRow>(
-      "UPDATE app.outbox SET dispatched_at = NOW() WHERE id = $1 AND (agency_id = $2 OR agency_id IS NULL) RETURNING *",
-      [id, agencyId],
+      `UPDATE app.outbox SET dispatched_at = NOW()
+       WHERE id = $1 AND (agency_id = $2 OR agency_id IS NULL)
+         AND (payload->>'userId' IS NULL OR payload->>'userId' = $3) RETURNING *`,
+      [id, agencyId, userId ?? null],
     );
   }
 
@@ -99,9 +113,11 @@ export class NotificationRepository {
 
   /**
    * Idempotent viewer-scoped mark-all-read. Returns the number of rows flipped
-   * from unread to read (already-read rows are untouched).
+   * from unread to read (already-read rows are untouched). Personal rows
+   * addressed to other users are never touched.
    */
-  async markAllDispatchedScoped(agencyId?: string | null, isAdmin = false): Promise<number> {
+  async markAllDispatchedScoped(agencyId?: string | null, isAdmin = false, userId?: string | null): Promise<number> {
+    const personal = (param: string) => `(payload->>'userId' IS NULL OR payload->>'userId' = ${param})`;
     if (isAdmin) {
       const rows = await query<{ id: string }>(
         "UPDATE app.outbox SET dispatched_at = NOW() WHERE dispatched_at IS NULL RETURNING id",
@@ -110,13 +126,18 @@ export class NotificationRepository {
     }
     if (agencyId) {
       const rows = await query<{ id: string }>(
-        "UPDATE app.outbox SET dispatched_at = NOW() WHERE dispatched_at IS NULL AND (agency_id = $1 OR agency_id IS NULL) RETURNING id",
-        [agencyId],
+        `UPDATE app.outbox SET dispatched_at = NOW()
+         WHERE dispatched_at IS NULL AND (agency_id = $1 OR agency_id IS NULL)
+           AND ${personal("$2")} RETURNING id`,
+        [agencyId, userId ?? null],
       );
       return rows.length;
     }
     const rows = await query<{ id: string }>(
-      "UPDATE app.outbox SET dispatched_at = NOW() WHERE dispatched_at IS NULL AND agency_id IS NULL RETURNING id",
+      `UPDATE app.outbox SET dispatched_at = NOW()
+       WHERE dispatched_at IS NULL AND agency_id IS NULL
+         AND ${personal("$1")} RETURNING id`,
+      [userId ?? null],
     );
     return rows.length;
   }

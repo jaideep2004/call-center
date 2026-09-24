@@ -16,11 +16,15 @@ interface CmsSection {
 }
 type FaqItem = { question: string; answer: string; category: string };
 type TestimonialItem = { name: string; role: string; quote: string };
-type PostItem = { title: string; slug: string; excerpt: string; body: string; image: string; author: string };
 
 /** Legacy homepage-banner slugs — superseded by the Campaign Ads tab (campaign_creatives).
  *  Rows may still exist in DB; they are hidden from the Sections UI, never deleted. */
 const RETIRED_CMS_SLUGS = ["creatives", "banner", "banners"];
+
+/** Legacy inline-blog slugs — superseded by the dedicated Blog tab (app.blog_posts).
+ *  Old rows stay in DB untouched; they are hidden here so Sections only shows
+ *  homepage content (FAQ, testimonials, legal). */
+const SEPARATED_BLOG_SLUGS = ["posts", "blog"];
 
 function mdToHtml(md: string): string {
   let h = md
@@ -44,7 +48,6 @@ function mdToHtml(md: string): string {
 const QUICK_TYPES = [
   { slug: "faq", title: "FAQ", icon: "?", desc: "Questions & answers", color: "#7C3AED" },
   { slug: "testimonials", title: "Testimonials", icon: "★", desc: "Customer quotes", color: "#06B6D4" },
-  { slug: "posts", title: "Blog Posts", icon: "◩", desc: "Articles & updates", color: "#F59E0B" },
   { slug: "privacy", title: "Privacy", icon: "§", desc: "Legal markdown", color: "#8B5CF6" },
   { slug: "terms", title: "Terms", icon: "≡", desc: "Legal markdown", color: "#EC4899" },
 ] as const;
@@ -61,7 +64,6 @@ export default function AdminCmsPage() {
   const [newTitle, setNewTitle] = useState("");
   const [faqItems, setFaqItems] = useState<FaqItem[]>([]);
   const [testimonialItems, setTestimonialItems] = useState<TestimonialItem[]>([]);
-  const [postItems, setPostItems] = useState<PostItem[]>([]);
   const [bodyText, setBodyText] = useState("");
   const [preview, setPreview] = useState(false);
   const [tab, setTab] = useState<"sections" | "ads" | "blog">("sections");
@@ -142,21 +144,6 @@ export default function AdminCmsPage() {
           : []
       );
       setContentText(JSON.stringify(c, null, 2));
-    } else if (s.slug === "posts" || s.slug === "blog") {
-      const raw = Array.isArray((c as { items?: unknown }).items) ? ((c as { items: unknown[] }).items as Record<string, unknown>[]) : [];
-      setPostItems(
-        raw.length
-          ? raw.map((it) => ({
-              title: String((it as Record<string, unknown>).title ?? ""),
-              slug: String((it as Record<string, unknown>).slug ?? ""),
-              excerpt: String((it as Record<string, unknown>).excerpt ?? ""),
-              body: String((it as Record<string, unknown>).body ?? ""),
-              image: String((it as Record<string, unknown>).image ?? (it as Record<string, unknown>).image_url ?? ""),
-              author: String((it as Record<string, unknown>).author ?? ""),
-            }))
-          : []
-      );
-      setContentText(JSON.stringify(c, null, 2));
     } else if (s.slug === "privacy" || s.slug === "terms") {
       setBodyText(String((c as { body?: unknown }).body ?? (typeof c === "string" ? c : "")));
       setContentText(JSON.stringify(c, null, 2));
@@ -173,20 +160,6 @@ export default function AdminCmsPage() {
     if (activeSlug === "testimonials") {
       return { items: testimonialItems.filter((it) => it.name.trim() || it.quote.trim()).map((it) => ({ name: it.name.trim(), role: it.role.trim(), quote: it.quote.trim() })) };
     }
-    if (activeSlug === "posts" || activeSlug === "blog") {
-      return {
-        items: postItems
-          .filter((it) => it.title.trim() || it.body.trim())
-          .map((it) => ({
-            title: it.title.trim(),
-            slug: it.slug.trim() || it.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-            excerpt: it.excerpt.trim(),
-            body: it.body.trim(),
-            image: it.image.trim(),
-            author: it.author.trim(),
-          })),
-      };
-    }
     if (activeSlug === "privacy" || activeSlug === "terms") {
       return { body: bodyText };
     }
@@ -201,7 +174,7 @@ export default function AdminCmsPage() {
   async function save() {
     if (!activeSlug) return;
     const content = buildContent();
-    if (content === null && activeSlug !== "faq" && activeSlug !== "testimonials" && activeSlug !== "privacy" && activeSlug !== "terms" && activeSlug !== "posts" && activeSlug !== "blog") return;
+    if (content === null && activeSlug !== "faq" && activeSlug !== "testimonials" && activeSlug !== "privacy" && activeSlug !== "terms") return;
     const finalContent = content as Record<string, unknown>;
     setSaving(true);
     try {
@@ -247,7 +220,6 @@ export default function AdminCmsPage() {
     try {
       let seed: Record<string, unknown> = {};
       if (slug === "faq" || slug === "testimonials") seed = { items: [] };
-      else if (slug === "posts" || slug === "blog") seed = { items: [] };
       else if (slug === "privacy" || slug === "terms" || slug === "banner" || slug === "hero") seed = { body: "" };
       const res = await fetch("/api/v1/cms/admin", {
         method: "POST",
@@ -283,7 +255,6 @@ export default function AdminCmsPage() {
 
   const isStructuredFaq = activeSlug === "faq";
   const isTestimonials = activeSlug === "testimonials";
-  const isPosts = activeSlug === "posts" || activeSlug === "blog";
   const isBody = activeSlug === "privacy" || activeSlug === "terms";
 
   return (
@@ -301,11 +272,73 @@ export default function AdminCmsPage() {
         </Link>
       </div>
 
-      <nav className="tabs" style={{ marginBottom: "var(--space-4)" }}>
-        <button type="button" className={`tab ${tab === "sections" ? "active" : ""}`} onClick={() => setTab("sections")}>Sections</button>
-        <button type="button" className={`tab ${tab === "ads" ? "active" : ""}`} onClick={() => setTab("ads")}>Campaign Ads</button>
-        <button type="button" className={`tab ${tab === "blog" ? "active" : ""}`} onClick={() => setTab("blog")}>Blog</button>
-      </nav>
+      {/* Segmented tab control: one capsule, pill active state, live counts */}
+      <div
+        role="tablist"
+        aria-label="Content areas"
+        style={{
+          display: "inline-flex",
+          gap: 4,
+          padding: 4,
+          marginBottom: "var(--space-4)",
+          borderRadius: 9999,
+          border: "1px solid var(--line)",
+          background: "rgba(255,255,255,0.03)",
+          maxWidth: "100%",
+          overflowX: "auto",
+        }}
+      >
+        {(
+          [
+            { key: "sections", label: "Sections", hint: "Homepage content", count: sections.filter((s) => !RETIRED_CMS_SLUGS.includes(s.slug) && !SEPARATED_BLOG_SLUGS.includes(s.slug)).length },
+            { key: "ads", label: "Campaign Ads", hint: "Agent hero & feed", count: null },
+            { key: "blog", label: "Blog", hint: "Articles & updates", count: null },
+          ] as const
+        ).map((t) => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              title={t.hint}
+              onClick={() => setTab(t.key)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                border: 0,
+                cursor: "pointer",
+                borderRadius: 9999,
+                padding: "8px 16px",
+                fontSize: 12,
+                fontWeight: active ? 700 : 500,
+                color: active ? "#fff" : "var(--muted)",
+                background: active ? "linear-gradient(135deg, #7C3AED, #A855F7)" : "transparent",
+                boxShadow: active ? "0 4px 14px rgba(124,58,237,.35)" : "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t.label}
+              {t.count !== null && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--mono)",
+                    padding: "1px 7px",
+                    borderRadius: 9999,
+                    background: active ? "rgba(255,255,255,.22)" : "rgba(255,255,255,.07)",
+                    color: active ? "#fff" : "var(--muted)",
+                  }}
+                >
+                  {t.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {tab === "blog" ? (
         <BlogManager />
@@ -328,8 +361,7 @@ export default function AdminCmsPage() {
             <button
               key={t.slug}
               onClick={() => {
-                if (t.slug === "posts") ensureSection("posts", "Blog Posts", { items: [] });
-                else if (t.slug === "faq") ensureSection("faq", "FAQ", { items: [] });
+                if (t.slug === "faq") ensureSection("faq", "FAQ", { items: [] });
                 else if (t.slug === "testimonials") ensureSection("testimonials", "Testimonials", { items: [] });
                 else if (t.slug === "privacy") ensureSection("privacy", "Privacy Policy", { body: "" });
                 else if (t.slug === "terms") ensureSection("terms", "Terms of Service", { body: "" });
@@ -361,7 +393,7 @@ export default function AdminCmsPage() {
               </tr>
             </thead>
             <tbody>
-              {sections.filter((s) => !RETIRED_CMS_SLUGS.includes(s.slug)).map((s) => (
+              {sections.filter((s) => !RETIRED_CMS_SLUGS.includes(s.slug) && !SEPARATED_BLOG_SLUGS.includes(s.slug)).map((s) => (
                 <tr key={s.id} style={s.slug === activeSlug ? { background: "rgba(168,85,247,0.08)" } : undefined}>
                   <td className="clickable text-mono-sm" onClick={() => openSection(s)}>
                     {s.slug}
@@ -376,7 +408,7 @@ export default function AdminCmsPage() {
                   </td>
                 </tr>
               ))}
-              {sections.filter((s) => !RETIRED_CMS_SLUGS.includes(s.slug)).length === 0 && (
+              {sections.filter((s) => !RETIRED_CMS_SLUGS.includes(s.slug) && !SEPARATED_BLOG_SLUGS.includes(s.slug)).length === 0 && (
                 <tr>
                   <td colSpan={3} className="text-muted" style={{ textAlign: "center", padding: 16, fontSize: 12 }}>
                     No sections yet — use Quick add above or create custom below.
@@ -394,7 +426,7 @@ export default function AdminCmsPage() {
               <button className="btn btn-secondary btn-sm" onClick={createSection} disabled={creating}>
                 {creating ? "Creating..." : "Create custom section"}
               </button>
-              <span className="text-muted" style={{ fontSize: 10 }}>For advanced use — most teams use Quick add above. Slugs faq/testimonials/posts/privacy/terms are seeded. Banners live in the Campaign Ads tab.</span>
+              <span className="text-muted" style={{ fontSize: 10 }}>For advanced use — most teams use Quick add above. Slugs faq/testimonials/privacy/terms are seeded. Banners live in the Campaign Ads tab.</span>
             </div>
           </div>
         </div>
@@ -453,30 +485,6 @@ export default function AdminCmsPage() {
                 </div>
               )}
 
-              {isPosts && (
-                <div className="stack" style={{ gap: 12 }}>
-                  {postItems.length === 0 && <p className="text-muted" style={{ fontSize: 11 }}>No posts yet — add one below. Posts appear on /why-choose-us or blog if wired.</p>}
-                  {postItems.map((it, idx) => (
-                    <div key={idx} className="card" style={{ padding: 12, background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                      <div className="stack" style={{ gap: 8 }}>
-                        <div className="stack-h" style={{ justifyContent: "space-between" }}>
-                          <span className="text-mono-sm" style={{ fontWeight: 700 }}>#{idx + 1}</span>
-                          <button className="btn btn-sm" onClick={() => setPostItems((prev) => prev.filter((_, i) => i !== idx))} style={{ fontSize: 10 }}>Remove</button>
-                        </div>
-                        <input className="input" value={it.title} onChange={(e) => setPostItems((prev) => prev.map((p, i) => (i === idx ? { ...p, title: e.target.value } : p)))} placeholder="Title — e.g. 5 tips for inbound" style={{ fontSize: 12 }} />
-                        <input className="input" value={it.slug} onChange={(e) => setPostItems((prev) => prev.map((p, i) => (i === idx ? { ...p, slug: e.target.value } : p)))} placeholder="Slug — e.g. 5-tips-inbound (auto from title if empty)" style={{ fontSize: 12, fontFamily: "var(--mono)" }} />
-                        <input className="input" value={it.excerpt} onChange={(e) => setPostItems((prev) => prev.map((p, i) => (i === idx ? { ...p, excerpt: e.target.value } : p)))} placeholder="Excerpt — one-line summary" style={{ fontSize: 12 }} />
-                        <input className="input" value={it.image} onChange={(e) => setPostItems((prev) => prev.map((p, i) => (i === idx ? { ...p, image: e.target.value } : p)))} placeholder="Image URL — e.g. https://.../cover.jpg" style={{ fontSize: 12 }} />
-                        {it.image && <img src={it.image} alt="" style={{ maxWidth: "100%", maxHeight: 140, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }} onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />}
-                        <input className="input" value={it.author} onChange={(e) => setPostItems((prev) => prev.map((p, i) => (i === idx ? { ...p, author: e.target.value } : p)))} placeholder="Author — e.g. Coverage Team" style={{ fontSize: 12 }} />
-                        <textarea className="textarea" rows={4} value={it.body} onChange={(e) => setPostItems((prev) => prev.map((p, i) => (i === idx ? { ...p, body: e.target.value } : p)))} placeholder="Body — markdown supported (# ##, **bold**, lists)" style={{ fontSize: 12 }} />
-                      </div>
-                    </div>
-                  ))}
-                  <button className="btn btn-secondary btn-sm" onClick={() => setPostItems((prev) => [...prev, { title: "", slug: "", excerpt: "", body: "", image: "", author: "" }])}>+ Add post</button>
-                </div>
-              )}
-
               {isBody && (
                 <div className="stack" style={{ gap: 8 }}>
                   <div className="stack-h" style={{ justifyContent: "space-between", alignItems: "center" }}>
@@ -493,7 +501,7 @@ export default function AdminCmsPage() {
                 </div>
               )}
 
-              {!isStructuredFaq && !isTestimonials && !isBody && !isPosts && (
+              {!isStructuredFaq && !isTestimonials && !isBody && (
                 <textarea className="textarea" rows={14} value={contentText} onChange={(e) => setContentText(e.target.value)} style={{ fontFamily: "var(--mono)", fontSize: 12 }} placeholder='{"items": []}' />
               )}
 
@@ -501,7 +509,7 @@ export default function AdminCmsPage() {
                 <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>
                   {saving ? "Saving..." : "Save & Publish"}
                 </button>
-                <span className="text-muted" style={{ fontSize: 10 }}>{isStructuredFaq || isTestimonials || isBody || isPosts ? "Structured — no JSON needed. Changes go live immediately." : "Content must be valid JSON. Changes go live immediately."}</span>
+                <span className="text-muted" style={{ fontSize: 10 }}>{isStructuredFaq || isTestimonials || isBody ? "Structured — no JSON needed. Changes go live immediately." : "Content must be valid JSON. Changes go live immediately."}</span>
               </div>
             </div>
           </div>

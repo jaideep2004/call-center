@@ -55,7 +55,9 @@ function AgentWalletInner() {
   const [entries, setEntries] = useState<WalletEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [toppingUp, setToppingUp] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState(500);
+  // $1 stays for test payments; production top-ups are $250/$500/$1000.
+  const [topUpAmount, setTopUpAmount] = useState(25000);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [earningsData, setEarningsData] = useState<EarningsDay[]>([]);
   const [searchInput, setSearchInput] = useState(initialQ);
@@ -88,9 +90,37 @@ function AgentWalletInner() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment") === "success") {
-      showToast("Payment received — balance updates shortly", "success");
+      const sessionId = params.get("session_id");
       window.history.replaceState({}, "", "/dashboard/wallet/agent");
-      refresh();
+      if (sessionId) {
+        // Belt-and-suspenders behind the webhook: verify the paid session
+        // with Stripe and credit it now, so the balance is correct even
+        // when the webhook was delayed, misconfigured, or lost.
+        setVerifying(true);
+        fetch("/api/v1/payments/reconcile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId }),
+        }).then(async (res) => {
+          const body = await res.json().catch(() => ({}));
+          if (res.ok && body.data?.credited) {
+            showToast("Payment credited to your wallet", "success");
+          } else if (res.ok) {
+            showToast("Payment verified — balance is up to date", "success");
+          } else {
+            showToast(body.message ?? "Payment pending — balance updates shortly", "warning");
+          }
+          setVerifying(false);
+          refresh();
+        }).catch(() => {
+          showToast("Payment received — balance updates shortly", "success");
+          setVerifying(false);
+          refresh();
+        });
+      } else {
+        showToast("Payment received — balance updates shortly", "success");
+        refresh();
+      }
     } else if (params.get("payment") === "cancelled") {
       showToast("Payment cancelled", "error");
       window.history.replaceState({}, "", "/dashboard/wallet/agent");
@@ -219,7 +249,7 @@ function AgentWalletInner() {
         <div className="card">
           <h2>Top Up</h2>
           <div className="filter-bar" style={{ marginTop: "var(--space-3)", flexWrap: "wrap" }}>
-            {[100, 500, 1000, 2500, 5000].map((amt) => (
+            {[100, 25000, 50000, 100000].map((amt) => (
               <button
                 key={amt}
                 className={`btn btn-sm ${topUpAmount === amt ? "btn-primary" : ""}`}
@@ -245,6 +275,7 @@ function AgentWalletInner() {
             );
           })()}
           {error && <p className="form-error" style={{ marginTop: 8 }}>{error}</p>}
+          {verifying && <p className="text-mono-sm" style={{ fontSize: 11, marginTop: 8, color: "var(--muted)" }}>Verifying payment with Stripe…</p>}
         </div>
       </div>
 

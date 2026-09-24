@@ -35,6 +35,9 @@ function PhoneNumbersInner() {
   const [loading, setLoading] = useState(true);
   // Admin is platform-level: this agency-scoped tab redirects to the platform view.
   const [roleChecked, setRoleChecked] = useState(false);
+  // Tracking numbers are head-managed routing infra — plain agents get a
+  // notice instead of the management table (API stays the enforcer).
+  const [isHead, setIsHead] = useState<boolean | null>(null);
   const [showForm, setShowForm] = useState(false);
 
   const [number, setNumber] = useState("");
@@ -52,6 +55,7 @@ function PhoneNumbersInner() {
         const body = await res.json();
         const r = body.data?.publisherId || body.data?.publisher?.id ? "publisher" : body.data?.user?.role;
         if (r === "admin") { router.replace("/dashboard/settings"); return; }
+        setIsHead(body.data?.isHead === true);
       }
       setRoleChecked(true);
     }).catch(() => setRoleChecked(true));
@@ -198,7 +202,7 @@ function PhoneNumbersInner() {
         </div>
         <div className="search-bar">
           <input className="input" type="search" placeholder="Search numbers..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 180 }} />
-          <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>+ Add number</button>
+          {isHead !== false && <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>+ Add number</button>}
         </div>
       </div>
 
@@ -238,6 +242,14 @@ function PhoneNumbersInner() {
 
       {!roleChecked || loading ? (
         <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
+      ) : isHead === false ? (
+        <div className="card card--spacious" style={{ padding: 22, maxWidth: 560 }}>
+          <h2 className="settings-card-title" style={{ fontSize: 15 }}>Heads only</h2>
+          <p className="text-muted" style={{ fontSize: 13, margin: "8px 0 0", lineHeight: 1.6 }}>
+            Tracking numbers route live calls to campaigns — only your agency head can view and assign them. Ask your head if a number looks wrong.
+          </p>
+          <Link href="/dashboard/settings" className="btn btn-secondary btn-sm" style={{ marginTop: 16 }}>Back to Settings →</Link>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state"><p>{numbers.length === 0 ? "No phone numbers configured. Add your first tracking number above." : `No numbers match "${debouncedQ}".`}</p></div>
       ) : (

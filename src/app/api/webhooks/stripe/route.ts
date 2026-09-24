@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getStripe, getWebhookSecret } from "@/server/stripe";
 import { payments } from "@/server/repositories/payments";
-import { walletEntries, agencyWallets, agentSubscriptions } from "@/server/repositories";
+import { agentSubscriptions } from "@/server/repositories";
+import { creditTopupPayment, findOrCreateTopupPayment } from "@/server/services/payment-credit";
 
 export const runtime = "nodejs";
 
@@ -28,59 +29,37 @@ export async function POST(request: Request) {
     };
 
     if (session.metadata?.type === "agent_wallet_topup") {
-      const payment = await payments.findBySessionId(session.id);
-      if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-      if (payment.status === "completed") return NextResponse.json({ received: true });
+      const found = await findOrCreateTopupPayment({
+        id: session.id,
+        payment_intent: session.payment_intent,
+        metadata: session.metadata,
+        amount_total: session.amount_total,
+      });
+      if (!found) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
       const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : "";
       // Phase 4 (point 3): credit the NET amount (payment.amount_cents).
       // session.amount_total is the gross (credit + 3% fee) — crediting it
       // would mint the fee into the wallet. Legacy rows (fee_cents=0) have
       // amount_cents == amount_total, so behavior there is unchanged.
-      const amountCents = payment.amount_cents;
-
-      await payments.markCompleted(payment.id, paymentIntentId);
-
-      await walletEntries.create({
-        agency_id: payment.agency_id,
-        agent_id: payment.agent_id ?? undefined,
-        type: "top_up",
-        amount_cents: amountCents,
-        currency: payment.currency,
-        idempotency_key: `stripe_${session.id}`,
-        provider_reference: paymentIntentId,
-      });
+      await creditTopupPayment(found.payment, "agent", paymentIntentId, session.id);
     } else if (session.metadata?.type === "agency_wallet_topup") {
       // P1.4 agency pool top-up: same idempotency contract as the agent
       // branch (payments.status guard + stripe_session idempotency key).
-      const payment = await payments.findBySessionId(session.id);
-      if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-      if (payment.status === "completed") return NextResponse.json({ received: true });
+      const found = await findOrCreateTopupPayment({
+        id: session.id,
+        payment_intent: session.payment_intent,
+        metadata: session.metadata,
+        amount_total: session.amount_total,
+      });
+      if (!found) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
       const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : "";
       // Phase 4 (point 3): credit the NET amount (payment.amount_cents).
       // session.amount_total is the gross (credit + 3% fee) — crediting it
       // would mint the fee into the wallet. Legacy rows (fee_cents=0) have
       // amount_cents == amount_total, so behavior there is unchanged.
-      const amountCents = payment.amount_cents;
-
-      await payments.markCompleted(payment.id, paymentIntentId);
-
-      await walletEntries.create({
-        agency_id: payment.agency_id,
-        type: "top_up",
-        amount_cents: amountCents,
-        currency: payment.currency,
-        idempotency_key: `stripe_${session.id}`,
-        provider_reference: paymentIntentId,
-      });
-      await agencyWallets.creditPool(payment.agency_id, amountCents);
-
-      // Best-effort: fresh pool money may unpause depleted offers now.
-      const { syncOfferWalletPauses } = await import("@/server/services/offer-wallet-sync");
-      void syncOfferWalletPauses(payment.agency_id).catch((e) =>
-        console.warn(`[stripe-webhook] post-credit sync failed: ${String(e).slice(0, 160)}`),
-      );
+      await creditTopupPayment(found.payment, "agency-pool", paymentIntentId, session.id);
     } else if (session.metadata?.type === "subscription") {
       const agentId = session.metadata.agent_id;
       const planId = session.metadata.plan_id;
@@ -106,29 +85,40 @@ export async function POST(request: Request) {
           const isUniqueViolation = error?.code === "23505";
           if (!isUniqueViolation) throw error;
         }
+        // First activation only (never on redelivery): receipt to the agent
+        // + copy to the head. Fully isolated — mail can never fail the webhook.
+        try {
+          const [{ sendSubscriptionActive }, { agentPlans }, repos] = await Promise.all([
+            import("@/server/services/action-emails"),
+            import("@/server/repositories/agent-plans"),
+            import("@/server/repositories"),
+          ]);
+          const plan = await agentPlans.findById(planId).catch(() => null);
+          const agentRow = await repos.agents.findById(agentId).catch(() => null);
+          void sendSubscriptionActive({
+            agencyId: (agentRow as { agency_id?: string } | null)?.agency_id ?? "",
+            agentId,
+            planName: (plan as { name?: string } | null)?.name,
+          }).catch(() => {});
+        } catch {
+          /* mail is best-effort */
+        }
       }
     } else {
-      const payment = await payments.findBySessionId(session.id);
-      if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-      if (payment.status === "completed") return NextResponse.json({ received: true });
+      const found = await findOrCreateTopupPayment({
+        id: session.id,
+        payment_intent: session.payment_intent,
+        metadata: session.metadata,
+        amount_total: session.amount_total,
+      });
+      if (!found) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
       const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : "";
       // Phase 4 (point 3): credit the NET amount (payment.amount_cents).
       // session.amount_total is the gross (credit + 3% fee) — crediting it
       // would mint the fee into the wallet. Legacy rows (fee_cents=0) have
       // amount_cents == amount_total, so behavior there is unchanged.
-      const amountCents = payment.amount_cents;
-
-      await payments.markCompleted(payment.id, paymentIntentId);
-
-      await walletEntries.create({
-        agency_id: payment.agency_id,
-        type: "top_up",
-        amount_cents: amountCents,
-        currency: payment.currency,
-        idempotency_key: `stripe_${session.id}`,
-        provider_reference: paymentIntentId,
-      });
+      await creditTopupPayment(found.payment, found.kind, paymentIntentId, session.id);
     }
   }
 

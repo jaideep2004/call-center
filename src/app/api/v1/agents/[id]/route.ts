@@ -19,13 +19,20 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
   // platform admins keep matrix rights; everyone else is self-edit only.
   const canManage = Boolean(isHead || (user && hasPermission(user.role as any, "agents", "manage")));
   if (!canManage) {
-    const agent = await queryOne<{ membership_id: string }>("SELECT membership_id FROM app.agents WHERE id = $1", [id]);
+    const agent = await queryOne<{ membership_id: string; approval_status: string }>(
+      "SELECT membership_id, approval_status FROM app.agents WHERE id = $1", [id],
+    );
     if (!agent || !membership || agent.membership_id !== membership.id) {
       return fail("You can only update your own agent profile", 403);
     }
     const body = validate(updateOwnAgentSchema, await req.json());
-    if (body.availability === "available" && !(await canGoOnline(id))) {
-      return fail("Top up your wallet or activate a subscription plan before going online — unfunded agents can't take calls", 422);
+    if (body.availability === "available") {
+      if (agent.approval_status !== "approved") {
+        return fail("Awaiting admin approval — you cannot go online yet", 422);
+      }
+      if (!(await canGoOnline(id))) {
+        return fail("Going online needs both an active subscription plan AND a topped-up wallet — buy a plan and top up before taking calls", 422);
+      }
     }
     const updated = await agents.update(id, body);
     return ok(updated, "Agent updated");
@@ -34,8 +41,16 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
   if (body.skills) {
     body.skills = await assertValidSkills(body.skills);
   }
-  if ((body as { availability?: string }).availability === "available" && !(await canGoOnline(id))) {
-    return fail("Agent has no funds or active plan — top up the wallet or activate a subscription before setting them online", 422);
+  if ((body as { availability?: string }).availability === "available") {
+    const target = await queryOne<{ approval_status: string }>(
+      "SELECT approval_status FROM app.agents WHERE id = $1", [id],
+    );
+    if (target && target.approval_status !== "approved") {
+      return fail("Agent is not approved — approve them before setting them online", 422);
+    }
+    if (!(await canGoOnline(id))) {
+      return fail("Agent needs both an active subscription plan AND a topped-up wallet before going online", 422);
+    }
   }
   const agent = await agents.update(id, body, agencyId ?? undefined);
   // Best-effort approval email + inbox row (never blocks the update).

@@ -161,6 +161,9 @@ export default function SettingsPage() {
   // Server role from /api/v1/me: admin is platform-level (not agency-scoped)
   // and gets a dedicated platform view below — never the agency tabs.
   const [meRole, setMeRole] = useState<string | null>(null);
+  // Tracking-number assignment is head-managed infra: plain agents don't
+  // get the Phone Numbers tab (the page itself shows them a notice).
+  const [isHead, setIsHead] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch("/api/v1/me").then(async (res) => {
@@ -170,6 +173,7 @@ export default function SettingsPage() {
         // a stale session role string.
         if (body.data?.publisherId || body.data?.publisher?.id) setMeRole("publisher");
         else setMeRole(body.data?.user?.role ?? null);
+        setIsHead(body.data?.isHead === true);
       } else {
         setMeRole(null);
       }
@@ -362,7 +366,7 @@ export default function SettingsPage() {
       <nav className="tabs" style={{ marginBottom: "var(--space-2)" }}>
         <Link className="tab active" href="/dashboard/settings">Agency</Link>
         <Link className="tab" href="/dashboard/settings/members">Members</Link>
-        <Link className="tab" href="/dashboard/settings/phone-numbers">Phone Numbers</Link>
+        {isHead && <Link className="tab" href="/dashboard/settings/phone-numbers">Phone Numbers</Link>}
       </nav>
 
       <div className="settings-layout">
@@ -485,7 +489,7 @@ export default function SettingsPage() {
 
           <section className="card" style={{ padding:16, background:"linear-gradient(135deg, rgba(168,85,247,.12), rgba(255,255,255,.02))", borderColor:"rgba(168,85,247,.18)" }}>
             <h3 style={{ font:"600 13px var(--sans)", margin:0, color:"var(--ink)" }}>Need help?</h3>
-            <p className="text-muted" style={{ fontSize:12, margin:"6px 0 0", lineHeight:1.5 }}>Manage members, assign roles and attach phone numbers to campaigns from the tabs above.</p>
+            <p className="text-muted" style={{ fontSize:12, margin:"6px 0 0", lineHeight:1.5 }}>Manage members and agency setup from the tabs above.{isHead ? " Heads can also attach phone numbers to campaigns." : ""}</p>
             <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
               <Link href="/dashboard/settings/members" className="btn btn-secondary btn-sm">Members</Link>
               <Link href="/dashboard/settings/phone-numbers" className="btn btn-ghost btn-sm">Numbers</Link>

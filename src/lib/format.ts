@@ -36,6 +36,31 @@ export function formatTimer(seconds: number): string {
 }
 
 /**
+ * Extract the Google Drive file ID from any common Drive URL shape
+ * (…/file/d/ID/…, …/open?id=ID, uc?export=download&id=ID). Returns null
+ * for non-Drive URLs so callers can fall back to the raw link.
+ */
+export function driveFileId(url: string): string | null {
+  const raw = (url ?? "").trim();
+  if (!raw || !raw.includes("drive.google.com")) return null;
+  const fileMatch = raw.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return fileMatch[1];
+  const idMatch = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch) return idMatch[1];
+  return null;
+}
+
+/**
+ * Embeddable preview page for a Drive file (renders Drive's own viewer
+ * with preview + download, unlike the raw share link inside <img>/<video>
+ * which shows nothing). Null when the URL isn't a Drive link.
+ */
+export function drivePreviewUrl(url: string): string | null {
+  const id = driveFileId(url);
+  return id ? `https://drive.google.com/file/d/${id}/preview` : null;
+}
+
+/**
  * Google Drive share links (…/file/d/ID/view, …/open?id=ID) render as HTML
  * pages — <img>/<video> show nothing. Rewrite to the direct-download form
  * so pasted Drive links just work. Anything else passes through untouched.

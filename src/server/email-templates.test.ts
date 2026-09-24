@@ -9,6 +9,9 @@ import {
   agentWelcomeEmail,
   agentApprovedEmail,
   memberAddedEmail,
+  walletTopupEmail,
+  subscriptionActiveEmail,
+  supportTicketRaisedEmail,
   weeklyInvoiceEmail,
   EMAIL_SUBJECTS,
 } from "./email-templates";
@@ -103,6 +106,35 @@ describe("subjects", () => {
     expect(EMAIL_SUBJECTS.agentWelcome).toContain("Welcome");
     expect(EMAIL_SUBJECTS.agentApproved).toContain("approved");
     expect(EMAIL_SUBJECTS.memberAdded).toContain("added");
+    expect(EMAIL_SUBJECTS.walletTopup).toContain("topped up");
+    expect(EMAIL_SUBJECTS.subscriptionActive).toContain("activated");
+    expect(EMAIL_SUBJECTS.ticketRaised).toContain("ticket");
+  });
+});
+
+describe("money + ticket emails", () => {
+  it("top-up receipt shows credit + fee, head copy names the agent", () => {
+    const agent = walletTopupEmail({ dashboardUrl: "https://x/wallet", amountCents: 25000, feeCents: 750 });
+    expect(agent).toContain("$250.00");
+    expect(agent).toContain("$7.50");
+    const head = walletTopupEmail({ dashboardUrl: "https://x/wallet", agentName: "Sam", amountCents: 25000, feeCents: 750, forHead: true });
+    expect(head).toContain("Sam");
+    expect(head).toContain("$250.00");
+  });
+
+  it("subscription mail names the plan when known", () => {
+    const html = subscriptionActiveEmail({ dashboardUrl: "https://x", planName: "Pro 500" });
+    expect(html).toContain("Pro 500");
+    expect(html).toContain("topped-up wallet");
+  });
+
+  it("ticket mail frames requester vs head correctly and escapes input", () => {
+    const mine = supportTicketRaisedEmail({ dashboardUrl: "https://x", subject: "Mic <broken>", priority: "high" });
+    expect(mine).toContain("Ticket received");
+    expect(mine).toContain("Mic &lt;broken&gt;");
+    const head = supportTicketRaisedEmail({ dashboardUrl: "https://x", subject: "Mic issue", priority: "urgent", requesterName: "Sam", forHead: true });
+    expect(head).toContain("needs attention");
+    expect(head).toContain("Sam");
   });
 });
 

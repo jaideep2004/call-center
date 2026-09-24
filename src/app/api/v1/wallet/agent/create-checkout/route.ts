@@ -27,7 +27,9 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
 
   // Env-first base URL: req origin is wrong behind proxies/tunnels.
   const base = getAppBaseUrl(new URL(req.url).origin);
-  const successUrl = body.success_url || `${base}/dashboard/wallet/agent?payment=success`;
+  // {CHECKOUT_SESSION_ID} is substituted by Stripe — the success page uses
+  // it to reconcile (verify + credit) even if the webhook was delayed/lost.
+  const successUrl = body.success_url || `${base}/dashboard/wallet/agent?payment=success&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = body.cancel_url || `${base}/dashboard/wallet/agent?payment=cancelled`;
 
   // Phase 4 (point 3): net credit + separate 3% fee line item (see wallet/create-checkout).
@@ -61,13 +63,26 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
     cancel_url: cancelUrl,
   });
 
-  await payments.create({
-    agency_id: agencyId,
-    agent_id: agent.id,
-    stripe_session_id: session.id,
-    amount_cents: creditCents,
-    fee_cents: feeCents,
-  });
+  try {
+    await payments.create({
+      agency_id: agencyId,
+      agent_id: agent.id,
+      stripe_session_id: session.id,
+      amount_cents: creditCents,
+      fee_cents: feeCents,
+    });
+  } catch (e) {
+    // The Stripe session already exists and is payable — a missing app row
+    // is exactly the Sept-22 $1 hole (Stripe paid, wallet never credited).
+    // Expire the session so it can never be paid without a row; the webhook
+    // self-heals any payment that slips through the race regardless.
+    try {
+      await (await getStripe()).checkout.sessions.expire(session.id);
+    } catch {
+      /* expire is best-effort; webhook heal covers the race */
+    }
+    throw e;
+  }
 
   return ok({ url: session.url, sessionId: session.id, credit_cents: creditCents, fee_cents: feeCents, charged_cents: creditCents + feeCents });
 }, { resource: "wallet", action: "recharge" });

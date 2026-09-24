@@ -6,7 +6,7 @@ import { publishCallEvent } from "@/lib/event-bridge";
 
 export const GET = apiHandler(async (req, context) => {
   const isAdmin = context.user?.role === "admin";
-  const rows = await notifications.findForViewer(50, context.agencyId ?? null, isAdmin);
+  const rows = await notifications.findForViewer(50, context.agencyId ?? null, isAdmin, context.user?.id ?? null);
   return ok(rows);
 }, { resource: "settings", action: "view" });
 

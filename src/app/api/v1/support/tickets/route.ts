@@ -28,5 +28,14 @@ export const POST = apiHandler(async (req, context) => {
     subject: body.subject,
     priority: body.priority,
   });
+  // Confirmation to the requester + alert to the head. Best-effort.
+  const { sendSupportTicketRaised } = await import("@/server/services/action-emails");
+  void sendSupportTicketRaised({
+    agencyId: context.agencyId,
+    ticketId: ticket.id,
+    subject: body.subject,
+    priority: body.priority,
+    requesterMembershipId: context.membership.id,
+  }).catch(() => {});
   return created(ticket, "Ticket created");
 }, { resource: "support", action: "create" });

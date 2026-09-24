@@ -192,6 +192,10 @@ function TakeCallsInner() {
 		Math.max(1, Number(searchParams.get("page") ?? "1") || 1),
 	);
 	const [deviceReady, setDeviceReady] = useState(false);
+	// Funding gate (subscription AND top-up): resolved from the same rule
+	// the server enforces on Go Online. Null while loading — never blocks
+	// the checklist on its own; the server is the final gate.
+	const [funding, setFunding] = useState<{ funded: boolean; needs_subscription: boolean; needs_topup: boolean } | null>(null);
 	const [liveCampaigns, setLiveCampaigns] = useState<
 		Array<{ id: string; name: string; is_live_for_me?: boolean }>
 	>([]);
@@ -308,6 +312,17 @@ function TakeCallsInner() {
 	useEffect(() => {
 		if (!agentId) return;
 		fetchLiveCampaigns();
+		fetch("/api/v1/agent/funding").then(async (r) => {
+			if (!r.ok) return;
+			const b = await r.json();
+			if (b.data) {
+				setFunding({
+					funded: b.data.funded ?? false,
+					needs_subscription: b.data.needs_subscription ?? false,
+					needs_topup: b.data.needs_topup ?? false,
+				});
+			}
+		}).catch(() => {});
 	}, [agentId, fetchLiveCampaigns]);
 
 	const toggleLiveCampaign = useCallback(
@@ -348,9 +363,16 @@ function TakeCallsInner() {
 
 	const toggleAvailability = useCallback(async () => {
 		if (!agentId || toggling) return;
+		const next: Avail = availability === "available" ? "offline" : "available";
+		// Defense in depth: the CTA is disabled until all checks pass, but
+		// never trust the button — re-verify the device check here so no
+		// path can take an untested browser online.
+		if (next === "available" && !deviceReady) {
+			showToast("Test mic & speaker first — both must be verified", "warning");
+			return;
+		}
 		setToggling(true);
 		setError(null);
-		const next: Avail = availability === "available" ? "offline" : "available";
 		try {
 			const res = await fetch(`/api/v1/agents/${agentId}`, {
 				method: "PATCH",
@@ -374,7 +396,7 @@ function TakeCallsInner() {
 		} finally {
 			setToggling(false);
 		}
-	}, [agentId, availability, toggling]);
+	}, [agentId, availability, toggling, deviceReady]);
 
 	function toggleState(code: string) {
 		setStatesDraft((prev) =>
@@ -540,17 +562,9 @@ function TakeCallsInner() {
 		},
 	];
 
-	if (loading)
-		return (
-			<div className='dashboard-page'>
-				<div className='stack' style={{ gap: 12 }}>
-					{Array.from({ length: 6 }).map((_, i) => (
-						<div key={i} className='skeleton skeleton-text' />
-					))}
-				</div>
-			</div>
-		);
-
+	// ---- Readiness + self-heal hooks: ALL hooks must run before the
+	// `if (loading) return` below (Rules of Hooks — a hook after an early
+	// return changes the hook count between renders and crashes React).
 	const isOnline = availability === "available";
 	const isApproved = agentInfo?.approval_status === "approved";
 	const hasEndpoint = (agentInfo?.endpoint_types?.length ?? 0) > 0;
@@ -570,6 +584,16 @@ function TakeCallsInner() {
 			: "Not set";
 	const liveCount = liveCampaigns.filter((c) => c.is_live_for_me).length;
 	const campaignsReady = liveCount > 0;
+	const fundingOk = funding == null ? true : funding.funded;
+	const fundingDesc = funding == null
+		? "Checking subscription + wallet…"
+		: funding.funded
+			? "Subscription active + wallet topped up"
+			: funding.needs_subscription && funding.needs_topup
+				? "Buy a subscription plan and top up your wallet"
+				: funding.needs_subscription
+					? "Buy a subscription plan to go online"
+					: "Top up your wallet to go online";
 	const readyChecks = [
 		{
 			ok: isApproved,
@@ -580,6 +604,12 @@ function TakeCallsInner() {
 					? `${agentInfo.approval_status} — Contact admin to approve`
 					: "Loading approval…",
 			meta: isApproved ? "Approved" : (agentInfo?.approval_status ?? "pending"),
+		},
+		{
+			ok: fundingOk,
+			label: "Funding",
+			desc: fundingDesc,
+			meta: funding == null ? "Checking…" : funding.funded ? "Funded" : "Required",
 		},
 		{
 			ok: deviceReady,
@@ -631,17 +661,56 @@ function TakeCallsInner() {
 	const passCount = readyChecks.filter((c) => c.ok).length;
 	const allReady = passCount === readyChecks.length;
 	const canGoOnline =
-		isApproved && deviceReady && endpointReady && campaignsReady;
+		isApproved && deviceReady && endpointReady && campaignsReady && fundingOk;
 	const goOnlineBlockedReason = !isApproved
 		? "Awaiting admin approval"
-		: !campaignsReady
-			? "Select a campaign to go live"
-			: !endpointReady
-				? "Endpoint not ready"
-				: !deviceReady
-					? "Test mic & speaker first"
-					: null;
+		: !fundingOk && funding != null
+			? (funding.needs_subscription && funding.needs_topup
+				? "Buy a subscription + top up to go online"
+				: funding.needs_subscription
+					? "Buy a subscription plan to go online"
+					: "Top up your wallet to go online")
+			: !campaignsReady
+				? "Select a campaign to go live"
+				: !endpointReady
+					? "Endpoint not ready"
+					: !deviceReady
+						? "Test mic & speaker first"
+						: null;
 	const isGoOnlineDisabled = !isOnline && !!goOnlineBlockedReason;
+
+	// Self-heal: an agent left online from an earlier session (or approved
+	// then un-approved, device changed, campaigns unassigned) is forced
+	// offline the moment Take Calls loads with failing checks. One-shot.
+	// (Declared after allReady so the effect never reads it before init.)
+	const autoOfflineDone = useRef(false);
+	useEffect(() => {
+		if (autoOfflineDone.current) return;
+		if (!agentId || !agentInfo) return;
+		if (availability !== "available" || allReady) return;
+		autoOfflineDone.current = true;
+		fetch(`/api/v1/agents/${agentId}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ availability: "offline" }),
+		}).then(async (res) => {
+			if (res.ok) {
+				setAvailability("offline");
+				showToast("You were set offline — complete the checklist to go back online", "warning");
+			}
+		}).catch(() => {});
+	}, [agentId, agentInfo, availability, allReady]);
+
+	if (loading)
+		return (
+			<div className='dashboard-page'>
+				<div className='stack' style={{ gap: 12 }}>
+					{Array.from({ length: 6 }).map((_, i) => (
+						<div key={i} className='skeleton skeleton-text' />
+					))}
+				</div>
+			</div>
+		);
 
 	return (
 		<div className='dashboard-page tc-page'>
@@ -727,7 +796,7 @@ function TakeCallsInner() {
 							</span>
 						) : (
 							<span className='badge' style={{ fontSize: 9, flexShrink: 0 }}>
-								{allReady ? "READY" : `${passCount}/4 checks`}
+								{allReady ? "READY" : `${passCount}/${readyChecks.length} checks`}
 							</span>
 						)}
 					</div>
@@ -761,12 +830,12 @@ function TakeCallsInner() {
 							{!isOnline && !allReady && (
 								<div className='tc-cta-progress' aria-hidden>
 									<div className='tc-cta-progress__bar'>
-										<span style={{ width: `${(passCount / 4) * 100}%` }} />
+										<span style={{ width: `${(passCount / readyChecks.length) * 100}%` }} />
 									</div>
 									<span
 										className='text-mono-sm'
 										style={{ fontSize: 10, color: "var(--muted)" }}>
-										{passCount}/4 ready
+										{passCount}/{readyChecks.length} ready
 									</span>
 								</div>
 							)}

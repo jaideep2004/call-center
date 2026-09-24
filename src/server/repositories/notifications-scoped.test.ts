@@ -23,12 +23,21 @@ describe("notifications viewer scoping", () => {
     expect(params).toEqual([50]);
   });
 
-  it("findForViewer as agent includes own agency plus global rows", async () => {
+  it("findForViewer as agent includes own agency plus global rows, addressed to self or broadcast", async () => {
     queryMock.mockResolvedValueOnce([]);
-    await notifications.findForViewer(50, "agency-1", false);
+    await notifications.findForViewer(50, "agency-1", false, "u-1");
     const [sql, params] = queryMock.mock.calls[0] as [string, unknown[]];
     expect(sql).toContain("agency_id = $1 OR agency_id IS NULL");
-    expect(params).toEqual(["agency-1", 50]);
+    expect(sql).toContain("payload->>'userId'");
+    expect(params).toEqual(["agency-1", 50, "u-1"]);
+  });
+
+  it("findForViewer hides rows addressed to other users", async () => {
+    queryMock.mockResolvedValueOnce([]);
+    await notifications.findForViewer(50, "agency-1", false, "u-1");
+    const [sql, params] = queryMock.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain("payload->>'userId' IS NULL OR payload->>'userId' = $3");
+    expect(params).toEqual(["agency-1", 50, "u-1"]);
   });
 
   it("findForViewer without an agency only sees global rows", async () => {
@@ -40,10 +49,20 @@ describe("notifications viewer scoping", () => {
 
   it("markDispatchedScoped as agent cannot touch other-agency rows", async () => {
     queryOneMock.mockResolvedValueOnce({ id: "n-1" });
-    await notifications.markDispatchedScoped("n-1", "agency-1", false);
+    await notifications.markDispatchedScoped("n-1", "agency-1", false, "u-1");
     const [sql, params] = queryOneMock.mock.calls[0] as [string, unknown[]];
     expect(sql).toContain("(agency_id = $2 OR agency_id IS NULL)");
-    expect(params).toEqual(["n-1", "agency-1"]);
+    expect(sql).toContain("payload->>'userId'");
+    expect(params).toEqual(["n-1", "agency-1", "u-1"]);
+  });
+
+  it("markDispatchedScoped cannot mark rows addressed to another user", async () => {
+    queryOneMock.mockResolvedValueOnce(null);
+    await expect(
+      notifications.markDispatchedScoped("n-2", "agency-1", false, "u-1"),
+    ).resolves.toBeNull();
+    const [sql] = queryOneMock.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain("payload->>'userId' = $3");
   });
 
   it("markDispatchedScoped returns null when the row is invisible (404 path)", async () => {
@@ -60,11 +79,12 @@ describe("notifications viewer scoping", () => {
     expect(params ?? []).toEqual([]);
   });
 
-  it("markAllDispatchedScoped as agent stays inside its agency plus global", async () => {
+  it("markAllDispatchedScoped as agent stays inside its agency plus global, minus others' rows", async () => {
     queryMock.mockResolvedValueOnce([{ id: "a" }]);
-    await expect(notifications.markAllDispatchedScoped("agency-1", false)).resolves.toBe(1);
+    await expect(notifications.markAllDispatchedScoped("agency-1", false, "u-1")).resolves.toBe(1);
     const [sql, params] = queryMock.mock.calls[0] as [string, unknown[]];
     expect(sql).toContain("(agency_id = $1 OR agency_id IS NULL)");
-    expect(params).toEqual(["agency-1"]);
+    expect(sql).toContain("payload->>'userId'");
+    expect(params).toEqual(["agency-1", "u-1"]);
   });
 });

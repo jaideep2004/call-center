@@ -16,6 +16,9 @@ export const EMAIL_SUBJECTS = {
   agentWelcome: "Welcome to Coverage Calls — your agent account is ready",
   agentApproved: "You're approved — start taking calls on Coverage Calls",
   memberAdded: "You've been added to an agency on Coverage Calls",
+  walletTopup: "Wallet topped up — Coverage Calls",
+  subscriptionActive: "Subscription activated — Coverage Calls",
+  ticketRaised: "Support ticket received — Coverage Calls",
 };
 
 interface LayoutOptions {
@@ -241,6 +244,70 @@ export function memberAddedEmail(dashboardUrl: string, agencyName?: string): str
 
 function formatUsd(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+export interface WalletTopupEmailInput {
+  dashboardUrl: string;
+  agencyName?: string;
+  agentName?: string;
+  amountCents: number;
+  feeCents: number;
+  /** Head copy: framed as "your agent topped up" instead of "you topped up". */
+  forHead?: boolean;
+}
+
+export function walletTopupEmail(input: WalletTopupEmailInput): string {
+  const who = input.forHead && input.agentName ? `<strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.agentName)}</strong> topped up` : "Your wallet was topped up";
+  return emailLayout({
+    preheader: `${who} — ${formatUsd(input.amountCents)} credited.`,
+    bodyHtml: `
+      <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">${formatUsd(input.amountCents)} credited</h1>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">${who} — <strong style="color:${TEXT}; font-weight: 700;">${formatUsd(input.amountCents)}</strong> credit${input.feeCents > 0 ? ` (plus ${formatUsd(input.feeCents)} Stripe processing fee charged)` : ""}.${input.agencyName ? ` Agency: <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.agencyName)}</strong>.` : ""}</p>
+      <p style="font-family: ${FONT}; margin: 0; color: ${MUTED}; font-size: 13px; line-height: 1.6;">Remember going online needs both an active subscription plan and a topped-up wallet.</p>`,
+    cta: { label: "Open wallet", href: input.dashboardUrl },
+  });
+}
+
+export interface SubscriptionActiveEmailInput {
+  dashboardUrl: string;
+  agencyName?: string;
+  agentName?: string;
+  planName?: string;
+  forHead?: boolean;
+}
+
+export function subscriptionActiveEmail(input: SubscriptionActiveEmailInput): string {
+  const plan = input.planName ? `<strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.planName)}</strong>` : "a plan";
+  const who = input.forHead && input.agentName ? `<strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.agentName)}</strong> activated ${plan}` : `You activated ${plan}`;
+  return emailLayout({
+    preheader: "Subscription activated — one more step to go online.",
+    bodyHtml: `
+      <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">Subscription active</h1>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">${who}.${input.agencyName && !input.forHead ? ` Agency: <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.agencyName)}</strong>.` : ""}</p>
+      <p style="font-family: ${FONT}; margin: 0; color: ${MUTED}; font-size: 13px; line-height: 1.6;">Remember going online needs both an active subscription plan and a topped-up wallet.</p>`,
+    cta: { label: "Open dashboard", href: input.dashboardUrl },
+  });
+}
+
+export interface SupportTicketRaisedEmailInput {
+  dashboardUrl: string;
+  subject: string;
+  priority: string;
+  requesterName?: string;
+  /** Head copy: framed as "needs your attention" instead of "we received it". */
+  forHead?: boolean;
+}
+
+export function supportTicketRaisedEmail(input: SupportTicketRaisedEmailInput): string {
+  return emailLayout({
+    preheader: input.forHead ? "A new support ticket needs attention." : "We received your support ticket.",
+    bodyHtml: `
+      <h1 style="font-family: ${FONT}; font-size: 22px; font-weight: 700; margin: 0 0 14px; color: ${TEXT}; line-height: 1.3;">${input.forHead ? "New support ticket" : "Ticket received"}</h1>
+      <p style="font-family: ${FONT}; margin: 0 0 12px; color: ${TEXT}; font-size: 15px; line-height: 1.7;">${input.forHead
+        ? `${input.requesterName ? `<strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.requesterName)}</strong> raised ` : "A new "}<strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.priority)}</strong> priority ticket: ${escapeHtml(input.subject)}`
+        : `Your <strong style="color:${TEXT}; font-weight: 700;">${escapeHtml(input.priority)}</strong> priority ticket is in the queue: ${escapeHtml(input.subject)} We will reply here and by email.`}</p>`,
+    cta: { label: input.forHead ? "Open support queue" : "View my tickets", href: input.dashboardUrl },
+  });
 }
 
 export interface WeeklyInvoiceEmailInput {

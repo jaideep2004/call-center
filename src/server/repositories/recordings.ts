@@ -35,6 +35,27 @@ export class RecordingRepository extends BaseRepository<RecordingRow> {
     return rows;
   }
 
+  /** Agent-scoped list: only recordings of this agent's own calls. */
+  async findByAgent(agencyId: string, agentId: string): Promise<RecordingRow[]> {
+    return query<RecordingRow>(
+      `SELECT r.* FROM app.recordings r
+        JOIN app.calls c ON c.id = r.call_id
+       WHERE r.agency_id = $1 AND c.agent_id = $2
+       ORDER BY r.created_at DESC`,
+      [agencyId, agentId],
+    );
+  }
+
+  /** Agent-scoped single lookup: null unless the call belongs to the agent. */
+  async findByCallIdForAgent(callId: string, agentId: string): Promise<RecordingRow | null> {
+    return queryOne<RecordingRow>(
+      `SELECT r.* FROM app.recordings r
+        JOIN app.calls c ON c.id = r.call_id
+       WHERE r.call_id = $1 AND c.agent_id = $2`,
+      [callId, agentId],
+    );
+  }
+
   async create(data: {
     agency_id: string;
     call_id: string;

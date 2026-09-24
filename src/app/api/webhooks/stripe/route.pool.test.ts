@@ -14,7 +14,10 @@ const {
   syncMock: vi.fn(async () => ({ checked: 0, paused: [], unpaused: [], skipped: [] })),
 }));
 
-const fakeEvent = {
+const fakeEvent: {
+  type: string;
+  data: { object: { id: string; payment_intent: string; metadata: Record<string, string>; amount_total: number } };
+} = {
   type: "checkout.session.completed",
   data: {
     object: {
@@ -107,11 +110,38 @@ describe("stripe webhook — agency pool top-up (P1.4)", () => {
     expect(creditPoolMock).not.toHaveBeenCalled();
   });
 
-  it("404s unknown sessions", async () => {
+  it("heals orphan sessions (Sept-22 $1 hole): missing row is rebuilt from metadata", async () => {
     findBySessionIdMock.mockResolvedValue(null);
+    fakeEvent.data.object.metadata = { type: "agency_wallet_topup", agency_id: "agency-1", credit_cents: "500000", fee_cents: "0" };
+    const createMock = vi.mocked((await import("@/server/repositories/payments")).payments.create);
+    createMock.mockResolvedValue({
+      id: "pay-healed",
+      agency_id: "agency-1",
+      agent_id: null,
+      status: "pending",
+      amount_cents: 500000,
+      fee_cents: 0,
+      currency: "usd",
+    } as never);
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ stripe_session_id: "cs_pool_9", amount_cents: 500000 }),
+    );
+    expect(walletCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ amount_cents: 500000, idempotency_key: "stripe_cs_pool_9" }),
+    );
+    expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 500000);
+    fakeEvent.data.object.metadata = { type: "agency_wallet_topup", agency_id: "agency-1" };
+  });
+
+  it("404s unknown sessions with unusable metadata", async () => {
+    findBySessionIdMock.mockResolvedValue(null);
+    fakeEvent.data.object.metadata = { type: "mystery" } as never;
     const res = await POST(makeRequest());
     expect(res.status).toBe(404);
     expect(creditPoolMock).not.toHaveBeenCalled();
+    fakeEvent.data.object.metadata = { type: "agency_wallet_topup", agency_id: "agency-1" };
   });
 
   it("credits the NET amount — the 3% fee is never minted (Phase 4)", async () => {

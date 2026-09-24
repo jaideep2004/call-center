@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCents, formatDuration, formatTimer, normalizeMediaUrl } from "./format";
+import { driveFileId, drivePreviewUrl, formatCents, formatDuration, formatTimer, normalizeMediaUrl } from "./format";
 
 describe("formatCents", () => {
   it("formats zero", () => expect(formatCents(0)).toBe("$0.00"));
@@ -45,4 +45,26 @@ describe("normalizeMediaUrl", () => {
     expect(normalizeMediaUrl("  https://cdn.example.com/a.png  ")).toBe("https://cdn.example.com/a.png");
     expect(normalizeMediaUrl("")).toBe("");
   });
+});
+
+describe("driveFileId", () => {
+  it("extracts from file share links", () =>
+    expect(driveFileId("https://drive.google.com/file/d/ABC123xyz/view?usp=sharing")).toBe("ABC123xyz"));
+  it("extracts from open links", () =>
+    expect(driveFileId("https://drive.google.com/open?id=ABC123xyz")).toBe("ABC123xyz"));
+  it("extracts from direct-download links", () =>
+    expect(driveFileId("https://drive.google.com/uc?export=download&id=ABC123xyz")).toBe("ABC123xyz"));
+  it("returns null for non-Drive urls and empties", () => {
+    expect(driveFileId("https://cdn.example.com/a.png")).toBeNull();
+    expect(driveFileId("")).toBeNull();
+  });
+});
+
+describe("drivePreviewUrl", () => {
+  it("builds the embeddable preview page", () =>
+    expect(drivePreviewUrl("https://drive.google.com/file/d/ABC123xyz/view?usp=sharing")).toBe(
+      "https://drive.google.com/file/d/ABC123xyz/preview",
+    ));
+  it("returns null for non-Drive urls", () =>
+    expect(drivePreviewUrl("https://cdn.example.com/a.png")).toBeNull());
 });

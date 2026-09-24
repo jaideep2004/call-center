@@ -8,6 +8,7 @@ const setAllocationMock = vi.hoisted(() => vi.fn());
 const findAgentMock = vi.hoisted(() => vi.fn());
 const paymentsCreateMock = vi.hoisted(() => vi.fn());
 const checkoutCreateMock = vi.hoisted(() => vi.fn(async () => ({ id: "cs_pool_1", url: "https://pay/pool" })));
+const checkoutExpireMock = vi.hoisted(() => vi.fn(async () => ({})));
 const syncMock = vi.hoisted(() => vi.fn(async () => ({ checked: 0, paused: [], unpaused: [], skipped: [] })));
 
 vi.mock("@/server/repositories", () => ({
@@ -25,7 +26,7 @@ vi.mock("@/server/repositories/payments", () => ({
 }));
 
 vi.mock("@/server/stripe", () => ({
-  getStripe: vi.fn(async () => ({ checkout: { sessions: { create: checkoutCreateMock } } })),
+  getStripe: vi.fn(async () => ({ checkout: { sessions: { create: checkoutCreateMock, expire: checkoutExpireMock } } })),
 }));
 
 vi.mock("@/server/services/offer-wallet-sync", () => ({
@@ -131,12 +132,19 @@ describe("agency pool wallet API (P1.4)", () => {
       const res = await walletRoute.POST(req("POST", { amount_cents: 5000 }), ctx);
       expect(res.status).toBe(200);
       const [args] = checkoutCreateMock.mock.calls[0] as unknown as [Record<string, unknown>];
-      expect(args.success_url).toBe("https://coveragecalls.com/dashboard/wallet/pool?payment=success");
+      expect(args.success_url).toBe("https://coveragecalls.com/dashboard/wallet/pool?payment=success&session_id={CHECKOUT_SESSION_ID}");
       expect(args.cancel_url).toBe("https://coveragecalls.com/dashboard/wallet/pool?payment=cancelled");
     } finally {
       if (saved === undefined) delete process.env.APP_BASE_URL;
       else process.env.APP_BASE_URL = saved;
     }
+  });
+
+  it("POST expires the Stripe session when the payments row insert fails (no payable orphan)", async () => {
+    paymentsCreateMock.mockRejectedValueOnce(new Error("db down"));
+    const res = await walletRoute.POST(req("POST", { amount_cents: 5000 }), ctx);
+    expect(res.status).toBe(500);
+    expect(checkoutExpireMock).toHaveBeenCalledWith("cs_pool_1");
   });
 
   it("PUT allocates within the pool and re-syncs pauses", async () => {

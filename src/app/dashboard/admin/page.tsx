@@ -104,6 +104,44 @@ export default function AdminPage() {
     ]).finally(()=> setLoading(false));
   }, []);
 
+  // Fallback: when the reports endpoints return no rows (permissions,
+  // date-window or grouping issues) but we DO have call rows, bin the
+  // already-fetched calls by day so the chart never sits empty while
+  // calls exist. Connected = connected/ended, failed = failed, everything
+  // else counts as missed. Bars sum to the daily total by construction.
+  useEffect(() => {
+    if (callActivity && callActivity.length) return;
+    if (!outcomeCalls.length) return;
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const buckets = new Map<string, { total: number; connected: number; failed: number; missed: number }>();
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      buckets.set(key, { total: 0, connected: 0, failed: 0, missed: 0 });
+    }
+    for (const c of outcomeCalls) {
+      if (!c.started_at) continue;
+      const key = String(c.started_at).slice(0, 10);
+      const b = buckets.get(key);
+      if (!b) continue;
+      b.total += 1;
+      const st = (c.state || "").toLowerCase();
+      if (st === "connected" || st === "ended") b.connected += 1;
+      else if (st === "failed") b.failed += 1;
+      else b.missed += 1;
+    }
+    const mapped = [...buckets.entries()].map(([key, b]) => ({
+      label: days[new Date(key + "T12:00:00").getDay()],
+      total: b.total,
+      connected: b.connected,
+      missed: b.missed,
+      failed: b.failed,
+    }));
+    if (mapped.some((g) => g.total > 0)) setCallActivity(mapped);
+  }, [callActivity, outcomeCalls]);
+
   const totalCalls = summary?.total_calls ?? 0;
   const totalLeads = summary?.total_leads ?? 0;
   const totalRev = summary ? (summary.total_revenue_cents/100) : 0;
@@ -236,7 +274,9 @@ export default function AdminPage() {
             <>
             <div className="cc-bars" role="img" aria-label="Call activity grouped bars">
               {callActivity.map(g=>{
-                const max=Math.max(...callActivity.map(x=>x.total), 72);
+                // Scale to the actual max so small counts stay visible (a
+                // fixed floor flattens real data into invisible slivers).
+                const max=Math.max(...callActivity.map(x=>x.total), 1);
                 return (
                   <div key={g.label} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:6}}>
                     <div className="cc-bars__group">
