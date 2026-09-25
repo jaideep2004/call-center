@@ -426,3 +426,9 @@
 - Did: live proved Telnyx rejects speak without explicit voice (10004). Set voice Telnyx.KokoroTTS.af (documented id). No behavior change otherwise.
 - Broke / TODO: none. Redeploy + next inbound must show no speak error and caller hears the line.
 - Tests: typecheck clean, orchestrator suite green.
+## 2026-09-24 - assistant - TTS KILLED CALLS (unknown-event defaulted to ended)
+- Did: live CL-0020 died at 2.6s the instant the hold message started. Root cause: normalizeEvent defaulted EVERY unmapped Telnyx type to ended, so call.speak.started was processed as a hangup (cancel both legs + missed). Our own feature murdered the call. Fixed: explicit speak/playback/gather mappings to the ringing no-op (same precedent as bridged/cost) + default unknown to ringing with loud warn log. Worst case now is a delayed sweep, never a murdered conversation.
+- Decisions: follow the existing bridged/cost precedent, no new event type; warn on unmapped types so they get explicit mappings.
+- Broke / TODO: none. Deploy urgently - every TTS call dies without this.
+- Next: live call must hear full message, then bridge.
+- Tests: typecheck clean, npm test 774 passed | 5 skipped (102 files: +audio mappings, +ringing no-op), build clean.

@@ -103,11 +103,20 @@ describe("telnyxProvider", () => {
       expect(result.type).toBe("ringing");
     });
 
-    it("falls back to ended for unknown event types", () => {
+    it("falls back to the ringing no-op for unknown event types (never ends live calls)", () => {
       const result = telnyxProvider.normalizeEvent({
         data: { event_type: "call.unknown", id: "evt_005", payload: { call_control_id: "ccieeefff" } },
       });
-      expect(result.type).toBe("ended");
+      expect(result.type).toBe("ringing");
+    });
+
+    it("maps speak/playback lifecycle to the no-op so the hold message cannot kill calls", () => {
+      for (const event_type of ["call.speak.started", "call.speak.ended", "call.playback.started", "call.playback.ended", "call.gather.ended"]) {
+        const result = telnyxProvider.normalizeEvent({
+          data: { event_type, id: "evt_audio", payload: { call_control_id: "ccieeefff" } },
+        });
+        expect(result.type).toBe("ringing");
+      }
     });
 
     it("handles legacy format with metadata.event", () => {

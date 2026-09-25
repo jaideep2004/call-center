@@ -248,6 +248,17 @@ describe("processProviderEvent — agent leg handling", () => {
     );
   });
 
+  it("leaves a ringing call alone on audio-lifecycle echoes (speak.started normalizes to ringing)", async () => {
+    findByIdMock.mockResolvedValue(makeCall({ agent_id: "agent-1", provider_agent_call_id: "agent-leg-1" }));
+
+    const result = await processProviderEvent(agentLegEvent("ringing", "call-1", "agent-leg-1"));
+
+    expect(cancelMock).not.toHaveBeenCalled();
+    expect(updateStateMock).not.toHaveBeenCalled();
+    expect(claimStateMock).not.toHaveBeenCalled();
+    expect(result).toBeTruthy();
+  });
+
   it("ends the call normally when the agent leg hangs up while connected", async () => {
     findByIdMock.mockResolvedValue(makeCall({ state: "connected", connected_at: "2026-01-01T00:00:10Z" }));
     findByProviderCallIdMock.mockResolvedValue(null);

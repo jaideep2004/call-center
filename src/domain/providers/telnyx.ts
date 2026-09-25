@@ -119,6 +119,14 @@ const TELNYX_EVENT_MAP: Record<string, ProviderEventType> = {
   "call.bridged": "ringing",
   // Billing event fired at call end; harmless once the call is terminal.
   "call.cost": "ringing",
+  // Audio lifecycle from our own hold message (speak) / playback actions.
+  // TELEMETRY ONLY — mapping them anywhere near "ended" hangs up callers
+  // mid-sentence (live incident: call.speak.started killed CL-0020 at 2.6s).
+  "call.speak.started": "ringing",
+  "call.speak.ended": "ringing",
+  "call.playback.started": "ringing",
+  "call.playback.ended": "ringing",
+  "call.gather.ended": "ringing",
 };
 
 function getClient(): Telnyx {
@@ -147,7 +155,17 @@ export const telnyxProvider: TelephonyProvider = {
   normalizeEvent(payload: unknown): NormalizedProviderEvent {
     const webhook = payload as Record<string, unknown>;
     const eventType = resolveEventType(webhook);
-    const type = TELNYX_EVENT_MAP[eventType] ?? "ended";
+    // Unknown Telnyx event types MUST NOT default to "ended" — that mapping
+    // hung up live calls on every new informational event Telnyx invents
+    // (CL-0020 died to call.speak.started). Default is the ringing no-op:
+    // worst case a genuinely-new terminal event waits for the 45s stuck-call
+    // sweep instead of murdering a live conversation. Logged loudly so new
+    // types get explicit mappings.
+    let type = TELNYX_EVENT_MAP[eventType];
+    if (!type) {
+      console.warn(`[telnyx] unmapped event type "${eventType}" — treating as no-op ringing`);
+      type = "ringing";
+    }
     return {
       provider: "telnyx",
       eventId: getEventId(webhook),
