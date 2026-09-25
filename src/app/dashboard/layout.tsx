@@ -412,6 +412,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Ensures a pending agent row exists for fresh signups (membership-less
+  // users included) — one shot per session, best-effort. Without this,
+  // no-invite signups never appear in Admin -> Agents until they happen to
+  // open Take Calls.
+  const ensuredAgentRow = useRef(false);
   useEffect(() => {
     if (!user) return;
     const pendingInvite = localStorage.getItem("pending_invite");
@@ -429,6 +434,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setIsHead(body.data.isHead === true);
         setMembershipId(body.data.membership?.id ?? null);
         setAgentId(body.data.agentId ?? null);
+        const role = body.data.publisherId || body.data.publisher?.id
+          ? "publisher"
+          : (body.data.user?.role ?? null);
+        if (role === "agent" && !body.data.agentId && !ensuredAgentRow.current) {
+          ensuredAgentRow.current = true;
+          try {
+            const ensureRes = await fetch("/api/v1/agents/auto-create", { method: "POST" });
+            if (ensureRes.ok) {
+              const ensureBody = await ensureRes.json();
+              if (ensureBody.data?.id) setAgentId(ensureBody.data.id);
+            }
+          } catch { /* best-effort; Take Calls button covers the rest */ }
+        }
         if (body.data.agentId) {
           const agentRes = await fetch(`/api/v1/agents/${body.data.agentId}`);
           if (agentRes.ok) {

@@ -8,6 +8,11 @@ export const GET = apiHandler(async (req, context) => {
     const agent = await agents.findByMembershipId(context.membership.id);
     agentId = agent?.id ?? null;
   }
+  if (!agentId && context.user?.id) {
+    // Pending-at-signup rows have no membership yet — resolve by login identity.
+    const pending = await agents.findByUserId(context.user.id).catch(() => null);
+    agentId = pending?.id ?? null;
+  }
   let publisher: { id: string; name: string } | null = null;
   let publisherId: string | null = null;
   if (context.user?.id) {

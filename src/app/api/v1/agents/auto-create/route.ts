@@ -12,12 +12,26 @@ export const POST = apiHandler(async (req, { user }) => {
     "SELECT id, agency_id FROM app.memberships WHERE user_id = $1 AND status = 'active' LIMIT 1",
     [user.id],
   );
-  if (mems.length === 0) return ok(null, "No agency yet — create one to get started");
+  if (mems.length === 0) {
+    // Membership-less signup: ensure a PENDING agent row keyed by login
+    // identity so Admin -> Agents shows them immediately. Approval first,
+    // agency later — agency creation is approval-gated.
+    const pending = await agents.findByUserId(user.id);
+    if (pending) return ok(pending, "Agent already exists");
+    const row = await agents.create({
+      agency_id: null,
+      membership_id: null,
+      user_id: user.id,
+      endpoint_types: ["webrtc"],
+    });
+    return created(row, "Pending agent profile created — awaiting approval");
+  }
   const existingAgent = await agents.findByMembershipId(mems[0].id);
   if (existingAgent) return ok(existingAgent, "Agent already exists");
   const newAgent = await agents.create({
     agency_id: mems[0].agency_id,
     membership_id: mems[0].id,
+    user_id: user.id,
     endpoint_types: ["webrtc"],
   });
   return created(newAgent, "Agent created");

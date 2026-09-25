@@ -161,6 +161,8 @@ export default function SettingsPage() {
   // Tracking-number assignment is head-managed infra: plain agents don't
   // get the Phone Numbers tab (the page itself shows them a notice).
   const [isHead, setIsHead] = useState<boolean | null>(null);
+  // Registration approval: agency creation unlocks only once approved.
+  const [myApproval, setMyApproval] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/v1/me").then(async (res) => {
@@ -171,6 +173,16 @@ export default function SettingsPage() {
         if (body.data?.publisherId || body.data?.publisher?.id) setMeRole("publisher");
         else setMeRole(body.data?.user?.role ?? null);
         setIsHead(body.data?.isHead === true);
+        if (body.data?.agentId) {
+          fetch(`/api/v1/agents/${body.data.agentId}`).then(async (ar) => {
+            if (ar.ok) {
+              const ab = await ar.json();
+              setMyApproval(ab.data?.approval_status ?? null);
+            }
+          }).catch(() => {});
+        } else {
+          setMyApproval(null);
+        }
       } else {
         setMeRole(null);
       }
@@ -357,7 +369,15 @@ export default function SettingsPage() {
                 </div>
               </div>
             </section>
-            {creationAllowed && (
+            {creationAllowed && myApproval !== "approved" && myApproval !== null && (
+              <section className="card card--spacious" style={{ padding:22 }}>
+                <h2 className="settings-card-title" style={{ fontSize:15 }}>Awaiting approval</h2>
+                <p className="text-muted" style={{ fontSize: 13, margin:"8px 0 0", lineHeight:1.6 }}>
+                  Your registration is <strong style={{ color:"var(--ink)" }}>{myApproval}</strong>. Starting a new agency unlocks once approved.
+                </p>
+              </section>
+            )}
+            {creationAllowed && (myApproval === "approved" || myApproval === null) && (
               <section className="card card--spacious" style={{ padding:22, borderColor:"rgba(239,68,68,.25)" }}>
                 <h2 className="settings-card-title">Start a New Agency</h2>
                 <p className="settings-card-sub">Leave {agency.name} and create your own agency as head. Your calls and payouts stay with {agency.name} — only your membership moves.</p>
@@ -390,6 +410,14 @@ export default function SettingsPage() {
             <div className="card card--spacious" style={{ padding:22 }}>
               <div className="skeleton skeleton-text" />
             </div>
+          ) : myApproval !== null && myApproval !== "approved" ? (
+            <section className="card card--spacious" style={{ padding:22 }}>
+              <h2 className="settings-card-title" style={{ fontSize:15 }}>Awaiting approval</h2>
+              <p className="text-muted" style={{ fontSize: 13, margin:"8px 0 0", lineHeight:1.6 }}>
+                Your registration is <strong style={{ color:"var(--ink)" }}>{myApproval}</strong>. An admin reviews every signup — you can create an agency once approved.
+              </p>
+              <Link href="/dashboard/support" className="btn btn-secondary btn-sm" style={{ marginTop:16 }}>Contact Support →</Link>
+            </section>
           ) : creationAllowed ? (
             <section className="card card--spacious" style={{ padding:22 }}>
               <h2 className="settings-card-title">Create Your Agency</h2>

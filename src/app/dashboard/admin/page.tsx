@@ -274,16 +274,18 @@ export default function AdminPage() {
             <>
             <div className="cc-bars" role="img" aria-label="Call activity grouped bars">
               {callActivity.map(g=>{
-                // Scale to the actual max so small counts stay visible (a
-                // fixed floor flattens real data into invisible slivers).
+                // Pixel heights (not %) — % heights of empty inline elements
+                // collapse to invisible in some browser/style combinations;
+                // px with a 6px floor always paints. Scale to ~110px.
                 const max=Math.max(...callActivity.map(x=>x.total), 1);
+                const px=(v:number)=>Math.max(6, Math.round(v/max*110));
                 return (
                   <div key={g.label} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:6}}>
                     <div className="cc-bars__group">
-                      <i style={{height:`${g.total/max*100}%`}} title={`Total ${g.total}`}/>
-                      <i style={{height:`${g.connected/max*100}%`}} title={`Connected ${g.connected}`}/>
-                      <i style={{height:`${g.missed/max*100}%`}} title={`Missed ${g.missed}`}/>
-                      <i style={{height:`${g.failed/max*100}%`}} title={`Failed ${g.failed}`}/>
+                      <i style={{height:px(g.total)}} title={`Total ${g.total}`}/>
+                      <i style={{height:px(g.connected)}} title={`Connected ${g.connected}`}/>
+                      <i style={{height:px(g.missed)}} title={`Missed ${g.missed}`}/>
+                      <i style={{height:px(g.failed)}} title={`Failed ${g.failed}`}/>
                     </div>
                     <span className="cc-bars__label">{g.label}</span>
                   </div>

@@ -410,7 +410,7 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
     const candidates = [];
     for (const a of availableAgents) {
       if (excludeAgentIds?.includes(a.id)) continue;
-      if (requireAssignment && !assignedAgencyIds.includes(a.agency_id) && !assignedAgentIds.includes(a.id)) {
+      if (requireAssignment && !(a.agency_id != null && assignedAgencyIds.includes(a.agency_id)) && !assignedAgentIds.includes(a.id)) {
         continue;
       }
       if (liveAgentIds && !liveAgentIds.has(a.id)) {

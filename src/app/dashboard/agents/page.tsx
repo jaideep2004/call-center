@@ -9,7 +9,7 @@ import { showToast } from "@/lib/use-toast";
 
 interface Agent {
   id: string;
-  membership_id: string;
+  membership_id: string | null;
   approval_status: string;
   availability: string;
   priority: number;
@@ -41,6 +41,7 @@ function AgentsInner() {
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
   const hasMounted = useRef(false);
 
   const fetchAgents = useCallback(async () => {
@@ -59,6 +60,16 @@ function AgentsInner() {
   }, [page, debouncedQ, statusFilter]);
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
+
+  // Pending-approval badge count (cheap: one row fetch, total from pagination).
+  useEffect(() => {
+    fetch("/api/v1/agents?status=pending&page=1&limit=1").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setPendingCount(body.pagination?.total ?? 0);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Debounce 300ms
   useEffect(() => {
@@ -133,7 +144,7 @@ function AgentsInner() {
     },
     {
       key: "user_name", header: "Name",
-      render: (a) => <span><Link href={`/dashboard/agents/${a.id}`} className="clickable" style={{ fontWeight: 500 }}>{a.user_name || a.membership_id.slice(0, 8)}</Link>{a.display_code && <span className="text-mono-sm" style={{ marginLeft: 8, color: "var(--muted)", fontSize: 11 }}>{a.display_code}</span>}</span>,
+      render: (a) => <span><Link href={`/dashboard/agents/${a.id}`} className="clickable" style={{ fontWeight: 500 }}>{a.user_name || a.display_code || a.id.slice(0, 8)}</Link>{a.display_code && a.user_name && <span className="text-mono-sm" style={{ marginLeft: 8, color: "var(--muted)", fontSize: 11 }}>{a.display_code}</span>}</span>,
     },
     { key: "user_email", header: "Email", render: (a) => <span className="text-mono-sm">{a.user_email}</span> },
     {
@@ -179,6 +190,9 @@ function AgentsInner() {
         {["", "pending", "approved", "rejected", "suspended"].map((s) => (
           <button key={s} className={`btn btn-sm${statusFilter === s ? " btn-primary" : " btn-secondary"}`} onClick={() => { setStatusFilter(s); setPage(1); }} style={{ textTransform: "capitalize" }}>
             {s || "All"}
+            {s === "pending" && pendingCount != null && pendingCount > 0 && (
+              <span className="badge badge-danger" style={{ marginLeft: 6, fontSize: 10 }}>{pendingCount}</span>
+            )}
           </button>
         ))}
         <span className="text-mono-sm" style={{ marginLeft: "auto", whiteSpace: "nowrap", color: "var(--muted)" }}>{total} total</span>

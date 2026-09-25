@@ -1,4 +1,6 @@
 
+## 2026-09-25 reviewer - money-path audit - VERDICT: FAIL - top finding: pool top-up double-credits ledger+pool (infinite/double-spend) + AND-vs-OR funding gate divergence.
+
 ## 2026-09-07 14:36 - test-worker (via Hermes) - LIVE_TEST - 14/14 pass on https://coveragecalls.com - saved to docs/LIVE_TEST_2026-09-04.md - next: optional close /revenue + /admin/cms to 401
 
 ## 2026-08-31 18:30 - Hermes backend - PHASE 5 complete (10/10 pending dashboards)
@@ -444,3 +446,9 @@
 - Broke / TODO: none. Deploy, press Sync from Retreaver, verify playback. DNS half (SPF/DKIM/DMARC + domain SMTP) remains client-side - code cannot fix that part.
 - Next: client confirms recordings + checks spam folder again.
 - Tests: typecheck clean, npm test 784 passed | 5 skipped (105 files: +retreaver-recordings, +sync API, +download ownership), build clean.
+## 2026-09-24 - assistant - CALL ACTIVITY BARS (px heights)
+- Did: bars rendered with percentage heights on empty inline elements, which collapse to invisible in several browser/style combinations (labels + legend painted, bars did not). Rebuilt on pixel heights (110px scale, 6px floor) + display:block. Data path untouched (fallback binning already guarantees rows when calls exist).
+- Broke / TODO: none. Deploy + hard-refresh admin console to confirm bars.
+- Tests: typecheck clean, npm test 793 passed | 5 skipped, build clean.
+
+2026-09-25 - reviewer - reviewed dashboards/RBAC/content/settings - FAIL - top: unscoped agents GET + reports leak + phone-numbers fetch bug

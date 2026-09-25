@@ -1,5 +1,5 @@
 import { apiHandler, ok, created, fail } from "@/server/api-utils";
-import { agencies, systemSettings } from "@/server/repositories";
+import { agencies, agents, systemSettings } from "@/server/repositories";
 import { validate, createAgencySchema } from "@/server/validate";
 import { transaction, query } from "@/server/db";
 
@@ -18,6 +18,17 @@ export const POST = apiHandler(async (req, context) => {
     const allowed = await systemSettings.getBoolean("allow_agent_agency_creation");
     if (!allowed) {
       return fail("Agency creation is disabled by the platform admin", 403);
+    }
+    // Registration approval first: pending agents may not create agencies.
+    // Identity is the membership agent row, else the pending signup row.
+    let approverAgent = context.membership
+      ? await agents.findByMembershipId(context.membership.id).catch(() => null)
+      : null;
+    if (!approverAgent && context.user) {
+      approverAgent = await agents.findByUserId(context.user.id).catch(() => null);
+    }
+    if (!approverAgent || approverAgent.approval_status !== "approved") {
+      return fail("Your registration is pending approval — you can create an agency once approved", 403);
     }
     if (context.agencyId && context.membership) {
       // Phase 3 (point 6): the old guard ("already belong") made agent
@@ -48,11 +59,17 @@ export const POST = apiHandler(async (req, context) => {
     // only, stranding fresh heads).
     const ensureAgentRow = async (membershipId: string) => {
       const existing = await client.query("SELECT id FROM app.agents WHERE membership_id = $1", [membershipId]);
-      if (existing.rows.length === 0) {
+      if (existing.rows.length > 0) return;
+      // Adopt a pending signup row (keyed by login) instead of stranding a duplicate.
+      const adopted = await client.query(
+        `UPDATE app.agents SET agency_id = $1, membership_id = $2 WHERE user_id = $3 AND membership_id IS NULL RETURNING id`,
+        [agencyRow.id, membershipId, context.user!.id],
+      );
+      if (adopted.rows.length === 0) {
         await client.query(
-          `INSERT INTO app.agents (agency_id, membership_id, endpoint_types, display_code)
-           VALUES ($1, $2, '{webrtc}', 'AG-' || LPAD(nextval('app.agent_code_seq')::text, 4, '0'))`,
-          [agencyRow.id, membershipId],
+          `INSERT INTO app.agents (agency_id, membership_id, user_id, endpoint_types, display_code)
+           VALUES ($1, $2, $3, '{webrtc}', 'AG-' || LPAD(nextval('app.agent_code_seq')::text, 4, '0'))`,
+          [agencyRow.id, membershipId, context.user!.id],
         );
       }
     };

@@ -41,11 +41,12 @@ export const POST = apiHandler(async (req, { params, user }) => {
     });
   }
 
-  const newAgent = await agents.create({
+  const newAgent = await agents.adoptOrCreate({
     agency_id: targetAgencyId,
     membership_id: newMembership.id,
+    user_id: user.id,
     endpoint_types: ["webrtc"],
-  });
+  }).then((r) => r.agent);
 
   await recruitmentInvites.accept(token);
 

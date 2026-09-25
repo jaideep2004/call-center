@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const agenciesCreateMock = vi.hoisted(() => vi.fn());
 const getBooleanMock = vi.hoisted(() => vi.fn(async () => true));
+const findAgentMock = vi.hoisted(() => vi.fn());
+const findUserAgentMock = vi.hoisted(() => vi.fn());
 const clientQueryMock = vi.hoisted(() =>
   vi.fn<(sql: string, params?: unknown[]) => Promise<{ rows: Array<{ id?: string; one?: number }> }>>(
     async () => ({ rows: [] }),
@@ -13,6 +15,7 @@ const dbQueryMock = vi.hoisted(() =>
 
 vi.mock("@/server/repositories", () => ({
   agencies: { create: agenciesCreateMock },
+  agents: { findByMembershipId: findAgentMock, findByUserId: findUserAgentMock },
   systemSettings: { getBoolean: getBooleanMock },
 }));
 
@@ -49,6 +52,8 @@ const ctx = { params: Promise.resolve({}) };
 beforeEach(() => {
   vi.clearAllMocks();
   getBooleanMock.mockResolvedValue(true);
+  findAgentMock.mockResolvedValue({ id: "agent-1", approval_status: "approved" });
+  findUserAgentMock.mockResolvedValue(null);
   clientQueryMock.mockResolvedValue({ rows: [] });
   dbQueryMock.mockResolvedValue([]);
   agenciesCreateMock.mockResolvedValue({ id: "agency-2", name: "New Co", slug: "new-co" });
@@ -88,10 +93,42 @@ describe("POST /api/v1/agencies leave-and-create (Phase 3, point 6)", () => {
 
   it("creates a head membership for accounts with none", async () => {
     agentCtx = { user: { id: "u-9", role: "agent" }, agencyId: null, membership: undefined };
+    findUserAgentMock.mockResolvedValue({ id: "agent-9", approval_status: "approved" });
     clientQueryMock.mockResolvedValue({ rows: [{ id: "m-new" }] });
     const res = await route.POST(req({ name: "Fresh Co", slug: "fresh-co" }), ctx);
     expect(res.status).toBe(201);
     const sqls = clientQueryMock.mock.calls.map((c) => c[0]);
     expect(sqls.some((s) => s.includes("INSERT INTO app.memberships"))).toBe(true);
+  });
+
+  it("403s pending agents (approval first, agency later)", async () => {
+    findAgentMock.mockResolvedValue({ id: "agent-1", approval_status: "pending" });
+    const res = await route.POST(req({ name: "New Co", slug: "new-co", leaveAgency: true }), ctx);
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { message?: string };
+    expect(body.message).toContain("pending approval");
+    expect(agenciesCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("403s membership-less signups without an approved pending row", async () => {
+    agentCtx = { user: { id: "u-9", role: "agent" }, agencyId: null, membership: undefined };
+    findUserAgentMock.mockResolvedValue(null);
+    const res = await route.POST(req({ name: "Fresh Co", slug: "fresh-co" }), ctx);
+    expect(res.status).toBe(403);
+    expect(agenciesCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("adopts a pending signup row instead of stranding a duplicate", async () => {
+    agentCtx = { user: { id: "u-9", role: "agent" }, agencyId: null, membership: undefined };
+    findUserAgentMock.mockResolvedValue({ id: "agent-9", approval_status: "approved" });
+    clientQueryMock.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM app.agents WHERE membership_id")) return { rows: [] };
+      return { rows: [{ id: "m-new" }] };
+    });
+    const res = await route.POST(req({ name: "Fresh Co", slug: "fresh-co" }), ctx);
+    expect(res.status).toBe(201);
+    const sqls = clientQueryMock.mock.calls.map((c) => c[0]);
+    expect(sqls.some((s) => s.includes("UPDATE app.agents SET agency_id"))).toBe(true);
+    expect(sqls.some((s) => s.includes("INSERT INTO app.agents"))).toBe(false);
   });
 });

@@ -4,8 +4,10 @@ import type { PoolClient } from "pg";
 
 export interface AgentRow {
   id: string;
-  agency_id: string;
-  membership_id: string;
+  agency_id: string | null;
+  membership_id: string | null;
+  /** Login identity. Set for pending-at-signup rows that have no membership yet. */
+  user_id: string | null;
   approval_status: string;
   availability: string;
   priority: number;
@@ -39,10 +41,11 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     const where = agencyId ? `a.id = $1 AND a.agency_id = $2` : `a.id = $1`;
     const params = agencyId ? [id, agencyId] : [id];
     const row = await queryOne<AgentWithUser>(
-      `SELECT a.*, u.name as user_name, u.email as user_email
+      `SELECT a.*, COALESCE(u.name, u2.name, '') as user_name, COALESCE(u.email, u2.email, '') as user_email
        FROM app.agents a
-       JOIN app.memberships m ON m.id = a.membership_id
-       JOIN "user" u ON u.id = m.user_id
+       LEFT JOIN app.memberships m ON m.id = a.membership_id
+       LEFT JOIN "user" u ON u.id = m.user_id
+       LEFT JOIN "user" u2 ON u2.id = a.user_id
        WHERE ${where}`,
       params,
     );
@@ -53,6 +56,15 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     return queryOne<AgentRow>(
       "SELECT * FROM app.agents WHERE membership_id = $1",
       [membershipId],
+      client,
+    );
+  }
+
+  /** Pending-at-signup rows are keyed by login identity (no membership yet). */
+  async findByUserId(userId: string, client?: PoolClient): Promise<AgentRow | null> {
+    return queryOne<AgentRow>(
+      "SELECT * FROM app.agents WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1",
+      [userId],
       client,
     );
   }
@@ -106,7 +118,7 @@ export class AgentRepository extends BaseRepository<AgentRow> {
       }
     }
     if (search) {
-      conditions.push(`(u.name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`);
+      conditions.push(`(COALESCE(u.name, u2.name, '') ILIKE $${paramIndex} OR COALESCE(u.email, u2.email, '') ILIKE $${paramIndex})`);
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
@@ -114,20 +126,23 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const orderClause = `ORDER BY ${sortBy} ${order}`;
 
+    // LEFT JOINs: pending-at-signup rows have no membership yet but must
+    // still list (Admin -> Agents -> Pending) with the login identity.
+    const joinClause = `FROM app.agents a
+      LEFT JOIN app.memberships m ON m.id = a.membership_id
+      LEFT JOIN "user" u ON u.id = m.user_id
+      LEFT JOIN "user" u2 ON u2.id = a.user_id`;
+    const selectClause = `a.*, COALESCE(u.name, u2.name, '') as user_name, COALESCE(u.email, u2.email, '') as user_email`;
+
     const countResult = await queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM app.agents a
-       JOIN app.memberships m ON m.id = a.membership_id
-       JOIN "user" u ON u.id = m.user_id
-       ${where}`,
+      `SELECT COUNT(*) as count ${joinClause} ${where}`,
       queryParams,
     );
     const total = parseInt(countResult?.count ?? "0", 10);
 
     const rows = await query<AgentWithUser>(
-      `SELECT a.*, u.name as user_name, u.email as user_email
-       FROM app.agents a
-       JOIN app.memberships m ON m.id = a.membership_id
-       JOIN "user" u ON u.id = m.user_id
+      `SELECT ${selectClause}
+       ${joinClause}
        ${where} ${orderClause} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...queryParams, limit, offset],
     );
@@ -139,8 +154,9 @@ export class AgentRepository extends BaseRepository<AgentRow> {
   }
 
   async create(data: {
-    agency_id: string;
-    membership_id: string;
+    agency_id?: string | null;
+    membership_id?: string | null;
+    user_id?: string | null;
     states?: string[];
     zip_prefixes?: string[];
     licenses?: string[];
@@ -163,6 +179,38 @@ export class AgentRepository extends BaseRepository<AgentRow> {
       client,
     );
     return row!;
+  }
+
+  /**
+   * Adopt-or-create: when a membership-less pending row (keyed by user_id)
+   * exists, adopt it into the agency/membership instead of stranding a
+   * duplicate. Returns { agent, adopted }.
+   */
+  async adoptOrCreate(data: {
+    agency_id: string;
+    membership_id: string;
+    user_id: string;
+    endpoint_types?: string[];
+  }, client?: PoolClient): Promise<{ agent: AgentRow; adopted: boolean }> {
+    const byMembership = await this.findByMembershipId(data.membership_id, client);
+    if (byMembership) return { agent: byMembership, adopted: false };
+    const pending = await this.findByUserId(data.user_id, client);
+    if (pending) {
+      const adopted = await this.update(
+        pending.id,
+        { agency_id: data.agency_id, membership_id: data.membership_id },
+        undefined,
+        client,
+      );
+      return { agent: adopted, adopted: true };
+    }
+    const agent = await this.create({
+      agency_id: data.agency_id,
+      membership_id: data.membership_id,
+      user_id: data.user_id,
+      endpoint_types: data.endpoint_types ?? ["webrtc"],
+    }, client);
+    return { agent, adopted: false };
   }
 
   async updateAvailability(id: string, availability: string, agencyId: string): Promise<AgentRow> {
