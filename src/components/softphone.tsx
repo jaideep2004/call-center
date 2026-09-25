@@ -208,7 +208,9 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     addDebug(`Polling started (agent=${agentId.slice(0,8)})`);
     let pollCount = 0;
     let pollDelay = 1500;
-    const MAX_POLL_DELAY = 15000;
+    // Cap at 5s (not 15s): this is the popup backstop when the socket event
+    // is missed — an idle-open tab must never be more than ~5s behind reality.
+    const MAX_POLL_DELAY = 5000;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let isActive = true;
 

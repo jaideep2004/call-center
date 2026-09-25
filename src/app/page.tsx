@@ -48,7 +48,8 @@ export default async function Home() {
         <DashboardSection />
         <FeaturesAndPricing />
         <TestimonialsSection />
-        <FAQSection items={faqs} />
+        {/* Homepage teases ~3 FAQs; the full archive lives on /faq. */}
+        <FAQSection items={faqs.slice(0, 3)} moreHref={faqs.length > 3 ? "/faq" : undefined} />
         <CoverageFooterCTA />
       </main>
     </div>

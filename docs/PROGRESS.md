@@ -374,7 +374,21 @@
 - Decisions: GHL iframe cannot report bookings — honest client-side state is the only option short of GHL webhooks; calendar stays visible under the banner for re-booking.
 - Broke / TODO: none. GHL side: set the calendar's thank-you redirect to /dashboard/onboarding?booked=1 for automatic state.
 - Next: client checks onboarding flow + retired calendar link.
-- Tests: `npm run typecheck` clean · `npm test` 769 passed | 5 skipped (102 files) · `npm run build` clean (+/dashboard/campaign-updates).
+- Tests: `npm run typecheck` clean · `npm test` 769 passed | 5 skipped (102 files) · `npm run build` clean.
+
+## 2026-09-24 - assistant - LIVE ROUTING DIAGNOSIS (multi-agent complaint)
+- Did: read-only diag on live DB (temp scripts, deleted after). Tonight 22:47 triple-miss (CL-0016/17/18, no_eligible) fully explained per call: AG-0002 state_mismatch (caller VA/TF not in AG-0002's 9-state list), AG-0001 busy (mid-call), AG-0003 not live for campaign 8585 (no selection row — and once anyone opts in, legacy-open closes for all). Current pool for 8585: AG-0002 only (AG-0001 offline, AG-0003 not live). 7/9 recent calls carry caller_state TF (non-geographic test NPA — mismatches every state-restricted agent). Router followed rules exactly; no misroute, no stuck rows, AND-gate funded on all three.
+- Decisions: no code change — operational fixes (AG-0003 Live toggle, AG-0002 add VA / test from real NPA, AG-0001 Go Online; login != online). Offered: surface skip-reasons in admin call detail; per-publisher DIDs; call-waiting scope.
+- Broke / TODO: none.
+- Next: client applies the three toggles, retests with real-NPA caller.
+- Tests: untouched (diagnosis only).
+
+## 2026-09-24 - assistant - FAQ PREVIEW + CONCURRENCY DIAGNOSIS
+- Did: homepage shows first 3 FAQs + View-all link (FAQSection moreHref prop); /faq reuses the same FAQSection (accordion parity guaranteed, dead custom list deleted). Concurrency deep-dive (no code change — design verified correct): no platform concurrency cap exists anywhere; the ONLY gate is 1-agent-1-call (is_busy from live ringing/connecting/connected calls, enforced in ping + routeCall + eligibility). Max concurrent = eligible agents; their own log showed candidates=1 (pool depth 1-2). New AND-gate likely shrank their pool (sub-only/topup-only agents no longer routable) — check Take Calls Funding rows. Stuck ringing rows pin agents busy until the 45s expire sweep. External ceilings to check: Telnyx connection concurrent-channels + Retreaver campaign caps.
+- Decisions: no call-waiting/second-line feature started (browser softphone tracks one call; needs product call).
+- Broke / TODO: none.
+- Next: client confirms 3-FAQ homepage + /faq; adds a 3rd eligible agent to prove 3 concurrent calls.
+- Tests: `npm run typecheck` clean · `npm test` 769 passed | 5 skipped (102 files) · `npm run build` clean.
 
 ## 2026-09-24 - assistant - SINGLE AGENCY CARD (profile removed)
 - Did: agent Settings Agency tab now shows only agency creation — removed the Agency Profile edit card (name/retention) + its dead state/handlers. A slim current-agency chip stays for context; heads edit profile via platform admin. Empty states kept for creation-disabled.
@@ -396,3 +410,15 @@
 - Broke / TODO: none. The money-in path now has no single point of failure: webhook OR success-page reconcile credits, orphans expire, duplicates converge, admin can Verify anything.
 - Next: deploy + live $1 top-up and $X subscription re-test per flow.
 - Tests: `npm run typecheck` clean · `npm test` 751 passed | 5 skipped (99 files) · `npm run build` clean.
+## 2026-09-24 - assistant - CALLER HOLD MESSAGE (TTS) + POLL CAP
+- Did: caller heard dead silence from early-answer to bridge. Now a fire-and-forget TTS holding line plays into the answered caller leg. Capped softphone ringing-poll backoff 15s to 5s. 4s-popup diagnosis pending timed pm2 lines.
+- Decisions: TTS speak over audio-file playback (zero assets); default Telnyx voice; no stopPlayback in hot path.
+- Broke / TODO: none. Deploy + live call: caller must hear the line, then bridge as before.
+- Next: timed pm2 sequence for popup-delay verdict.
+- Tests: typecheck clean, npm test 770 passed | 5 skipped (102 files: +hold-message), build clean.
+## 2026-09-24 - assistant - HOLD-AUDIO CUT ON BRIDGE + FAILOVER REPLAY
+- Did: cut the TTS tail on bridge success (fire-and-forget stopAudio, never on hot path) so instant bridges start clean; failover re-route replays a second holding line (second wait is no longer silence either). stopAudio swallows benign no-audio errors internally.
+- Decisions: default voice kept; no stop on missed paths (leg hangup kills audio anyway).
+- Broke / TODO: none. Deploy with the hold-message build; caller hears line, clean handoff on bridge.
+- Next: timed pm2 sequence for popup-delay verdict.
+- Tests: typecheck clean, npm test 772 passed | 5 skipped (102 files: +stopAudio cut, +failover replay), build clean.

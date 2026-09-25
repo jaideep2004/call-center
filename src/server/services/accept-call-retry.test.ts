@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const bridgeMock = vi.hoisted(() => vi.fn());
+const stopAudioMock = vi.hoisted(() => vi.fn(async () => undefined));
 const updateStateMock = vi.hoisted(() => vi.fn(async (_id: string, state: string) => ({ id: "call-1", state })));
 const findCallMock = vi.hoisted(() => vi.fn());
 const findAgentMock = vi.hoisted(() => vi.fn(async () => ({ id: "agent-1", membership_id: "m-1" })));
 const publishMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/telephony-registry", () => ({
-  getTelephonyProvider: vi.fn(() => ({ bridge: bridgeMock })),
+  getTelephonyProvider: vi.fn(() => ({ bridge: bridgeMock, stopAudio: stopAudioMock })),
 }));
 
 vi.mock("@/server/repositories", () => ({
@@ -79,6 +80,13 @@ describe("acceptCall bridge wait loop", () => {
     expect(bridgeMock).toHaveBeenCalledTimes(2);
     expect(updateStateMock).toHaveBeenCalledWith("call-1", "connected", "agency-1", expect.anything());
     expect(result).toMatchObject({ state: "connected" });
+  });
+
+  it("cuts the holding-audio tail on bridge success (never talks over the greeting)", async () => {
+    bridgeMock.mockResolvedValue(undefined);
+    const result = await runAccept();
+    expect(result).toMatchObject({ state: "connected" });
+    expect(stopAudioMock).toHaveBeenCalledWith({ callId: "caller-leg" });
   });
 
   it("gives up after bounded retries and marks missed (never hangs forever)", async () => {

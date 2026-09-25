@@ -106,6 +106,31 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
 
       // Let the answer finish in the background while routing proceeds.
       void answerPromise;
+
+      // Caller comfort: the leg is answered but no agent is on it yet — raw
+      // silence makes callers hang up (surfacing as missed calls). A short
+      // TTS holding message covers the routing+answer gap. Fire-and-forget:
+      // TTS must never sit on the webhook hot path or fail the call.
+      // NOTE: speak() is queued AFTER answer() resolves, so speak into the
+      // same promise chain — never before the leg is answered.
+      void answerPromise.then(() => {
+        try {
+          const provider = getTelephonyProvider(event.provider);
+          if (!provider.speak) return;
+          void provider
+            .speak({
+              callId: event.providerCallId,
+              text: "Please hold while we connect you to a specialist.",
+            })
+            .catch((e: unknown) => {
+              console.error(
+                `[processProviderEvent] hold-message failed for ${String(event.providerCallId).slice(0, 12)}: ${(e as Error)?.message ?? e}`,
+              );
+            });
+        } catch {
+          /* best-effort only */
+        }
+      });
     }
 
     if (!call) return null;
@@ -635,6 +660,16 @@ export async function handleNoAnswer(callId: string, reason: NoAnswerReason, cli
     routing_snapshot: nextSnapshot,
   }, client);
   if (!claimed) return null;
+  // Re-route means another full wait cycle for the caller — replay the
+  // holding message so the second wait isn't dead silence either.
+  try {
+    const provider = getTelephonyProvider(call.provider);
+    if (provider.speak) {
+      void provider
+        .speak({ callId: call.provider_call_id, text: "Please continue to hold while we connect you to a specialist." })
+        .catch(() => {});
+    }
+  } catch { /* best-effort */ }
   const result = await routeCall(call.id, { client, excludeAgentIds: [...tried] });
   return { rerouted: true, attempts: tried.size, reason, result };
 }
@@ -839,6 +874,11 @@ export async function acceptCall(callId: string) {
         const bridgeStart = Date.now();
         await provider.bridge({ callId: call.provider_call_id, providerAttemptId: agentCallId });
         console.log(`[acceptCall] bridge succeeded in ${Date.now() - bridgeStart}ms (accept total ${Date.now() - startedAt}ms)`);
+        // Cut the holding message tail so it never talks over the agent's
+        // greeting on instant bridges. Fire-and-forget (never on the hot path).
+        try {
+          void provider.stopAudio?.({ callId: call.provider_call_id })?.catch(() => {});
+        } catch { /* best-effort */ }
         bridged = true;
       } catch (e: any) {
         const msg = String(e?.message ?? e);
@@ -855,7 +895,10 @@ export async function acceptCall(callId: string) {
             break;
           }
           const snap = (call.routing_snapshot ?? {}) as Record<string, unknown>;
-          if (snap.agent_answered_at) break;
+          if (snap.agent_answered_at) {
+            console.log(`[acceptCall] agent answer stamp seen for ${callId.slice(0, 8)} — bridging now`);
+            break;
+          }
         }
       }
     }

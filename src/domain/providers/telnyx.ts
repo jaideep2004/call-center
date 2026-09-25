@@ -249,4 +249,26 @@ export const telnyxProvider: TelephonyProvider = {
     const client = getClient();
     await (client.calls.actions as any).send_dtmf(callId, { digits });
   },
+
+  async speak({ callId, text }: { callId: string; text: string }) {
+    const client = getClient();
+    try {
+      // No explicit voice: Telnyx default (always valid; named voices vary
+      // by account/region and a wrong ID would fail the whole action).
+      await (client.calls.actions as any).speak(callId, { payload: text });
+    } catch (e: any) {
+      console.error("[telnyx speak] failed:", e?.message ?? e);
+      throw e;
+    }
+  },
+
+  async stopAudio({ callId }: { callId: string }) {
+    const client = getClient();
+    try {
+      await (client.calls.actions as any).stopPlayback(callId, {});
+    } catch {
+      // Benign: nothing playing (instant bridge), leg already gone, etc.
+      // Never throws — callers fire-and-forget this.
+    }
+  },
 };

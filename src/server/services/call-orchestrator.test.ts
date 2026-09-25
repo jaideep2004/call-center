@@ -3,7 +3,7 @@ import { mockProvider } from "@/domain/telephony";
 
 const {
   updateStateMock, findByIdMock, findByProviderCallIdMock, createMock, cancelMock, enqueueRecordingMock, claimStateMock,
-  findAvailableMock, campaignFindByIdMock, findLiveAgentIdsMock, findByE164Mock, findByCampaignMock, updateMock,
+  findAvailableMock, campaignFindByIdMock, findLiveAgentIdsMock, findByE164Mock, findByCampaignMock, updateMock, speakMock,
 } = vi.hoisted(() => ({
   updateStateMock: vi.fn(),
   findByIdMock: vi.fn(),
@@ -13,6 +13,7 @@ const {
   enqueueRecordingMock: vi.fn(),
   claimStateMock: vi.fn(),
   updateMock: vi.fn(),
+  speakMock: vi.fn(async () => undefined),
   findAvailableMock: vi.fn().mockResolvedValue([]),
   campaignFindByIdMock: vi.fn().mockResolvedValue(null),
   findLiveAgentIdsMock: vi.fn().mockResolvedValue(null),
@@ -29,7 +30,7 @@ vi.mock("@/server/db", () => ({
 }));
 
 vi.mock("@/server/telephony-registry", () => ({
-  getTelephonyProvider: vi.fn(() => ({ ...mockProvider, cancel: cancelMock })),
+  getTelephonyProvider: vi.fn(() => ({ ...mockProvider, cancel: cancelMock, speak: speakMock })),
 }));
 
 vi.mock("@/server/services/recording-store", () => ({
@@ -231,6 +232,22 @@ describe("processProviderEvent — agent leg handling", () => {
     expect(result).toBeTruthy();
   });
 
+  it("replays the holding message when failing over to the next agent", async () => {
+    // Agent leg hangs up while ringing with attempts left: failover re-dials,
+    // and the caller (waiting through a second cycle) hears the message again.
+    findByIdMock
+      .mockResolvedValueOnce(makeCall({ agent_id: "agent-1" }))
+      .mockResolvedValueOnce(makeCall({ agent_id: "agent-1" }))
+      .mockResolvedValueOnce(makeCall({ state: "routing" }));
+    speakMock.mockClear();
+
+    await processProviderEvent(agentLegEvent("ended", "call-1", "agent-leg-1"));
+
+    expect(speakMock).toHaveBeenCalledWith(
+      expect.objectContaining({ callId: "caller-leg-1", text: expect.stringContaining("continue to hold") }),
+    );
+  });
+
   it("ends the call normally when the agent leg hangs up while connected", async () => {
     findByIdMock.mockResolvedValue(makeCall({ state: "connected", connected_at: "2026-01-01T00:00:10Z" }));
     findByProviderCallIdMock.mockResolvedValue(null);
@@ -282,6 +299,28 @@ describe("processProviderEvent — agent leg handling", () => {
     // No eligible agents → the ringing→missed claim records the outcome.
     expect(claimStateMock).toHaveBeenCalledWith("call-1", "ringing", "missed", "agency-1", expect.anything(), expect.anything());
     expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-9" });
+  });
+
+  it("plays a holding message into the answered caller leg (no dead silence)", async () => {
+    findByProviderCallIdMock.mockResolvedValue(null);
+    findByE164Mock.mockResolvedValue({
+      id: "n1", agency_id: "agency-1", campaign_id: "campaign-1",
+      provider: "telnyx", e164: "+15559876543", status: "active",
+    });
+    createMock.mockResolvedValue(makeCall({ provider_call_id: "caller-leg-9" }));
+    findByIdMock.mockResolvedValue(makeCall({ provider_call_id: "caller-leg-9", state: "routing" }));
+
+    await processProviderEvent({
+      provider: "mock", eventId: "evt-inbound-hold", type: "inbound",
+      providerCallId: "caller-leg-9", occurredAt: "2026-01-01T00:00:00Z",
+      from: "+15551234567", to: "+15559876543", raw: {},
+    });
+    // Fire-and-forget chain — flush microtasks so the speak call lands.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(speakMock).toHaveBeenCalledWith(
+      expect.objectContaining({ callId: "caller-leg-9", text: expect.stringContaining("hold") }),
+    );
   });
 
   it("fails closed on unknown DID — no call row, no fallback routing (Phase 0.2)", async () => {

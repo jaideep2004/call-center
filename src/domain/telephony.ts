@@ -41,6 +41,10 @@ export interface TelephonyProvider {
   hold?(input: { callId: string }): Promise<void>;
   unhold?(input: { callId: string }): Promise<void>;
   sendDTMF?(input: { callId: string; digits: string }): Promise<void>;
+  /** Speak TTS into an answered leg (caller-comfort while routing). Optional. */
+  speak?(input: { callId: string; text: string }): Promise<void>;
+  /** Stop any in-flight holding audio (cut the tail on bridge). Optional. */
+  stopAudio?(input: { callId: string }): Promise<void>;
 }
 
 export const mockProvider: TelephonyProvider = {
