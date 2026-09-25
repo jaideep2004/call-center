@@ -937,6 +937,19 @@ export async function acceptCall(callId: string) {
       publishCallEvent(agent.membership_id, "call:connected", { callId: call.id });
     }
   }
+  // Programmatic recording: the Telnyx-portal "record all calls" toggle is
+  // off (zero recording webhooks ever received), so start dual-channel mp3
+  // here when the campaign wants it — otherwise Recordings stays empty
+  // forever. Recording auto-finalizes at hangup → recording.saved webhook →
+  // the existing store flow. Fire-and-forget, never blocks the connect path.
+  try {
+    const campaign = await campaigns.findById(call.campaign_id).catch(() => null);
+    if (campaign && campaign.record_calls !== false && provider.startRecording) {
+      void provider.startRecording({ callId: call.provider_call_id }).catch((e: unknown) => {
+        console.error(`[acceptCall] startRecording failed for call=${callId.slice(0, 8)}: ${(e as Error)?.message ?? e}`);
+      });
+    }
+  } catch { /* best-effort */ }
   return call;
 }
 

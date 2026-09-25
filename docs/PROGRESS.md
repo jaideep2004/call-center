@@ -432,3 +432,15 @@
 - Broke / TODO: none. Deploy urgently - every TTS call dies without this.
 - Next: live call must hear full message, then bridge.
 - Tests: typecheck clean, npm test 774 passed | 5 skipped (102 files: +audio mappings, +ringing no-op), build clean.
+## 2026-09-24 - assistant - PROGRAMMATIC RECORDING (empty Recordings pages)
+- Did: live DB showed 0 recording rows and 0 recording_ready webhooks ever - Telnyx portal record-all is off and our dial never requested it. Now acceptCall starts dual-channel mp3 recording on the caller leg right after bridge, gated by campaign.record_calls (default true), fire-and-forget. Auto-finalizes at hangup into the existing recording.saved store flow.
+- Decisions: programmatic over portal toggle (works regardless of Telnyx settings); caller-leg recording captures both sides post-bridge.
+- Broke / TODO: none. Deploy + live connected call, then check Recordings page in ~1-2 min.
+- Next: client verifies a recording row + playback.
+- Tests: typecheck clean, npm test 776 passed | 5 skipped (102 files: +recording start/skip), build clean.
+## 2026-09-24 - assistant - RETREAVER RECORDINGS + SIGNUP VISIBILITY + SPAM HEADERS
+- Did: (recordings) live DB has 0 rows and 0 recording_ready webhooks ever - Telnyx record-all is off and dial never requested it. New retreaver-recordings service bridges Retreaver-hosted recording_url into app.recordings for linked calls (one SQL, idempotent), auto-linked on every future linkPair, plus POST sync-from-retreaver API and a Sync button on Recordings; resolveRecordingStreamUrl serves retreaver rows directly; download/detail routes now enforce own-call ownership for plain agents. (signup) root-caused invisible agent: no-invite signup creates user-only (no membership/agent row by design) AND auto-create was permission-dead (agents lack agents:create, so Take Calls button 403d too) - guard relaxed to self-scoped agents:update, dead pre-login register call removed. (spam) dropped Precedence:bulk + X-Auto-Response-Suppress from transactional mail (they push Gmail to bulk); List-Unsubscribe kept.
+- Decisions: additive-only sync (never touches existing rows); mp3 content default; signup still requires joining/creating an agency (visible in Admin Users regardless).
+- Broke / TODO: none. Deploy, press Sync from Retreaver, verify playback. DNS half (SPF/DKIM/DMARC + domain SMTP) remains client-side - code cannot fix that part.
+- Next: client confirms recordings + checks spam folder again.
+- Tests: typecheck clean, npm test 784 passed | 5 skipped (105 files: +retreaver-recordings, +sync API, +download ownership), build clean.

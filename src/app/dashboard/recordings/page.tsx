@@ -29,9 +29,10 @@ function RecordingsInner() {
   const [searchInput, setSearchInput] = useState(initialQ);
   const [debouncedQ, setDebouncedQ] = useState(initialQ);
   const [page, setPage] = useState(initialPage);
+  const [syncing, setSyncing] = useState(false);
   const hasMounted = useRef(false);
 
-  useEffect(() => {
+  const refresh = () => {
     fetch("/api/v1/recordings").then(async (res) => {
       if (res.ok) {
         const body = await res.json();
@@ -39,7 +40,27 @@ function RecordingsInner() {
       }
       setLoading(false);
     });
-  }, []);
+  };
+
+  useEffect(refresh, []);
+
+  async function syncFromRetreaver() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/v1/recordings/sync-from-retreaver", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast(body.message ?? "Sync complete", "success");
+        refresh();
+      } else {
+        showToast(body.message ?? "Sync failed", "error");
+      }
+    } catch {
+      showToast("Network error syncing recordings", "error");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -127,6 +148,9 @@ function RecordingsInner() {
         </div>
         <div className="search-bar">
           <input className="input" type="search" placeholder="Search by call or type..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
+          <button className="btn btn-secondary btn-sm" style={{ whiteSpace: "nowrap" }} onClick={syncFromRetreaver} disabled={syncing} title="Pull Retreaver-hosted recordings for linked calls">
+            {syncing ? "Syncing…" : "Sync from Retreaver"}
+          </button>
           <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{filtered.length} total</span>
         </div>
       </div>
@@ -138,6 +162,7 @@ function RecordingsInner() {
             <ol style={{ marginTop: 6, paddingLeft: 18, lineHeight: 1.6 }}>
               <li>Admin &rarr; Campaigns &rarr; edit campaign &rarr; <code>Record calls: ON</code></li>
               <li>Telnyx Portal &rarr; Connections &rarr; your SIP Connection &rarr; <b>Record calls</b> = <b>ON</b> (Connections &rarr; Edit &rarr; Call Recording)</li>
+              <li>Retreaver-hosted calls: press <b>Sync from Retreaver</b> above to pull their recordings in</li>
               <li><code>APP_BASE_URL</code> is your public ngrok URL so <code>recording.saved</code> reaches your server</li>
             </ol>
           </div>

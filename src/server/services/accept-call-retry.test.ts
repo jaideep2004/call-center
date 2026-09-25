@@ -2,18 +2,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const bridgeMock = vi.hoisted(() => vi.fn());
 const stopAudioMock = vi.hoisted(() => vi.fn(async () => undefined));
-const updateStateMock = vi.hoisted(() => vi.fn(async (_id: string, state: string) => ({ id: "call-1", state })));
+const startRecordingMock = vi.hoisted(() => vi.fn(async () => undefined));
+const campaignFindMock = vi.hoisted(() => vi.fn(async () => ({ record_calls: true })));
+const updateStateMock = vi.hoisted(() => vi.fn(async (_id: string, state: string) => ({ ...RINGING_CALL, id: "call-1", state })));
 const findCallMock = vi.hoisted(() => vi.fn());
 const findAgentMock = vi.hoisted(() => vi.fn(async () => ({ id: "agent-1", membership_id: "m-1" })));
 const publishMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/telephony-registry", () => ({
-  getTelephonyProvider: vi.fn(() => ({ bridge: bridgeMock, stopAudio: stopAudioMock })),
+  getTelephonyProvider: vi.fn(() => ({ bridge: bridgeMock, stopAudio: stopAudioMock, startRecording: startRecordingMock })),
 }));
 
 vi.mock("@/server/repositories", () => ({
   calls: { findById: findCallMock, updateState: updateStateMock },
   agents: { findById: findAgentMock },
+  campaigns: { findById: campaignFindMock },
 }));
 
 vi.mock("@/lib/event-bridge", () => ({
@@ -87,6 +90,21 @@ describe("acceptCall bridge wait loop", () => {
     const result = await runAccept();
     expect(result).toMatchObject({ state: "connected" });
     expect(stopAudioMock).toHaveBeenCalledWith({ callId: "caller-leg" });
+  });
+
+  it("starts dual-channel recording on connect when the campaign wants it", async () => {
+    bridgeMock.mockResolvedValue(undefined);
+    const result = await runAccept();
+    expect(result).toMatchObject({ state: "connected" });
+    expect(startRecordingMock).toHaveBeenCalledWith({ callId: "caller-leg" });
+  });
+
+  it("skips recording when the campaign disables it", async () => {
+    bridgeMock.mockResolvedValue(undefined);
+    campaignFindMock.mockResolvedValueOnce({ record_calls: false });
+    const result = await runAccept();
+    expect(result).toMatchObject({ state: "connected" });
+    expect(startRecordingMock).not.toHaveBeenCalled();
   });
 
   it("gives up after bounded retries and marks missed (never hangs forever)", async () => {

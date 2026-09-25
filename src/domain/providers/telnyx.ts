@@ -289,4 +289,14 @@ export const telnyxProvider: TelephonyProvider = {
       // Never throws — callers fire-and-forget this.
     }
   },
+
+  async startRecording({ callId }: { callId: string }) {
+    const client = getClient();
+    try {
+      await (client.calls.actions as any).startRecording(callId, { channels: "dual", format: "mp3" });
+    } catch (e: any) {
+      console.error("[telnyx startRecording] failed:", e?.message ?? e);
+      throw e;
+    }
+  },
 };

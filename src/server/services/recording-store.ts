@@ -39,13 +39,15 @@ export async function storeRecording(input: StoreRecordingInput) {
 /**
  * Provider download URLs are presigned and expire (Telnyx: 10 minutes).
  * Re-sign a fresh URL when the row carries a provider recording id;
- * falls back to the stored path for legacy rows.
+ * Retreaver URLs are stable links — serve as-is; fall back to the stored
+ * path for legacy rows.
  */
 export async function resolveRecordingStreamUrl(recording: {
   provider?: string;
   provider_recording_id?: string | null;
   storage_path: string;
 }): Promise<string> {
+  if (recording.provider === "retreaver") return recording.storage_path;
   if (recording.provider_recording_id && recording.provider) {
     const provider = getTelephonyProvider(recording.provider);
     const info = await provider.fetchRecording({ recordingId: recording.provider_recording_id });

@@ -52,9 +52,10 @@ function RegisterForm() {
     }
     if (inviteToken) {
       localStorage.setItem("pending_invite", inviteToken);
-    } else {
-      fetch("/api/v1/agents/auto-create", { method: "POST" }).catch(() => {});
     }
+    // NOTE: no auto-create call here — there is no session yet (401) and the
+    // profile is ensured where it matters: invite accept, agency create, and
+    // the Take Calls "Create Agent Profile" button (all self-scoped).
     showToast("Account created! Check your email to verify.", "success");
     router.push("/verify");
   }

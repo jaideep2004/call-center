@@ -45,6 +45,8 @@ export interface TelephonyProvider {
   speak?(input: { callId: string; text: string }): Promise<void>;
   /** Stop any in-flight holding audio (cut the tail on bridge). Optional. */
   stopAudio?(input: { callId: string }): Promise<void>;
+  /** Start dual-channel mp3 recording on a bridged leg. Optional. */
+  startRecording?(input: { callId: string }): Promise<void>;
 }
 
 export const mockProvider: TelephonyProvider = {

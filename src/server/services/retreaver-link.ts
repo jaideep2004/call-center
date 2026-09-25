@@ -123,6 +123,14 @@ async function linkPair(callId: string, retreaverId: string) {
       WHERE r.id = $1 AND r.campaign_id IS NULL AND c.id = $2`,
     [retreaverId, callId],
   );
+  // Opportunistic recording: if the Retreaver row already carries a
+  // recording URL, bridge it into app.recordings now (best-effort).
+  try {
+    const { linkRecordingForCall } = await import("@/server/services/retreaver-recordings");
+    await linkRecordingForCall(callId);
+  } catch {
+    /* stats must never break linking */
+  }
 }
 
 /**

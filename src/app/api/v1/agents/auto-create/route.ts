@@ -21,4 +21,4 @@ export const POST = apiHandler(async (req, { user }) => {
     endpoint_types: ["webrtc"],
   });
   return created(newAgent, "Agent created");
-}, { resource: "agents", action: "create" });
+}, { resource: "agents", action: "update" });

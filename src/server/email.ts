@@ -42,12 +42,14 @@ export async function sendEmail({
   const appUrl = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://coveragecalls.com").replace(/\/$/, "");
   // Generate text version from html (simple strip) if not provided
   const textBody = text || html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().slice(0, 4000);
+  // Deliverability: these are TRANSACTIONAL mails (receipts, approvals,
+  // tickets), never bulk. Precedence:bulk + X-Auto-Response-Suppress push
+  // Gmail toward bulk/spam classification — they must not be set here.
+  // List-Unsubscribe stays (receivers like it, never hurts).
   const headers: Record<string, string> = {
     "X-Mailer": "Coverage Calls Mailer",
     "List-Unsubscribe": `<${appUrl}/unsubscribe?email=${encodeURIComponent(to)}>`,
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-    Precedence: "bulk",
-    "X-Auto-Response-Suppress": "All",
   };
   try {
     await transport.sendMail({
