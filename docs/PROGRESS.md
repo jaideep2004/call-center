@@ -422,3 +422,7 @@
 - Broke / TODO: none. Deploy with the hold-message build; caller hears line, clean handoff on bridge.
 - Next: timed pm2 sequence for popup-delay verdict.
 - Tests: typecheck clean, npm test 772 passed | 5 skipped (102 files: +stopAudio cut, +failover replay), build clean.
+## 2026-09-24 - assistant - TTS VOICE REQUIRED (live 10004)
+- Did: live proved Telnyx rejects speak without explicit voice (10004). Set voice Telnyx.KokoroTTS.af (documented id). No behavior change otherwise.
+- Broke / TODO: none. Redeploy + next inbound must show no speak error and caller hears the line.
+- Tests: typecheck clean, orchestrator suite green.

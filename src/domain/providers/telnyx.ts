@@ -253,9 +253,9 @@ export const telnyxProvider: TelephonyProvider = {
   async speak({ callId, text }: { callId: string; text: string }) {
     const client = getClient();
     try {
-      // No explicit voice: Telnyx default (always valid; named voices vary
-      // by account/region and a wrong ID would fail the whole action).
-      await (client.calls.actions as any).speak(callId, { payload: text });
+      // Voice is REQUIRED by Telnyx (10004 otherwise). KokoroTTS.af is the
+      // documented Telnyx voice id.
+      await (client.calls.actions as any).speak(callId, { payload: text, voice: "Telnyx.KokoroTTS.af" });
     } catch (e: any) {
       console.error("[telnyx speak] failed:", e?.message ?? e);
       throw e;
