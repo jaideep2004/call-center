@@ -114,6 +114,22 @@ function AgentsInner() {
     }
   }
 
+  async function deleteAgent(id: string, label: string) {
+    if (!confirm(`Delete agent ${label}? This hides the profile from all lists. Call history is kept. This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/v1/agents/${id}`, { method: "DELETE" });
+      if (res.ok || res.status === 204) {
+        showToast("Agent deleted", "success");
+        fetchAgents();
+      } else {
+        const body = await res.json().catch(() => ({} as { message?: string }));
+        showToast(body.message ?? "Failed to delete agent", "error");
+      }
+    } catch {
+      showToast("Network error deleting agent", "error");
+    }
+  }
+
   function badgeClass(status: string) {
     switch (status) {
       case "approved": return "badge badge-success";
@@ -168,6 +184,7 @@ function AgentsInner() {
           {a.approval_status === "approved" && (
             <button className="btn btn-sm btn-secondary" style={{ whiteSpace: "nowrap" }} onClick={() => updateApproval(a.id, "suspended")}>Suspend</button>
           )}
+          <button className="btn btn-sm btn-danger" style={{ whiteSpace: "nowrap" }} onClick={() => deleteAgent(a.id, a.user_name || a.display_code || a.id.slice(0, 8))} title="Remove this agent profile from all lists">Delete</button>
         </div>
       ),
     },

@@ -1,4 +1,4 @@
-import { apiHandler, ok, created } from "@/server/api-utils";
+import { apiHandler, ok, created, fail } from "@/server/api-utils";
 import { publishers } from "@/server/repositories";
 import { validate, createPublisherSchema } from "@/server/validate";
 
@@ -11,6 +11,18 @@ export const GET = apiHandler(async (req) => {
 
 export const POST = apiHandler(async (req) => {
   const body = validate(createPublisherSchema, await req.json());
-  const row = await publishers.create(body);
-  return created(row, "Publisher created");
+  if (body.email) {
+    const dupe = await publishers.findByEmail(body.email);
+    if (dupe) return fail("A publisher with this email already exists", 409);
+  }
+  try {
+    const row = await publishers.create(body);
+    return created(row, "Publisher created");
+  } catch (e) {
+    // Race with a concurrent create — the 0066 partial unique index wins.
+    if ((e as { code?: string })?.code === "23505") {
+      return fail("A publisher with this email already exists", 409);
+    }
+    throw e;
+  }
 }, { resource: "publishers", action: "manage" });

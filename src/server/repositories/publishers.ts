@@ -74,6 +74,14 @@ export class PublisherRepository extends BaseRepository<PublisherRow> {
     return rows[0] ?? null;
   }
 
+  async findByEmail(email: string): Promise<PublisherRow | null> {
+    const rows = await query<PublisherRow>(
+      `SELECT * FROM app.publishers WHERE deleted_at IS NULL AND lower(email) = lower($1) LIMIT 1`,
+      [email],
+    );
+    return rows[0] ?? null;
+  }
+
   async linkUser(id: string, userId: string): Promise<PublisherRow> {
     const rows = await query<PublisherRow>(
       `UPDATE app.publishers SET user_id = $2, updated_at = now() WHERE id = $1 RETURNING *`,

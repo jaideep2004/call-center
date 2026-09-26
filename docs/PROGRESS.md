@@ -472,3 +472,22 @@ pm run build to avoid re-corrupting dev types.
 - Decisions: publisher rows unlinked not deleted; history owners blocked with suspend guidance; heads excluded from delete guard.
 - Tests: tsc clean, vitest users/[id] 6/6 + agents/agency-wallet 15/15, npm run build green.
 
+
+## 2026-09-26 - assistant - PUBLISHER email dedupe + PAYMENTS live-only Collected
+- Did: 0066 partial unique index lower(email) active-only; findByEmail + 409 on POST/PATCH publishers + publisher self settings (23505 race-safe); payments.summarizeLiveCompleted + GET /api/v1/payments/summary (scoped); admin Collected/fees cards now live-only (cs_live_*) independent of table filter.
+- Decisions: NULL emails + soft-deleted exempt; publishers unlinked-not-deleted preserved; livemode flag = cs_live_ source of truth; prod migrate NOT run (Supabase remote) - user runs npm run migrate after dupe cleanup.
+- Tests: tsc 0, vitest 120 files 855 passed | 5 skipped, build green, check:migrations 0001-0066 ok (0066 pending apply), graphify 1508 nodes.
+
+
+## 2026-09-26 - assistant - AGENT approve-not-found + missing profiles + handover guide
+- Did: agents/[id] GET/PATCH/DELETE now admin-unscoped (admin membership no longer scopes; fixes approve/detail 404 on pending + cross-agency rows; approval email uses agent's agency); new POST /api/v1/agents/ensure admin backfill (adopt-or-create pending profile); users page Create profile button for agent-role users lacking rows (e.g. Khaldun Mir).
+- Decisions: heads stay agency-scoped (correct); same unscoped-admin pattern missing in other [id] routes - left untouched, noted.
+- Guide: docs/CLIENT_HANDOVER_GUIDE.md - non-technical walkthrough of all 3 dashboards, every page/option, test scripts, money rules, FAQ, glossary.
+- Tests: tsc 0, vitest 122 files 863 passed | 5 skipped (new scope 3/3 + ensure 5/5), build green, graphify updated.
+
+
+## 2026-09-26 - assistant - ORPHAN agent rows on direct user delete (AG-0004)
+- Did: root cause = memberships.user_id has no FK + agents/publishers FKs lack actions, so direct DB user deletes strand rows. Migration 0067 (agents CASCADE, publishers SET NULL, memberships FK CASCADE, all NOT VALID so existing orphans never block); Agents list gains Delete button (soft-delete via existing endpoint) so leftovers like AG-0004 clear from UI; guide FAQ row added.
+- Decisions: membership-keyed agents stay RESTRICT (history protection); NOT VALID avoids validate-fail on live orphans; prod migrate NOT run (remote) - 0066+0067 pending, user runs npm run migrate.
+- Tests: tsc 0, vitest 122 files 863 passed | 5 skipped, build green, migrations 0001-0067 lint ok.
+

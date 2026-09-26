@@ -44,6 +44,9 @@ export default function AdminUsersPage() {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [agentsMap, setAgentsMap] = useState<Record<string, { name: string; email: string }>>({});
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  // Login user ids that already own an agent profile row (pending or not).
+  const [agentUserIds, setAgentUserIds] = useState<Set<string>>(new Set());
+  const [ensuringUserId, setEnsuringUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchAll() {
@@ -73,11 +76,13 @@ export default function AdminUsersPage() {
         const b = await agRes.json();
         const rows = b.data ?? [];
         const map: Record<string, { name: string; email: string }> = {};
+        const owned = new Set<string>();
         for (const ag of rows as any[]) {
           if (ag.membership_id) map[ag.membership_id] = { name: ag.user_name ?? "", email: ag.user_email ?? "" };
-          // also map by user_id if available via membership join — fallback
+          if (ag.user_id) owned.add(ag.user_id);
         }
         setAgentsMap(map);
+        setAgentUserIds(owned);
       }
       setLoading(false);
     }
@@ -153,6 +158,28 @@ export default function AdminUsersPage() {
       showToast("Network error deleting user", "error");
     } finally {
       setDeletingUserId(null);
+    }
+  }
+
+  async function ensureProfile(userId: string, label: string) {
+    setEnsuringUserId(userId);
+    try {
+      const res = await fetch("/api/v1/agents/ensure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const body = await res.json().catch(() => ({} as { message?: string }));
+      if (res.ok) {
+        setAgentUserIds((prev) => new Set(prev).add(userId));
+        showToast(body.message ?? `Agent profile ready for ${label} — approve it on the Agents page`, "success");
+      } else {
+        showToast(body.message ?? "Failed to create agent profile", "error");
+      }
+    } catch {
+      showToast("Network error creating agent profile", "error");
+    } finally {
+      setEnsuringUserId(null);
     }
   }
 
@@ -335,15 +362,28 @@ export default function AdminUsersPage() {
     {
       key: "actions", header: "Actions", className: "actions-cell",
       render: (u) => (
-        <button
-          className="btn btn-sm btn-danger"
-          style={{ fontSize: 11, whiteSpace: "nowrap" }}
-          disabled={deletingUserId === u.id}
-          onClick={() => deleteUser(u.id, u.email || u.name || u.id.slice(0, 8))}
-          title="Permanently delete this user from the database"
-        >
-          {deletingUserId === u.id ? "Deleting…" : "Delete"}
-        </button>
+        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          {u.role === "agent" && !agentUserIds.has(u.id) && (
+            <button
+              className="btn btn-sm btn-secondary"
+              style={{ fontSize: 11, whiteSpace: "nowrap" }}
+              disabled={ensuringUserId === u.id}
+              onClick={() => ensureProfile(u.id, u.email || u.name || u.id.slice(0, 8))}
+              title="Create the missing agent profile so this user appears on the Agents page and can be approved"
+            >
+              {ensuringUserId === u.id ? "Creating…" : "Create profile"}
+            </button>
+          )}
+          <button
+            className="btn btn-sm btn-danger"
+            style={{ fontSize: 11, whiteSpace: "nowrap" }}
+            disabled={deletingUserId === u.id}
+            onClick={() => deleteUser(u.id, u.email || u.name || u.id.slice(0, 8))}
+            title="Permanently delete this user from the database"
+          >
+            {deletingUserId === u.id ? "Deleting…" : "Delete"}
+          </button>
+        </div>
       ),
     },
   ];

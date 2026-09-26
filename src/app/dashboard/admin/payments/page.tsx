@@ -38,6 +38,9 @@ export default function AdminPaymentsPage() {
   const [verifying, setVerifying] = useState<string | null>(null);
   const [sessionInput, setSessionInput] = useState("");
   const [reconciling, setReconciling] = useState(false);
+  // Live-money totals for the cards — always completed cs_live_* charges,
+  // independent of the history table's live/test/all filter below.
+  const [liveSummary, setLiveSummary] = useState<{ completed_count: number; total_net_cents: number; total_fees_cents: number } | null>(null);
 
   const refresh = useCallback(() => {
     fetch(`/api/v1/payments?limit=200&mode=${mode}`).then(async (res) => {
@@ -50,6 +53,15 @@ export default function AdminPaymentsPage() {
   }, [mode]);
 
   useEffect(refresh, [refresh]);
+
+  useEffect(() => {
+    fetch("/api/v1/payments/summary").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setLiveSummary(body.data ?? null);
+      }
+    }).catch(() => {});
+  }, []);
 
   async function verify(row: Payment) {
     setVerifying(row.id);
@@ -101,8 +113,11 @@ export default function AdminPaymentsPage() {
 
   const completed = rows.filter((r) => r.status === "completed");
   const pending = rows.filter((r) => r.status === "pending");
-  const totalNet = completed.reduce((a, r) => a + r.amount_cents, 0);
-  const totalFees = completed.reduce((a, r) => a + (r.fee_cents ?? 0), 0);
+  // Cards always show live money (cs_live_*), even when the table below is
+  // switched to test/all. Falls back to the live-filtered rows while loading.
+  const totalNet = liveSummary?.total_net_cents ?? completed.reduce((a, r) => a + r.amount_cents, 0);
+  const totalFees = liveSummary?.total_fees_cents ?? completed.reduce((a, r) => a + (r.fee_cents ?? 0), 0);
+  const completedCount = liveSummary?.completed_count ?? completed.length;
 
   const columns: Column<Payment>[] = [
     {
@@ -179,12 +194,12 @@ export default function AdminPaymentsPage() {
 
       <section className="cc-metrics cc-metrics--5" aria-label="Payment totals" style={{ marginBottom: "var(--space-4)" }}>
         <article className="cc-metric">
-          <span className="cc-metric__label">Collected (net credit)</span>
+          <span className="cc-metric__label">Collected (net credit) · Live</span>
           <span className="cc-metric__value">{formatCents(totalNet)}</span>
-          <span className="cc-metric__foot">{completed.length} completed payments</span>
+          <span className="cc-metric__foot">{completedCount} completed live payments</span>
         </article>
         <article className="cc-metric">
-          <span className="cc-metric__label">Processing fees (3%)</span>
+          <span className="cc-metric__label">Processing fees (3%) · Live</span>
           <span className="cc-metric__value">{formatCents(totalFees)}</span>
           <span className="cc-metric__foot">Passed through to payers</span>
         </article>

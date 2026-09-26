@@ -112,6 +112,44 @@ export class PaymentRepository {
       [sessionId, livemode],
     );
   }
+
+  /**
+   * Live-money totals for the admin Collected card. Always completed +
+   * livemode (real cs_live_* charges) — never test mode, never truncated by
+   * list limits. Scoped to agency/agent for non-admin callers.
+   */
+  async summarizeLiveCompleted(scope?: { agencyId?: string; agentId?: string }): Promise<{
+    completed_count: number;
+    total_net_cents: number;
+    total_fees_cents: number;
+  }> {
+    const conditions = [`status = 'completed'`, `livemode = true`];
+    const params: unknown[] = [];
+    if (scope?.agencyId) {
+      params.push(scope.agencyId);
+      conditions.push(`agency_id = $${params.length}`);
+    }
+    if (scope?.agentId) {
+      params.push(scope.agentId);
+      conditions.push(`agent_id = $${params.length}`);
+    }
+    const row = await queryOne<{
+      completed_count: string;
+      total_net_cents: string;
+      total_fees_cents: string;
+    }>(
+      `SELECT COUNT(*) AS completed_count,
+              COALESCE(SUM(amount_cents), 0) AS total_net_cents,
+              COALESCE(SUM(fee_cents), 0) AS total_fees_cents
+         FROM app.payments WHERE ${conditions.join(" AND ")}`,
+      params,
+    );
+    return {
+      completed_count: Number(row?.completed_count ?? 0),
+      total_net_cents: Number(row?.total_net_cents ?? 0),
+      total_fees_cents: Number(row?.total_fees_cents ?? 0),
+    };
+  }
 }
 
 export const payments = new PaymentRepository();

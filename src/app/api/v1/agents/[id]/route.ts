@@ -7,9 +7,13 @@ import { sendAgentApproved } from "@/server/services/action-emails";
 import { onlineBlockers } from "@/server/services/agent-funding";
 import { queryOne } from "@/server/db";
 
-export const GET = apiHandler(async (req, { params, agencyId }) => {
+export const GET = apiHandler(async (req, { params, agencyId, user }) => {
   const { id } = await params;
-  const agent = await agents.findByIdWithUser(id, agencyId ?? undefined);
+  // Platform admins hold a membership of their own — never scope them to it
+  // (the list endpoint already works this way). Otherwise an admin clicking
+  // a pending signup (agency NULL) or another agency's agent gets 404.
+  const scope = user?.role === "admin" ? undefined : (agencyId ?? undefined);
+  const agent = await agents.findByIdWithUser(id, scope);
   if (!agent) return fail("Agent not found", 404);
   return ok(agent);
 }, { resource: "agents", action: "view" });
@@ -49,10 +53,11 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
       return fail(`Agent cannot go online — missing: ${blockers.join("; ")}`, 422);
     }
   }
-  const agent = await agents.update(id, body, agencyId ?? undefined);
+  const scope = user?.role === "admin" ? undefined : (agencyId ?? undefined);
+  const agent = await agents.update(id, body, scope);
   // Best-effort approval email + inbox row (never blocks the update).
   if (body.approval_status === "approved") {
-    void sendAgentApproved({ agencyId: agencyId ?? "", agentId: id });
+    void sendAgentApproved({ agencyId: agent.agency_id ?? "", agentId: id });
   }
   return ok(agent, "Agent updated");
 }, { resource: "agents", action: "update" });
@@ -60,8 +65,9 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
 export const DELETE = apiHandler(async (req, context) => {
   requireHeadOr(context, "agents", "delete");
   const { id } = await context.params;
-  const scope = context.agencyId ?? undefined;
-  if (!scope && context.user?.role !== "admin") {
+  const isAdmin = context.user?.role === "admin";
+  const scope = isAdmin ? undefined : (context.agencyId ?? undefined);
+  if (!scope && !isAdmin) {
     return fail("Agency scope required", 403);
   }
   await agents.softDelete(id, scope);

@@ -23,6 +23,17 @@ export const PATCH = apiHandler(async (req, { user }) => {
   const publisher = await getPublisherForUser(user.id);
   if (!publisher) return fail("Publisher account not found", 404);
   const body = validate(updatePublisherSelfSchema, await req.json());
-  const updated = await publishers.update(publisher.id, { email: body.email });
-  return ok({ id: updated.id, name: updated.name, email: updated.email }, "Settings saved");
+  const dupe = await publishers.findByEmail(body.email);
+  if (dupe && dupe.id !== publisher.id) {
+    return fail("A publisher with this email already exists", 409);
+  }
+  try {
+    const updated = await publishers.update(publisher.id, { email: body.email });
+    return ok({ id: updated.id, name: updated.name, email: updated.email }, "Settings saved");
+  } catch (e) {
+    if ((e as { code?: string })?.code === "23505") {
+      return fail("A publisher with this email already exists", 409);
+    }
+    throw e;
+  }
 }, { resource: "publisher-portal", action: "view" });
