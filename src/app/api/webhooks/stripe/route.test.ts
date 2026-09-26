@@ -49,7 +49,20 @@ vi.mock("@/server/repositories/payments", () => ({
 
 vi.mock("@/server/repositories", () => ({
   walletEntries: { create: walletCreateMock },
+  agencyWallets: { creditPool: vi.fn() },
   agentSubscriptions: { findActiveByAgent: vi.fn(), create: vi.fn() },
+}));
+
+vi.mock("@/server/db", () => ({
+  query: vi.fn(async () => []),
+  queryOne: vi.fn(async () => null),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
+}));
+
+vi.mock("@/server/db", () => ({
+  query: vi.fn(async () => []),
+  queryOne: vi.fn(async () => null),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
 }));
 
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
@@ -84,9 +97,11 @@ describe("stripe webhook — agency top-up idempotency", () => {
     expect(res2.status).toBe(200);
 
     expect(markCompletedMock).toHaveBeenCalledTimes(1);
+    expect(markCompletedMock).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything());
     expect(walletCreateMock).toHaveBeenCalledTimes(1);
     expect(walletCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({ idempotency_key: "stripe_cs_test_123" }),
+      expect.anything(),
     );
   });
 
@@ -131,6 +146,7 @@ describe("stripe webhook — agent top-up credits the AGENT wallet", () => {
         type: "top_up",
         idempotency_key: "stripe_cs_test_123",
       }),
+      expect.anything(),
     );
   });
 
@@ -151,5 +167,31 @@ describe("stripe webhook — agent top-up credits the AGENT wallet", () => {
     expect(setLivemodeMock).toHaveBeenCalledWith("cs_test_123", false);
     expect(walletCreateMock).toHaveBeenCalled();
     fakeEvent.data.object.livemode = undefined;
+  });
+});
+
+describe("stripe webhook — subscription orphan heal + single receipt", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fakeEvent.data.object.metadata = {
+      type: "subscription", agent_id: "agent-9", plan_id: "plan-1",
+      agency_id: "agency-1", credit_cents: "5000", fee_cents: "0",
+    };
+    findBySessionIdMock.mockResolvedValue(null);
+  });
+
+  it("heals a missing payments row from metadata instead of activating invisibly", async () => {
+    const { payments } = await import("@/server/repositories/payments");
+    vi.mocked(payments.create).mockResolvedValue({
+      id: "pay-sub", agency_id: "agency-1", agent_id: "agent-9", plan_id: "plan-1",
+      stripe_session_id: "cs_test_123", amount_cents: 5000, fee_cents: 0,
+      currency: "usd", status: "pending", livemode: true,
+    } as never);
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    expect(vi.mocked(payments.create)).toHaveBeenCalledWith(
+      expect.objectContaining({ stripe_session_id: "cs_test_123", plan_id: "plan-1" }),
+    );
+    expect(markCompletedMock).toHaveBeenCalled();
   });
 });

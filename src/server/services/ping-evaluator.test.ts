@@ -131,6 +131,15 @@ describe("evaluatePing", () => {
     expect(sql).toContain("agency_wallet_allocations");
     expect(sql).toContain("agency_wallets");
   });
+
+  it("includes the postpaid bypass so postpaid agents ping routable (routeCall parity)", async () => {
+    queryOneMock
+      .mockResolvedValueOnce(activeCampaign)
+      .mockResolvedValueOnce({ id: "agent-9" });
+    await evaluatePing({ did: "+15550000000", caller: "+13125551234" });
+    const [sql] = queryOneMock.mock.calls[1] as [string, unknown[]];
+    expect(sql).toContain("postpaid_bypass");
+  });
 });
 
 describe("resolveNpaState", () => {

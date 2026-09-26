@@ -27,4 +27,4 @@ export const POST = apiHandler(async (req, context) => {
   const body = validate(createInvoiceSchema, await req.json());
   const invoice = await invoices.create({ ...body, agency_id: context.agencyId ?? body.agency_id });
   return ok(invoice);
-}, { resource: "calls", action: "create" });
+}, { resource: "calls", action: "manage", allowHead: true });

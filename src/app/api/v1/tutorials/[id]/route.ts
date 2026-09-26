@@ -13,10 +13,10 @@ export const PATCH = apiHandler(async (req, context) => {
   const body = validate(updateTutorialSchema, await req.json());
   const row = await tutorials.update(id, body, context.agencyId!);
   return ok(row);
-}, { resource: "agents", action: "manage" });
+}, { resource: "agents", action: "manage", allowHead: true });
 
 export const DELETE = apiHandler(async (req, context) => {
   const { id } = await context.params;
   await tutorials.softDelete(id, context.agencyId!);
   return noContent();
-}, { resource: "agents", action: "manage" });
+}, { resource: "agents", action: "manage", allowHead: true });

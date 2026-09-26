@@ -1,5 +1,5 @@
 import { queryOne } from "@/server/db";
-import { walletEntries, agentSubscriptions } from "@/server/repositories";
+import { walletEntries, agentSubscriptions, agents, agentCampaignSelections } from "@/server/repositories";
 
 export interface FundingStatus {
   funded: boolean;
@@ -46,4 +46,43 @@ export async function fundingStatus(agentId: string): Promise<FundingStatus> {
 
 export async function canGoOnline(agentId: string): Promise<boolean> {
   return (await fundingStatus(agentId)).funded;
+}
+
+/**
+ * Full server-checkable go-online checklist (everything except the
+ * per-browser mic+speaker test, which only the client can verify and which
+ * the header/sidebar toggles enforce from localStorage). PATCH availability
+ * gates on this, so header toggles, Take Calls, and API clients all share
+ * one verdict. Returns human-readable blockers, empty when clear.
+ */
+export async function onlineBlockers(agentId: string): Promise<string[]> {
+  const blockers: string[] = [];
+  const agent = await agents.findById(agentId).catch(() => null);
+  if (!agent) return ["agent profile not found"];
+  if (agent.approval_status !== "approved") {
+    return [`awaiting admin approval (status: ${agent.approval_status})`];
+  }
+  const status = await fundingStatus(agentId);
+  if (!status.funded) {
+    if (status.needsSubscription && status.needsTopup) {
+      blockers.push("an active subscription plan AND a topped-up wallet");
+    } else if (status.needsSubscription) {
+      blockers.push("an active subscription plan");
+    } else {
+      blockers.push("a topped-up wallet");
+    }
+  }
+  const live = await agentCampaignSelections.getLiveCampaignIds(agentId).catch(() => [] as string[]);
+  if (live.length === 0) {
+    blockers.push("at least one live campaign (Take Calls → Live Campaigns)");
+  }
+  const eps = (agent.endpoint_types ?? []) as string[];
+  const hasWebrtc = eps.includes("webrtc");
+  const hasPstn = eps.includes("pstn") || eps.includes("phone");
+  if (!hasWebrtc && !hasPstn) {
+    blockers.push("a call endpoint (contact admin to configure one)");
+  } else if (!hasWebrtc && !agent.forwarding_number) {
+    blockers.push("a forwarding number for the PSTN endpoint");
+  }
+  return blockers;
 }

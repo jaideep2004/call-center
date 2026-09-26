@@ -260,6 +260,9 @@ export function useTelnyxWebRTC(agentId: string | null | undefined) {
 
   const snap = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  const [isMuted, setIsMuted] = useState(false);
+  const [retryN, setRetryN] = useState(0);
+
   // Attach/detach this instance. Softphone stays mounted for the whole agent
   // session, so the client persists across page navigation. Instances share
   // one ref-counted client — Take Calls included (it keeps the client alive
@@ -301,9 +304,21 @@ export function useTelnyxWebRTC(agentId: string | null | undefined) {
         mine = null;
       }
     };
-  }, [key]);
+  }, [key, retryN]);
 
-  const [isMuted, setIsMuted] = useState(false);
+  // Manual recovery after init failure: drop the failed entry so the attach
+  // effect below recreates the client from scratch (retryN retriggers it).
+  // Without this a transient SIP-credentials/network failure errors forever
+  // while mounted.
+  const retry = useCallback(() => {
+    if (!key) return;
+    if (shared && !shared.dead && shared.agentId === key) {
+      wlog(key, "manual retry — dropping client, will reconnect");
+      teardown(shared);
+    }
+    setRetryN((n) => n + 1);
+    emitAll();
+  }, [key]);
 
   const answer = useCallback(
     (remoteElement?: HTMLElement | string): AnswerResult => {
@@ -403,5 +418,6 @@ export function useTelnyxWebRTC(agentId: string | null | undefined) {
     hangup: hangupCall,
     toggleMute,
     sendDTMF,
+    retry,
   };
 }

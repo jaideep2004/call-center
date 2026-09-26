@@ -18,6 +18,8 @@ interface UserRow {
   id: string;
   name: string;
   email: string;
+  role: string | null;
+  createdAt?: string;
 }
 
 interface AgencyRow {
@@ -41,6 +43,7 @@ export default function AdminUsersPage() {
   const [sortBy, setSortBy] = useState("created_at");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [agentsMap, setAgentsMap] = useState<Record<string, { name: string; email: string }>>({});
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchAll() {
@@ -132,6 +135,57 @@ export default function AdminUsersPage() {
       showToast("Network error updating status", "error");
     }
   }
+
+  async function deleteUser(userId: string, label: string) {
+    if (!confirm(`Permanently delete ${label}? This removes the user, their memberships and agent profiles from the database. This cannot be undone.`)) return;
+    setDeletingUserId(userId);
+    try {
+      const res = await fetch(`/api/v1/users/${userId}`, { method: "DELETE" });
+      const body = await res.json().catch(() => ({} as { message?: string }));
+      if (res.ok) {
+        setUsers((prev) => prev.filter((u) => u.id !== userId));
+        setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+        showToast("User deleted permanently", "success");
+      } else {
+        showToast(body.message ?? "Failed to delete user", "error");
+      }
+    } catch {
+      showToast("Network error deleting user", "error");
+    } finally {
+      setDeletingUserId(null);
+    }
+  }
+
+  const membershipsByUser = useMemo(() => {
+    const m = new Map<string, Membership[]>();
+    for (const ms of members) {
+      const list = m.get(ms.user_id) ?? [];
+      list.push(ms);
+      m.set(ms.user_id, list);
+    }
+    return m;
+  }, [members]);
+
+  const filteredUsers = useMemo(() => {
+    let out = [...users];
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      out = out.filter((u) =>
+        (u.name ?? "").toLowerCase().includes(q) ||
+        (u.email ?? "").toLowerCase().includes(q) ||
+        (u.role ?? "").toLowerCase().includes(q) ||
+        u.id.toLowerCase().includes(q),
+      );
+    }
+    if (roleFilter) {
+      out = out.filter((u) =>
+        (u.role ?? "").toLowerCase() === roleFilter.toLowerCase() ||
+        (membershipsByUser.get(u.id) ?? []).some((ms) => ms.role === roleFilter),
+      );
+    }
+    out.sort((a, b) => (a.email ?? "").localeCompare(b.email ?? ""));
+    return out;
+  }, [users, search, roleFilter, membershipsByUser]);
 
   const filtered = useMemo(() => {
     let out = [...members];
@@ -243,6 +297,57 @@ export default function AdminUsersPage() {
     },
   ];
 
+  const userColumns: Column<UserRow>[] = [
+    {
+      key: "user", header: "User",
+      render: (u) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontWeight: 500 }}>{u.name || u.email || u.id.slice(0, 8)}</span>
+          {u.name && <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11 }}>{u.email}</span>}
+          <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 10 }} title={u.id}>{u.id.slice(0, 8)}…</span>
+        </div>
+      ),
+    },
+    {
+      key: "role", header: "Platform role",
+      render: (u) => (
+        <span className={`badge${u.role === "admin" ? " badge-danger" : u.role === "publisher" ? " badge-info" : " badge-success"}`}>
+          {u.role ?? "—"}
+        </span>
+      ),
+    },
+    {
+      key: "agencies", header: "Agencies",
+      render: (u) => {
+        const list = membershipsByUser.get(u.id) ?? [];
+        if (list.length === 0) return <span className="text-muted" style={{ fontSize: 12 }}>No agency</span>;
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {list.map((ms) => (
+              <span key={ms.id} className="text-mono-sm" style={{ fontSize: 11 }}>
+                {agencyMap.get(ms.agency_id)?.name ?? ms.agency_id.slice(0, 8)} · {ms.role} · {ms.status}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      key: "actions", header: "Actions", className: "actions-cell",
+      render: (u) => (
+        <button
+          className="btn btn-sm btn-danger"
+          style={{ fontSize: 11, whiteSpace: "nowrap" }}
+          disabled={deletingUserId === u.id}
+          onClick={() => deleteUser(u.id, u.email || u.name || u.id.slice(0, 8))}
+          title="Permanently delete this user from the database"
+        >
+          {deletingUserId === u.id ? "Deleting…" : "Delete"}
+        </button>
+      ),
+    },
+  ];
+
   if (loading) return (
     <div className="dashboard-page">
       <div className="stack" style={{ gap: 12 }}>{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton skeleton-text" />)}</div>
@@ -258,7 +363,7 @@ export default function AdminUsersPage() {
         </div>
         <div className="search-bar" style={{ flexWrap: "wrap", gap: 8 }}>
           <input className="input" type="search" placeholder="Search name, email, role…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ minWidth: 220 }} />
-          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{filtered.length} of {members.length} users</span>
+          <span className="text-mono-sm" style={{ whiteSpace: "nowrap" }}>{filteredUsers.length} of {users.length} users · {filtered.length} memberships</span>
         </div>
       </div>
 
@@ -278,6 +383,36 @@ export default function AdminUsersPage() {
         )}
       </div>
 
+      <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "var(--space-3)" }}>
+          <h2 style={{ font: "500 16px var(--serif)", margin: 0, letterSpacing: "-0.02em" }}>
+            All users <span className="text-mono-sm" style={{ color: "var(--muted)" }}>({filteredUsers.length})</span>
+          </h2>
+          <span className="text-muted" style={{ fontSize: 11 }}>Every role · Delete removes the user from the database permanently</span>
+        </div>
+        {filteredUsers.length === 0 ? (
+          <div className="empty-state"><p>No users found.</p></div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <DataTable
+              columns={userColumns}
+              data={filteredUsers}
+              emptyMessage="No users"
+              page={1}
+              totalPages={1}
+              total={filteredUsers.length}
+              onPageChange={() => {}}
+              sortBy="user"
+              order="asc"
+              onSort={() => {}}
+            />
+          </div>
+        )}
+      </section>
+
+      <h2 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-3)", letterSpacing: "-0.02em" }}>
+        Memberships <span className="text-mono-sm" style={{ color: "var(--muted)" }}>({filtered.length})</span>
+      </h2>
       {filtered.length === 0 ? (
         <div className="empty-state"><p>No users found.</p><p className="text-muted" style={{ fontSize: 12 }}>Try adjusting search or filters.</p></div>
       ) : (

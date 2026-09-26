@@ -212,6 +212,18 @@ export default function AdminCmsPage() {
       showToast("Slug must be lowercase letters, numbers and hyphens", "error");
       return;
     }
+    // Retired/separated slugs are managed elsewhere — creating them here
+    // would make invisible rows (hidden filters, no editor). Redirect instead.
+    const retired = ["creatives", "banner", "banners"];
+    const separated = ["posts", "blog"];
+    if (retired.includes(slug)) {
+      showToast("Banners live in the Campaign Ads tab — create them there", "error");
+      return;
+    }
+    if (separated.includes(slug)) {
+      showToast("Blog lives in the Blog tab — create posts there", "error");
+      return;
+    }
     if (!newTitle.trim()) {
       showToast("Title required", "error");
       return;

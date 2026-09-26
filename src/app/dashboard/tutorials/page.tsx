@@ -25,6 +25,17 @@ export default function TutorialsPage() {
   const [category, setCategory] = useState("");
   const [playing, setPlaying] = useState<Tutorial | null>(null);
   const [progress, setProgress] = useState<Record<string, { watched_percent: number; completed: boolean }>>({});
+  // + New Tutorial needs agents:manage — hide it for roles that would 403.
+  const [canManage, setCanManage] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (!res.ok) { setCanManage(false); return; }
+      const body = await res.json();
+      if (body.data?.publisherId || body.data?.publisher?.id) { setCanManage(false); return; }
+      const role = body.data?.user?.role ?? null;
+      setCanManage(role === "admin" || body.data?.isHead === true);
+    }).catch(() => setCanManage(false));
+  }, []);
   const lastSent = useRef<Record<string, number>>({});
 
   const fetchTutorials = useCallback(async () => {
@@ -81,7 +92,9 @@ export default function TutorialsPage() {
           <h1>Tutorials</h1>
         </div>
         <div className="search-bar">
-          <Link href="/dashboard/tutorials/new" className="btn btn-primary">+ New Tutorial</Link>
+          {canManage === true && (
+            <Link href="/dashboard/tutorials/new" className="btn btn-primary">+ New Tutorial</Link>
+          )}
         </div>
       </div>
 

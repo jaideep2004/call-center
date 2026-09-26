@@ -79,6 +79,19 @@ describe("expireRingingCalls", () => {
     expect(handleNoAnswerMock).toHaveBeenCalledWith("call-good", "timeout");
   });
 
+  it("cancels the answered caller leg when sweeping orphan ringing (no dangling silence)", async () => {
+    (db.pool.query as ReturnType<typeof vi.fn>).mockImplementation(async (sql: string) => {
+      if (String(sql).includes("RETURNING id, provider")) {
+        return { rows: [{ id: "call-orphan", provider: "telnyx", provider_call_id: "caller-leg-9" }] };
+      }
+      return { rows: [] };
+    });
+
+    await expireRingingCalls();
+
+    expect(providerCancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-9" });
+  });
+
   it("selects ringing calls past their per-campaign ring timeout, agent'd only", async () => {
     (db.pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
 

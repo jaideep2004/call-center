@@ -12,10 +12,11 @@ interface ConversionRow {
   conversion_rate: number;
 }
 
-export const GET = apiHandler(async (req) => {
+export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
   const params = Object.fromEntries(url.searchParams.entries());
   const { days } = validate(conversionQuerySchema, params);
+  const agencyId = context.user?.role === "admin" ? null : (context.agencyId ?? null);
 
   const rows = await query<ConversionRow>(`
     SELECT
@@ -28,9 +29,10 @@ export const GET = apiHandler(async (req) => {
       ) as conversion_rate
     FROM app.calls
     WHERE COALESCE(started_at, ended_at) >= NOW() - ($1::int || ' days')::interval
+      ${agencyId ? "AND agency_id = $2" : ""}
     GROUP BY DATE(COALESCE(started_at, ended_at))
     ORDER BY date ASC
-  `, [days]);
+  `, agencyId ? [days, agencyId] : [days]);
 
   return ok(rows);
 }, { resource: "calls", action: "view" });

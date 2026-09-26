@@ -38,11 +38,25 @@ export async function expireRingingCalls(options: { limit?: number } = {}): Prom
 
   // Orphan-ringing safety net. 45s grace so routeCall's in-flight dials
   // (claimed to 'ringing' with agent_id still NULL) are never swept.
-  await pool.query(
+  // The caller leg was answered at inbound: cancel it so it doesn't dangle
+  // in silence. (No agent leg is attached yet, so nothing else to cancel —
+  // a dial actually in flight times out provider-side.)
+  const orphans = await pool.query<{ id: string; provider: string; provider_call_id: string }>(
     `UPDATE app.calls SET state = 'missed', routing_snapshot = routing_snapshot || '{"cleanup":"orphan_ringing"}'::jsonb
-     WHERE state = 'ringing' AND agent_id IS NULL
-       AND COALESCE(ring_started_at, started_at, now()) < now() - interval '45 seconds'`,
+      WHERE state = 'ringing' AND agent_id IS NULL
+        AND COALESCE(ring_started_at, started_at, now()) < now() - interval '45 seconds'
+      RETURNING id, provider, provider_call_id`,
   ).catch(() => undefined);
+  if (orphans) {
+    const { getTelephonyProvider } = await import("@/server/telephony-registry").catch(() => ({}) as never);
+    for (const row of orphans.rows) {
+      try {
+        await (getTelephonyProvider as (p: string) => { cancel: (a: { providerAttemptId: string }) => Promise<void> })(row.provider)?.cancel({ providerAttemptId: row.provider_call_id });
+      } catch (e: any) {
+        console.error(`[expireRingingCalls] cancel orphan caller leg failed for call ${row.id}: ${e?.message ?? e}`);
+      }
+    }
+  }
 
   // Only agent'd ringing legs are candidates for a ring-timeout failover; the
   // no-agent in-flight dials are covered by the orphan net above.

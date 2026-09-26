@@ -1,5 +1,6 @@
 import { payments, type PaymentRow } from "@/server/repositories/payments";
 import { walletEntries, agencyWallets } from "@/server/repositories";
+import { transaction } from "@/server/db";
 
 export type TopupKind = "agent" | "agency-pool" | "agency";
 
@@ -94,11 +95,16 @@ export async function findOrCreateTopupPayment(
 }
 
 /**
- * Credit a pending top-up payment exactly once. Wallet-first ordering: the
- * ledger entry (UNIQUE idempotency_key) lands before the status flip, so a
- * crash between the two can never strand a `completed` payment with no
- * credit — redelivery sees the duplicate key and converges instead of
- * double-minting. Returns true when this call performed the credit.
+ * Credit a pending top-up payment exactly once. Everything lands in ONE
+ * database transaction (ledger and/or pool + status flip), so a crash can
+ * never strand a half-credited payment: redelivery either retries cleanly
+ * (rolled back) or sees `completed` and skips. The UNIQUE ledger key is the
+ * second line of defense for concurrent doubles. Returns true only when this
+ * call performed the credit (receipts key off this — no double mail).
+ *
+ * Single-pot rule: an agency-pool top-up credits ONLY the pool balance (plus
+ * the payments audit row). Writing an agency-ledger top_up for the same cents
+ * would make one Stripe payment spendable twice (transfers + allocations).
  */
 export async function creditTopupPayment(
   payment: PaymentRow,
@@ -109,37 +115,38 @@ export async function creditTopupPayment(
   if (payment.status === "completed") return { credited: false };
   const key = `stripe_${sessionId}`;
   let duplicate = false;
-  try {
-    if (kind === "agent") {
-      await walletEntries.create({
-        agency_id: payment.agency_id,
-        agent_id: payment.agent_id ?? undefined,
-        type: "top_up",
-        amount_cents: payment.amount_cents,
-        currency: payment.currency,
-        idempotency_key: key,
-        provider_reference: paymentIntentId,
-      });
-    } else {
-      await walletEntries.create({
-        agency_id: payment.agency_id,
-        type: "top_up",
-        amount_cents: payment.amount_cents,
-        currency: payment.currency,
-        idempotency_key: key,
-        provider_reference: paymentIntentId,
-      });
+  await transaction(async (client) => {
+    try {
       if (kind === "agency-pool") {
-        await agencyWallets.creditPool(payment.agency_id, payment.amount_cents);
+        await agencyWallets.creditPool(payment.agency_id, payment.amount_cents, client);
+      } else if (kind === "agent") {
+        await walletEntries.create({
+          agency_id: payment.agency_id,
+          agent_id: payment.agent_id ?? undefined,
+          type: "top_up",
+          amount_cents: payment.amount_cents,
+          currency: payment.currency,
+          idempotency_key: key,
+          provider_reference: paymentIntentId,
+        }, client);
+      } else {
+        await walletEntries.create({
+          agency_id: payment.agency_id,
+          type: "top_up",
+          amount_cents: payment.amount_cents,
+          currency: payment.currency,
+          idempotency_key: key,
+          provider_reference: paymentIntentId,
+        }, client);
       }
+    } catch (e: any) {
+      if (e?.code !== "23505") throw e;
+      // Duplicate key: a concurrent delivery already credited. Converge the
+      // status below but report honestly — no second receipt goes out.
+      duplicate = true;
     }
-  } catch (e: any) {
-    if (e?.code !== "23505") throw e;
-    // Duplicate key: a concurrent delivery already credited. Converge the
-    // status below but report honestly — no second receipt goes out.
-    duplicate = true;
-  }
-  await payments.markCompleted(payment.id, paymentIntentId);
+    await payments.markCompleted(payment.id, paymentIntentId, client);
+  });
   if (duplicate) return { credited: false };
   if (kind === "agency-pool") {
     const { syncOfferWalletPauses } = await import("@/server/services/offer-wallet-sync");

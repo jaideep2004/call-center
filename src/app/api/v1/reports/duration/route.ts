@@ -11,10 +11,11 @@ interface DurationRow {
   total_calls: number;
 }
 
-export const GET = apiHandler(async (req) => {
+export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
   const params = Object.fromEntries(url.searchParams.entries());
   const { days } = validate(durationQuerySchema, params);
+  const agencyId = context.user?.role === "admin" ? null : (context.agencyId ?? null);
 
   const rows = await query<DurationRow>(`
     SELECT
@@ -25,9 +26,10 @@ export const GET = apiHandler(async (req) => {
     WHERE started_at >= NOW() - ($1::int || ' days')::interval
       AND connected_at IS NOT NULL
       AND ended_at IS NOT NULL
+      ${agencyId ? "AND agency_id = $2" : ""}
     GROUP BY DATE(started_at)
     ORDER BY date ASC
-  `, [days]);
+  `, agencyId ? [days, agencyId] : [days]);
 
   return ok(rows);
 }, { resource: "calls", action: "view" });

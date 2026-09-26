@@ -37,7 +37,10 @@ function reasons(agent: AgentCandidate, request: RoutingRequest) {
   if (agent.busy) rejected.push("busy");
   if (!agent.walletEligible) rejected.push("wallet_ineligible");
   if (!agent.scheduleOpen) rejected.push("outside_schedule");
-  if (agent.states.length && !agent.states.includes(request.state)) rejected.push("state_mismatch");
+  // Unknown caller state (non-NANP, unparseable NPA) matches everyone with a
+  // state list — an empty request state means "could not determine", never a
+  // mismatch. Only a KNOWN uncovered state rejects.
+  if (request.state && agent.states.length && !agent.states.includes(request.state)) rejected.push("state_mismatch");
   if (request.requiredLicense && !agent.licenses.includes(request.requiredLicense)) rejected.push("license_missing");
   if (agent.skills.length > 0 && request.requiredSkills.some((skill) => !agent.skills.includes(skill))) rejected.push("skill_missing");
   if (!agent.endpointTypes.some((type) => request.allowedEndpoints.includes(type)) && agent.endpointTypes.length > 0) rejected.push("endpoint_unavailable");

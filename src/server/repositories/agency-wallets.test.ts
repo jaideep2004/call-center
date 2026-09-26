@@ -57,20 +57,44 @@ describe("agencyWallets pool (P1.4)", () => {
 });
 
 describe("effective balance (P1.4)", () => {
-  it("sumEffectiveByAgent adds personal ledger + allocation", async () => {
+  function mockLedger(personal: string, allocated: number, enabled: boolean) {
     queryMock.mockImplementation(async (sql: string) => {
-      if (sql.includes("agency_wallet_allocations")) return [{ allocated_cents: 1500 }];
-      return [{ total: "2000" }];
+      if (sql.includes("agency_wallet_allocations")) return [{ allocated_cents: allocated }];
+      if (sql.includes("agency_wallets")) return [{ enabled }];
+      return [{ total: personal }];
     });
+  }
+
+  it("sumEffectiveByAgent adds personal ledger + allocation when pool enabled", async () => {
+    mockLedger("2000", 1500, true);
     await expect(walletEntries.sumEffectiveByAgent("agent-1")).resolves.toBe(3500);
+  });
+
+  it("sumEffectiveByAgent ignores allocation when pool disabled (router parity)", async () => {
+    mockLedger("2000", 1500, false);
+    await expect(walletEntries.sumEffectiveByAgent("agent-1")).resolves.toBe(2000);
   });
 
   it("sumEffectiveByAgent falls back to personal only without allocation", async () => {
     queryMock.mockImplementation(async (sql: string) => {
       if (sql.includes("agency_wallet_allocations")) return [];
+      if (sql.includes("agency_wallets")) return [{ enabled: true }];
       return [{ total: "2000" }];
     });
     await expect(walletEntries.sumEffectiveByAgent("agent-1")).resolves.toBe(2000);
+  });
+
+  it("spendAllocation decrements allocation + pool and returns actual spend", async () => {
+    queryMock.mockResolvedValueOnce([{ allocated_cents: "100" }]);
+    await expect(agencyWallets.spendAllocation("agency-1", "agent-1", 60, undefined)).resolves.toBe(60);
+    const sqls = queryMock.mock.calls.map((c) => c[0] as string);
+    expect(sqls.some((s) => s.includes("agency_wallet_allocations SET allocated_cents"))).toBe(true);
+    expect(sqls.some((s) => s.includes("agency_wallets SET balance_cents"))).toBe(true);
+  });
+
+  it("spendAllocation floors at the available allocation (never negative)", async () => {
+    queryMock.mockResolvedValueOnce([{ allocated_cents: "30" }]);
+    await expect(agencyWallets.spendAllocation("agency-1", "agent-1", 100, undefined)).resolves.toBe(30);
   });
 
   it("effectiveBalanceSql gates the allocation on the pool flag", () => {

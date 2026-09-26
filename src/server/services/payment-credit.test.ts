@@ -21,6 +21,12 @@ vi.mock("@/server/repositories", () => ({
   agencyWallets: { creditPool: creditPoolMock },
 }));
 
+vi.mock("@/server/db", () => ({
+  query: vi.fn(async () => []),
+  queryOne: vi.fn(async () => null),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
+}));
+
 vi.mock("@/server/services/action-emails", () => ({
   sendWalletTopup: sendTopupMock,
 }));
@@ -49,7 +55,7 @@ describe("creditTopupPayment duplicate convergence", () => {
     walletCreateMock.mockRejectedValueOnce(dup);
     const res = await creditTopupPayment({ ...pending }, "agent", "pi_1", "cs_1");
     expect(res).toEqual({ credited: false });
-    expect(markCompletedMock).toHaveBeenCalledWith("pay-1", "pi_1");
+    expect(markCompletedMock).toHaveBeenCalledWith("pay-1", "pi_1", expect.anything());
     expect(sendTopupMock).not.toHaveBeenCalled();
   });
 
@@ -58,8 +64,9 @@ describe("creditTopupPayment duplicate convergence", () => {
     expect(res).toEqual({ credited: true });
     expect(walletCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({ idempotency_key: "stripe_cs_1" }),
+      expect.anything(),
     );
-    expect(markCompletedMock).toHaveBeenCalledWith("pay-1", "pi_1");
+    expect(markCompletedMock).toHaveBeenCalledWith("pay-1", "pi_1", expect.anything());
     expect(sendTopupMock).toHaveBeenCalledTimes(1);
   });
 

@@ -154,7 +154,9 @@ export async function findRoutableAgentId(input: {
   }
   // Call-readiness gate (client Q2): EFFECTIVE balance (personal ledger +
   // agency-pool allocation, P1.4) covers the price OR an active subscription
-  // with remaining allowance. Unfunded agents are never ping targets.
+  // with remaining allowance OR the agency-level postpaid bypass (mirrors
+  // routeCall — without it postpaid agents ping no_agent_available yet route
+  // fine). Unfunded agents are never ping targets.
   params.push(input.priceCents);
   clauses.push(`AND (
       ${effectiveBalanceSql("a")} >= $${params.length}
@@ -164,6 +166,10 @@ export async function findRoutableAgentId(input: {
         WHERE s.agent_id = a.id AND s.status = 'active'
           AND (s.end_date IS NULL OR s.end_date > now())
           AND s.calls_used < p.call_allowance
+      )
+      OR EXISTS (
+        SELECT 1 FROM app.agencies ag
+         WHERE ag.id = a.agency_id AND ag.postpaid_bypass IS TRUE
       )
       OR $${params.length} <= 0
     )`);

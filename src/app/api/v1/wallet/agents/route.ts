@@ -2,8 +2,11 @@ import { apiHandler, ok, fail } from "@/server/api-utils";
 import { query } from "@/server/db";
 import { agents, walletEntries } from "@/server/repositories";
 
-export const GET = apiHandler(async (_req, { agencyId }) => {
+export const GET = apiHandler(async (_req, { agencyId, user, isHead }) => {
   if (!agencyId) return fail("Agency required", 403);
+  // Team earnings are head/admin-only: this returns every agent's balance +
+  // availability. Plain agents have their own /wallet/agent endpoint.
+  if (user?.role !== "admin" && !isHead) return fail("Heads only", 403);
 
   const rows = await agents.findMany({ agencyId });
   const stats = await query<{ agent_id: string; call_count: string; connected_seconds: string }>(

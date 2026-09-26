@@ -21,6 +21,9 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
   if (!plan) return fail("Plan not found", 404);
   if (plan.agency_id !== agencyId) return fail("Plan not available", 403);
   if (!plan.active) return fail("Plan is no longer available", 400);
+  if (!Number.isInteger(plan.price_cents) || plan.price_cents < 100) {
+    return fail("Free plans subscribe directly — paid plans need a positive price", 422);
+  }
 
   const agent = await agents.findByMembershipId(membership.id);
   if (!agent) return fail("Agent profile not found", 404);
@@ -49,6 +52,8 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
       agent_id: agent.id,
       plan_id: plan.id,
       agency_id: agencyId,
+      credit_cents: String(plan.price_cents),
+      fee_cents: "0",
     },
     success_url: successUrl,
     cancel_url: cancelUrl,

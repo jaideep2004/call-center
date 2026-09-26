@@ -41,7 +41,7 @@ export default function PoolWalletPage() {
   const [data, setData] = useState<PoolData | null>(null);
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [topUpAmount, setTopUpAmount] = useState(5000);
+  const [topUpAmount, setTopUpAmount] = useState(500);
   const [toppingUp, setToppingUp] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});

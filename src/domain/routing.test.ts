@@ -57,6 +57,18 @@ describe("selectAgent", () => {
     expect(result.selected).toBeUndefined();
   });
 
+  it("matches state-restricted agents when caller state is unknown (empty)", () => {
+    const result = selectAgent([makeAgent()], { ...defaultRequest, state: "" });
+    expect(result.selected?.id).toBe("a1");
+    expect(result.rejected).toEqual({});
+  });
+
+  it("still rejects a known uncovered state", () => {
+    const result = selectAgent([makeAgent()], { ...defaultRequest, state: "TX" });
+    expect(result.selected).toBeUndefined();
+    expect(result.rejected.a1).toContain("state_mismatch");
+  });
+
   it("rejects agent not licensed for required state", () => {
     const result = selectAgent([makeAgent({ states: ["CA"] })], defaultRequest);
     expect(result.selected).toBeUndefined();

@@ -15,6 +15,12 @@ export const POST = apiHandler(async (req, { params, membership, agencyId }) => 
   const agent = await agents.findByMembershipId(membership.id);
   if (!agent) return fail("Agent profile not found", 404);
   if (call.agent_id && call.agent_id !== agent.id) return fail("Not your call", 403);
+  // No dispositions on calls with no outcome yet (ringing/routing/...):
+  // filing mid-ring skews qualification downstream. Terminal states are all
+  // fair game — no_answer/dead_call/dead_air are MEANT for missed calls.
+  if (!["connected", "ended", "missed", "failed", "cancelled"].includes(call.state)) {
+    return fail(`Dispositions can only be filed once the call has an outcome (state: ${call.state})`, 422);
+  }
 
   const existing = await dispositions.findByCallId(call.id);
   if (existing) return fail("Disposition already submitted", 409);

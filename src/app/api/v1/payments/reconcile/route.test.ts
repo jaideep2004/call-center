@@ -36,6 +36,12 @@ vi.mock("@/server/services/offer-wallet-sync", () => ({
   syncOfferWalletPauses: vi.fn(async () => ({})),
 }));
 
+vi.mock("@/server/db", () => ({
+  query: vi.fn(async () => []),
+  queryOne: vi.fn(async () => null),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
+}));
+
 vi.mock("@/server/api-utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/server/api-utils")>();
   return {
@@ -99,6 +105,7 @@ describe("POST /api/v1/payments/reconcile", () => {
     expect(body.data).toMatchObject({ credited: true, amount_cents: 100 });
     expect(walletCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({ agent_id: "agent-9", amount_cents: 100, idempotency_key: "stripe_cs_rec_1" }),
+      expect.anything(),
     );
   });
 

@@ -588,12 +588,12 @@ function TakeCallsInner() {
 			: "Not set";
 	const liveCount = liveCampaigns.filter((c) => c.is_live_for_me).length;
 	const campaignsReady = liveCount > 0;
-	const fundingOk = funding != null ? funding.funded : fundingChecked;
-	const fundingPending = !fundingChecked || (fundingChecked && funding == null);
+	const fundingOk = funding != null ? funding.funded : false;
+	const fundingPending = !fundingChecked;
 	const fundingDesc = !fundingChecked
 		? "Checking subscription + wallet…"
 		: funding == null
-			? "Couldn't verify automatically — the server confirms on Go Online."
+			? "Couldn't verify funding — refresh the page to retry. Online stays locked until verified."
 			: funding.funded
 				? "Subscription active + wallet topped up"
 				: funding.needs_subscription && funding.needs_topup
@@ -671,13 +671,17 @@ function TakeCallsInner() {
 		isApproved && deviceReady && endpointReady && campaignsReady && fundingOk;
 	const goOnlineBlockedReason = !isApproved
 		? "Awaiting admin approval"
-		: !fundingOk && funding != null
-			? (funding.needs_subscription && funding.needs_topup
-				? "Buy a subscription + top up to go online"
-				: funding.needs_subscription
-					? "Buy a subscription plan to go online"
-					: "Top up your wallet to go online")
-			: !campaignsReady
+		: !fundingChecked
+			? "Checking funding…"
+			: !fundingOk
+				? (funding == null
+					? "Couldn't verify funding — refresh to retry"
+					: funding.needs_subscription && funding.needs_topup
+						? "Buy a subscription + top up to go online"
+						: funding.needs_subscription
+							? "Buy a subscription plan to go online"
+							: "Top up your wallet to go online")
+				: !campaignsReady
 				? "Select a campaign to go live"
 				: !endpointReady
 					? "Endpoint not ready"

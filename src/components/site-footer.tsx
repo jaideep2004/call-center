@@ -1,8 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 
 export function SiteFooter() {
+  const [newsEmail, setNewsEmail] = useState("");
+  const [newsState, setNewsState] = useState<"idle" | "sending" | "done" | "error">("idle");
+
+  async function subscribeNews(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newsEmail.trim() || newsState === "sending" || newsState === "done") return;
+    setNewsState("sending");
+    try {
+      const res = await fetch("/api/v1/public/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Newsletter subscriber", email: newsEmail.trim(), inquiryType: "newsletter", message: "Newsletter signup from site footer." }),
+      });
+      setNewsState(res.ok ? "done" : "error");
+    } catch {
+      setNewsState("error");
+    }
+  }
+
   return (
     <footer className="site-footer public-footer" style={{ background: "#0a0614", borderTop: "1px solid rgba(255,255,255,0.06)", padding: "56px 0 24px" }}>
       <div style={{ maxWidth: 1300, margin: "0 auto", padding: "0 24px" }}>
@@ -59,12 +79,13 @@ export function SiteFooter() {
           <div>
             <h4 style={{ color: "white", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 14px" }}>Stay updated</h4>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, lineHeight: 1.6, margin: "0 0 12px" }}>Get product updates and tips to grow your business.</p>
-            <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", gap: 8 }}>
-              <input type="email" placeholder="Enter your email" required style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "10px 12px", color: "white", fontSize: 12, outline: "none" }} />
-              <button type="submit" aria-label="Subscribe" style={{ background: "#7C3AED", border: "none", borderRadius: 8, padding: "10px 12px", color: "white", cursor: "pointer", display: "grid", placeItems: "center" }}>
+            <form onSubmit={subscribeNews} style={{ display: "flex", gap: 8 }}>
+              <input type="email" placeholder={newsState === "done" ? "Subscribed ✓" : "Enter your email"} required disabled={newsState === "done" || newsState === "sending"} value={newsEmail} onChange={(e) => setNewsEmail(e.target.value)} style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "10px 12px", color: "white", fontSize: 12, outline: "none" }} />
+              <button type="submit" aria-label="Subscribe" disabled={newsState === "sending" || newsState === "done"} style={{ background: "#7C3AED", border: "none", borderRadius: 8, padding: "10px 12px", color: "white", cursor: "pointer", display: "grid", placeItems: "center" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
               </button>
             </form>
+            {newsState === "error" && <p style={{ color: "#f87171", fontSize: 11, marginTop: 6 }}>Could not subscribe — try again.</p>}
           </div>
         </div>
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 40, paddingTop: 20, textAlign: "center" }}>

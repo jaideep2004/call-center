@@ -321,6 +321,22 @@ const publisherNav = [
   { label: "Settings", href: "/dashboard/publisher/settings", icon: "10" },
 ];
 
+// Agent-only areas publishers must never sit in (their portal is
+// /dashboard/publisher/*; shared pages like scripts/tutorials/
+// notifications/support stay open — APIs still enforce per-route).
+const AGENT_ONLY_PREFIXES = [
+  "/dashboard/calls",
+  "/dashboard/agents",
+  "/dashboard/recordings",
+  "/dashboard/reports",
+  "/dashboard/take-calls",
+  "/dashboard/agent-campaigns",
+  "/dashboard/campaign-updates",
+  "/dashboard/onboarding",
+  "/dashboard/wallet",
+  "/dashboard/settings",
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -421,8 +437,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!user) return;
     const pendingInvite = localStorage.getItem("pending_invite");
     if (pendingInvite) {
-      localStorage.removeItem("pending_invite");
-      fetch(`/api/v1/invites/${pendingInvite}/accept`, { method: "POST" });
+      // Keep the token until the accept succeeds: a 409 SWITCH_REQUIRED
+      // (agency member linking as publisher) must stay retryable and VISIBLE
+      // instead of dying silently.
+      fetch(`/api/v1/invites/${pendingInvite}/accept`, { method: "POST" }).then(async (res) => {
+        if (res.ok) {
+          localStorage.removeItem("pending_invite");
+        } else {
+          const body = await res.json().catch(() => ({} as { message?: string }));
+          showToast(body.message ?? "Invite could not be accepted — contact support", "error");
+        }
+      }).catch(() => {
+        showToast("Invite accept failed — check connection and reload", "error");
+      });
     }
     fetch("/api/v1/me").then(async (res) => {
       if (res.ok) {
@@ -464,6 +491,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (isAdmin && pathname === "/dashboard") {
       router.replace("/dashboard/admin");
     } else if (isPublisher && pathname === "/dashboard") {
+      router.replace("/dashboard/publisher");
+    } else if (isPublisher && AGENT_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
       router.replace("/dashboard/publisher");
     } else if (!isAdmin && pathname.startsWith("/dashboard/admin")) {
       router.replace("/dashboard");

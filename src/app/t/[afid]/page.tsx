@@ -33,8 +33,14 @@ export default async function TrackingLinkPage({ params, searchParams }: { param
   const hdrs = await headers();
   const referrer = hdrs.get("referer");
   const host = referrer ? (() => { try { return new URL(referrer).host; } catch { return null; } })() : null;
+  // Bot/crawler visits (preview unfurls, health checks) must not inflate
+  // click stats. Render the page normally — just don't log them.
+  const ua = (hdrs.get("user-agent") ?? "").toLowerCase();
+  const isBot = /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|discord|embed|monitor|health-?check|uptime/i.test(ua);
   // Logged for the publisher's click stats; awaited (single indexed insert).
-  await recordTrackingClick({ publisherId: data.publisherId, campaignId: data.campaignId, referrer: host });
+  if (!isBot) {
+    await recordTrackingClick({ publisherId: data.publisherId, campaignId: data.campaignId, referrer: host });
+  }
 
   const pretty = prettyPhone(data.trackingNumber);
 

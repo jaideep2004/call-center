@@ -1,5 +1,5 @@
 import { apiHandler, ok, created, paginated, fail } from "@/server/api-utils";
-import { campaigns, campaignAssignments } from "@/server/repositories";
+import { campaigns, campaignAssignments, agents } from "@/server/repositories";
 import { validate, createCampaignSchema, paginationSchema, searchSchema, sortSchema } from "@/server/validate";
 import { assertValidSkills } from "@/server/services/skills.service";
 
@@ -33,7 +33,14 @@ export const GET = apiHandler(async (req, context) => {
   const role = context.user?.role ?? "agent";
   let visible = rows;
   if (!ADMIN_ROLES.has(role) && context.agencyId) {
-    const assignedToMe = new Set(await campaignAssignments.findCampaignIdsForAgencyOrAgent(context.agencyId));
+    // Per-agent precision for plain agents (agency rows + own rows);
+    // heads/admins keep the agency-wide view.
+    let ownAgentId: string | undefined;
+    if (role !== "admin" && !context.isHead && context.membership) {
+      const me = await agents.findByMembershipId(context.membership.id).catch(() => null);
+      if (me) ownAgentId = me.id;
+    }
+    const assignedToMe = new Set(await campaignAssignments.findCampaignIdsForAgencyOrAgent(context.agencyId, ownAgentId));
     const anyAssignments = new Set(await campaignAssignments.findAllAssignedCampaignIds());
     visible = rows.filter((c) => !anyAssignments.has(c.id) || assignedToMe.has(c.id));
   }

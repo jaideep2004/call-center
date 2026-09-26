@@ -262,28 +262,48 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     };
   }, [agentId, callState, addDebug]);
 
-  // Fallback: poll for connected calls so UI recovers when state transitions without socket event
+  // Fallback: poll call state so the UI recovers when transitions arrive
+  // without socket events — connected promotes, terminal states (missed /
+  // ended / failed) clear a stuck "connecting" popup instead of spinning.
   useEffect(() => {
     if (!agentId || callState !== "connecting") return;
+    const targetId = activeCallId || incoming?.callId || null;
     addDebug(`Connect-poll started (agent=${agentId.slice(0,8)})`);
     let pollCount = 0;
     const interval = setInterval(async () => {
       pollCount++;
       try {
-        const res = await fetch(`/api/v1/calls?agent_id=${encodeURIComponent(agentId)}&state=connected&limit=5`);
+        const res = await fetch(`/api/v1/calls?agent_id=${encodeURIComponent(agentId)}&state=connected,missed,ended,failed&limit=5`);
         if (!res.ok) return;
         const body = await res.json();
-        const connected = body.data ?? [];
-        if (connected.length > 0) {
+        const rows = body.data ?? [];
+        if (targetId) {
+          const mine = rows.find((c: { id: string; state: string }) => c.id === targetId);
+          if (mine && mine.state === "connected") {
+            addDebug(`Connect-poll #${pollCount}: found connected`);
+            setCallState("connected");
+            setActiveCallId(mine.id);
+            clearInterval(interval);
+          } else if (mine) {
+            addDebug(`Connect-poll #${pollCount}: call ${mine.state} — clearing popup`);
+            setError(mine.state === "missed" ? "Call missed" : "Call ended");
+            setCallState("ended");
+            setTimeout(() => { setCallState("idle"); setIncoming(null); setActiveCallId(null); }, 3000);
+            clearInterval(interval);
+          }
+          return;
+        }
+        const connected = rows.find((c: { state: string }) => c.state === "connected");
+        if (connected) {
           addDebug(`Connect-poll #${pollCount}: found connected`);
           setCallState("connected");
-          setActiveCallId(connected[0].id);
+          setActiveCallId((connected as { id: string }).id);
           clearInterval(interval);
         }
       } catch { /* ignore */ }
     }, 1000);
     return () => { clearInterval(interval); };
-  }, [agentId, callState, addDebug]);
+  }, [agentId, callState, activeCallId, incoming, addDebug]);
 
   const accept = useCallback(async () => {
     if (!incoming) return;
@@ -448,6 +468,16 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     <div style={{ position: "fixed", bottom: 12, right: 12, zIndex: 99999, display: "flex", alignItems: "center", gap: 6, background: "var(--bg-card)", border: "1px solid var(--line)", borderRadius: 20, padding: "4px 12px", fontSize: 10, fontFamily: "var(--mono)", opacity: 0.8 }}>
       <span style={{ width: 8, height: 8, borderRadius: "50%", background: webrtc.isReady ? "var(--green)" : webrtc.error ? "var(--red)" : "#ff9800" }} />
       {webrtc.isReady ? "WebRTC Connected" : webrtc.error ? "Error: " + webrtc.error : "WebRTC Connecting..."}
+      {webrtc.error && (
+        <button
+          type="button"
+          onClick={() => { addDebug("Manual WebRTC retry requested"); webrtc.retry(); }}
+          title="Drop the failed client and reconnect"
+          style={{ marginLeft: 6, fontSize: 9, borderRadius: 999, border: "1px solid var(--line)", background: "transparent", color: "var(--ink)", cursor: "pointer", padding: "1px 8px" }}
+        >
+          Retry
+        </button>
+      )}
     </div>
   ) : null;
 

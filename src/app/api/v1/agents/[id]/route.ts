@@ -4,12 +4,13 @@ import { validate, updateAgentSchema, updateOwnAgentSchema } from "@/server/vali
 import { hasPermission } from "@/server/services/permission-data";
 import { assertValidSkills } from "@/server/services/skills.service";
 import { sendAgentApproved } from "@/server/services/action-emails";
-import { canGoOnline } from "@/server/services/agent-funding";
+import { onlineBlockers } from "@/server/services/agent-funding";
 import { queryOne } from "@/server/db";
 
-export const GET = apiHandler(async (req, { params }) => {
+export const GET = apiHandler(async (req, { params, agencyId }) => {
   const { id } = await params;
-  const agent = await agents.findByIdWithUser(id);
+  const agent = await agents.findByIdWithUser(id, agencyId ?? undefined);
+  if (!agent) return fail("Agent not found", 404);
   return ok(agent);
 }, { resource: "agents", action: "view" });
 
@@ -27,11 +28,12 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
     }
     const body = validate(updateOwnAgentSchema, await req.json());
     if (body.availability === "available") {
-      if (agent.approval_status !== "approved") {
-        return fail("Awaiting admin approval — you cannot go online yet", 422);
-      }
-      if (!(await canGoOnline(id))) {
-        return fail("Going online needs both an active subscription plan AND a topped-up wallet — buy a plan and top up before taking calls", 422);
+      // Full server checklist (approval + funding + live campaigns +
+      // endpoint). Mic+speaker stays client-side (per-browser localStorage,
+      // enforced by the header/sidebar toggles before this call).
+      const blockers = await onlineBlockers(id);
+      if (blockers.length > 0) {
+        return fail(`Cannot go online yet — missing: ${blockers.join("; ")}`, 422);
       }
     }
     const updated = await agents.update(id, body);
@@ -42,14 +44,9 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
     body.skills = await assertValidSkills(body.skills);
   }
   if ((body as { availability?: string }).availability === "available") {
-    const target = await queryOne<{ approval_status: string }>(
-      "SELECT approval_status FROM app.agents WHERE id = $1", [id],
-    );
-    if (target && target.approval_status !== "approved") {
-      return fail("Agent is not approved — approve them before setting them online", 422);
-    }
-    if (!(await canGoOnline(id))) {
-      return fail("Agent needs both an active subscription plan AND a topped-up wallet before going online", 422);
+    const blockers = await onlineBlockers(id);
+    if (blockers.length > 0) {
+      return fail(`Agent cannot go online — missing: ${blockers.join("; ")}`, 422);
     }
   }
   const agent = await agents.update(id, body, agencyId ?? undefined);

@@ -73,12 +73,37 @@ export async function POST(request: Request) {
         return NextResponse.json({ received: true });
       }
 
-      const payment = await payments.findBySessionId(session.id);
-      if (payment && payment.status !== "completed") {
+      // Orphan heal (same hole top-ups had): a checkout that died after
+      // session creation leaves no payments row — rebuild it from metadata
+      // instead of activating invisibly. Also stamps livemode from truth.
+      let payment = await payments.findBySessionId(session.id);
+      if (!payment) {
+        const meta = session.metadata;
+        const credit = Number(meta.credit_cents);
+        try {
+          payment = await payments.create({
+            agency_id: meta.agency_id,
+            agent_id: agentId,
+            plan_id: planId,
+            stripe_session_id: session.id,
+            amount_cents: Number.isInteger(credit) && credit >= 0 ? credit : (session.amount_total ?? 0),
+            fee_cents: Number(meta.fee_cents) || 0,
+            livemode: session.livemode ?? true,
+          });
+        } catch (e: unknown) {
+          if ((e as { code?: string })?.code !== "23505") throw e;
+          payment = await payments.findBySessionId(session.id);
+          if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+        }
+      } else if (session.livemode != null && session.livemode !== payment.livemode) {
+        await payments.setLivemode(session.id, session.livemode).catch(() => {});
+      }
+      if (payment.status !== "completed") {
         await payments.markCompleted(payment.id, paymentIntentId);
       }
 
       const existing = await agentSubscriptions.findActiveByAgent(agentId);
+      let createdNew = false;
       if (!existing) {
         try {
           await agentSubscriptions.create({
@@ -86,30 +111,34 @@ export async function POST(request: Request) {
             plan_id: planId,
             auto_renew: false,
           });
+          createdNew = true;
         } catch (error: any) {
           // Race: duplicate webhook delivery created the active subscription
           // first. The unique partial index (migration 0029) makes the second
-          // insert a conflict — treat as success.
+          // insert a conflict — treat as success WITHOUT re-mailing.
           const isUniqueViolation = error?.code === "23505";
           if (!isUniqueViolation) throw error;
         }
-        // First activation only (never on redelivery): receipt to the agent
-        // + copy to the head. Fully isolated — mail can never fail the webhook.
-        try {
-          const [{ sendSubscriptionActive }, { agentPlans }, repos] = await Promise.all([
-            import("@/server/services/action-emails"),
-            import("@/server/repositories/agent-plans"),
-            import("@/server/repositories"),
-          ]);
-          const plan = await agentPlans.findById(planId).catch(() => null);
-          const agentRow = await repos.agents.findById(agentId).catch(() => null);
-          void sendSubscriptionActive({
-            agencyId: (agentRow as { agency_id?: string } | null)?.agency_id ?? "",
-            agentId,
-            planName: (plan as { name?: string } | null)?.name,
-          }).catch(() => {});
-        } catch {
-          /* mail is best-effort */
+        // First activation only (never on redelivery/races): receipt to the
+        // agent + copy to the head. Fully isolated — mail can never fail
+        // the webhook.
+        if (createdNew) {
+          try {
+            const [{ sendSubscriptionActive }, { agentPlans }, repos] = await Promise.all([
+              import("@/server/services/action-emails"),
+              import("@/server/repositories/agent-plans"),
+              import("@/server/repositories"),
+            ]);
+            const plan = await agentPlans.findById(planId).catch(() => null);
+            const agentRow = await repos.agents.findById(agentId).catch(() => null);
+            void sendSubscriptionActive({
+              agencyId: (agentRow as { agency_id?: string } | null)?.agency_id ?? "",
+              agentId,
+              planName: (plan as { name?: string } | null)?.name,
+            }).catch(() => {});
+          } catch {
+            /* mail is best-effort */
+          }
         }
       }
     } else {

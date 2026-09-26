@@ -71,6 +71,15 @@ describe("GET /api/v1/payments", () => {
     expect(listRecentMock).not.toHaveBeenCalled();
   });
 
+  it("403s instead of leaking the agency ledger when agent lookup fails", async () => {
+    setCtx(agentCtx);
+    findAgentMock.mockResolvedValue(null);
+    const res = await GET(new Request("http://x/api/v1/payments"), { params: Promise.resolve({}) } as never);
+    expect(res.status).toBe(403);
+    expect(findByAgencyMock).not.toHaveBeenCalled();
+    expect(listRecentMock).not.toHaveBeenCalled();
+  });
+
   it("passes the mode filter through (admin live-only view)", async () => {
     setCtx(adminCtx);
     listRecentMock.mockResolvedValue([]);

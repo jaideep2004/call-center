@@ -43,16 +43,30 @@ export default function AgentDetailPage() {
   const [forwardingDraft, setForwardingDraft] = useState("");
   const [savingEndpoint, setSavingEndpoint] = useState(false);
 
+  const [notFound, setNotFound] = useState(false);
+
   useEffect(() => { fetch(`/api/v1/agents/${id}`).then(async (res) => {
       if (res.ok) {
         const body = await res.json();
-        setAgent(body.data);
-        setNpn(body.data.npn ?? "");
-        setSoftwareFee(body.data.software_fee_cents != null ? String(body.data.software_fee_cents / 100) : "");
-        setStatesDraft(body.data.states ?? []);
-        setEndpointDraft(body.data.endpoint_types ?? []);
-        setForwardingDraft(body.data.forwarding_number ?? "");
+        if (!body.data) {
+          setNotFound(true);
+        } else {
+          setAgent(body.data);
+          setNpn(body.data.npn ?? "");
+          setSoftwareFee(body.data.software_fee_cents != null ? String(body.data.software_fee_cents / 100) : "");
+          setStatesDraft(body.data.states ?? []);
+          setEndpointDraft(body.data.endpoint_types ?? []);
+          setForwardingDraft(body.data.forwarding_number ?? "");
+        }
+      } else if (res.status === 404) {
+        setNotFound(true);
+      } else {
+        const body = await res.json().catch(() => ({} as { message?: string }));
+        showToast(body.message ?? "Failed to load agent", "error");
       }
+      setLoading(false);
+    }).catch(() => {
+      showToast("Network error loading agent", "error");
       setLoading(false);
     });
   }, [id]);
@@ -215,6 +229,11 @@ export default function AgentDetailPage() {
   if (!agent) return (
     <div className="dashboard-page">
       <div className="dashboard-page-header"><h1>Agent not found</h1></div>
+      <p className="text-muted" style={{ fontSize: 13 }}>
+        {notFound
+          ? "This agent no longer exists or you don't have access to it. It may have been deleted."
+          : "Could not load this agent."}
+      </p>
       <button className="btn btn-secondary" onClick={() => router.push("/dashboard/agents")}>Back to agents</button>
     </div>
   );

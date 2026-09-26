@@ -45,6 +45,12 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
     let call = event.callId
       ? await calls.findById(event.callId, undefined, client).catch(() => null)
       : await calls.findByProviderCallId(event.provider, event.providerCallId, client);
+    if (!call && event.type !== "inbound" && typeof calls.findByProviderAgentCallId === "function") {
+      // Agent-leg events sometimes arrive without client_state (carrier
+      // re-invites, Telnyx retries): fall back to the agent-leg lookup so
+      // hangups/answers on the dialed leg are never silently dropped.
+      call = await calls.findByProviderAgentCallId(event.provider, event.providerCallId, client).catch(() => null);
+    }
 
     if (!call && event.type === "inbound") {
       // Outbound (agent) legs echo back their own call.initiated — never create calls for them.
@@ -82,9 +88,16 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
       }
       if (!agencyId || !campaignId) {
         // Unknown DID, inactive number, or spare-pool inventory (campaign_id
-        // NULL): reject. The webhook layer turns this into a 400 with no call
-        // row, so the publisher gets a machine-readable rejection instead of
-        // a call silently billed to the wrong agency.
+        // NULL): reject. The caller leg was already answered above, so hang it
+        // up first — otherwise it dangles in silence with no call row.
+        try {
+          const provider = getTelephonyProvider(event.provider);
+          await provider.cancel({ providerAttemptId: event.providerCallId });
+        } catch (e: any) {
+          console.error(`[processProviderEvent] cancel unknown-DID caller leg failed: ${e?.message ?? e}`);
+        }
+        // The webhook layer turns this into a 400 with no call row, so the publisher gets a machine-readable rejection instead of
+        // a call silently billed to a random agency.
         throw new Error(`Unknown or unassigned DID ${event.to ?? "unknown"} — rejected, no fallback routing`);
       }
       // narrowed to string after the throws above
@@ -187,7 +200,7 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
           connected_at: event.occurredAt,
         }, client);
       } else if (
-        call.state === "ringing" &&
+        (call.state === "ringing" || call.state === "accepted" || call.state === "connecting") &&
         call.provider_agent_call_id &&
         event.providerCallId &&
         event.providerCallId === call.provider_agent_call_id
@@ -446,7 +459,10 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
     }
 
     const routingRequest = {
-    state: (call.caller_state as string | undefined) ?? campaign?.target_states?.[0] ?? "IL",
+    // Null caller_state (toll-free, international, unparseable NPA) is NOT a
+    // state — the domain matches it against everyone rather than inventing
+    // a phantom mismatch (previously defaulted to "IL").
+    state: (call.caller_state as string | undefined) ?? "",
     requiredLicense: campaign?.required_license ?? undefined,
     requiredSkills: campaign?.required_skills ?? [],
     allowedEndpoints: (campaign?.allowed_endpoints ?? ["webrtc", "pstn"]) as Array<"webrtc" | "pstn">,
@@ -780,7 +796,7 @@ export async function finalizeCall(callId: string, client?: PoolClient) {
     // agency gets a failed invoice and a terminal call — no rollback, no retry loop.
     if (!dispositionBased && totalCents > 0) {
       const balanceResult = await client.query(
-        "SELECT COALESCE(SUM(amount_cents), 0) as balance FROM app.wallet_entries WHERE agency_id = $1",
+        "SELECT COALESCE(SUM(amount_cents), 0) as balance FROM app.wallet_entries WHERE agency_id = $1 AND agent_id IS NULL",
         [call.agency_id],
       );
       const balance = Number(balanceResult.rows[0]?.balance ?? 0);
@@ -825,16 +841,38 @@ async function deductAgentForCall(agentId: string, agencyId: string, callId: str
   if (sub) {
     await agentSubscriptions.incrementCallsUsed(sub.id, callId, client);
   } else {
-    const bal = await walletEntries.sumByAgent(agentId);
-    if (bal > 0) {
+    // Per-call wallet debit (flat $1 charge): spend the personal ledger
+    // first, then the agency-pool allocation. Pool spend decrements BOTH the
+    // allocation and the pool balance — otherwise pool money would route
+    // unlimited calls (credit without debit). Runs inside finalize's
+    // transaction via client.
+    const amount = 100;
+    const personal = await walletEntries.sumByAgent(agentId);
+    const fromPersonal = personal > 0 ? Math.min(personal, amount) : 0;
+    const fromPool = amount - fromPersonal;
+    if (fromPersonal > 0) {
       await walletEntries.create({
         agency_id: agencyId,
         agent_id: agentId,
         type: "charge",
-        amount_cents: -100,
+        amount_cents: -fromPersonal,
         call_id: callId,
         idempotency_key: `agent_charge_${callId}`,
       }, client);
+    }
+    if (fromPool > 0) {
+      const { agencyWallets } = await import("@/server/repositories/agency-wallets");
+      const spent = await agencyWallets.spendAllocation(agencyId, agentId, fromPool, client);
+      if (spent > 0) {
+        await walletEntries.create({
+          agency_id: agencyId,
+          agent_id: agentId,
+          type: "charge",
+          amount_cents: -spent,
+          call_id: callId,
+          idempotency_key: `agent_charge_pool_${callId}`,
+        }, client);
+      }
     }
   }
 }
@@ -844,9 +882,30 @@ export async function acceptCall(callId: string) {
   let call = await calls.findById(callId);
   if (!call) return null;
   if (call.state !== "ringing") return call;
+  // Claim ringing->accepted FIRST: concurrent accepts (double-click,
+  // multi-instance route Accept, redelivered requests) converge here — losers
+  // return without spawning twin bridge loops or resurrecting terminal calls.
+  const accepted = await calls.claimState(callId, "ringing", "accepted", call.agency_id).catch(() => null);
+  if (!accepted) {
+    const current = await calls.findById(callId).catch(() => null);
+    console.log(`[acceptCall] call=${callId.slice(0, 8)} accept-claim lost (state: ${current?.state ?? "gone"}) — already handled`);
+    return current;
+  }
+  call = accepted;
   const provider = getTelephonyProvider(call.provider);
   const agentCallId = call.provider_agent_call_id;
   console.log(`[acceptCall] call=${callId.slice(0,8)} state=${call.state} agentCallId=${agentCallId?.slice(0,12)??"null"} provider_call_id=${call.provider_call_id.slice(0,12)}`);
+  // Move to connecting BEFORE bridging: the agent-leg `connected` webhook
+  // transitions connecting->connected on answer, which both signals pickup
+  // and keeps the machine honest (ringing->accepted->connecting->connected).
+  // Claim lost = the call already moved on — stop without touching it.
+  const connecting = await calls.claimState(callId, "accepted", "connecting", call.agency_id).catch(() => null);
+  if (!connecting) {
+    const current = await calls.findById(callId).catch(() => null);
+    console.log(`[acceptCall] call=${callId.slice(0, 8)} connecting-claim lost (state: ${current?.state ?? "gone"}) — already handled`);
+    return current;
+  }
+  call = connecting;
   if (agentCallId) {
     // The agent leg is OUTBOUND from Telnyx's view (we dialed the agent), so
     // only the agent's device can answer it — a server-side answer() always
@@ -857,12 +916,13 @@ export async function acceptCall(callId: string) {
     //
     // Fast wake: the agent-leg `connected` webhook stamps
     // routing_snapshot.agent_answered_at while state is still ringing. Between
-    // attempts we poll for that stamp (or a terminal state) every 200ms
-    // instead of sleeping a blind second — the bridge fires ~800ms sooner
-    // once answered, at the same 8-attempt budget.
+    // attempts we poll for that stamp (or a terminal state) every 200ms —
+    // capped ~1s per gap so all 8 attempts stay spread across the window
+    // instead of collapsing into ~2 immediate tries.
     const BRIDGE_ATTEMPTS = 8;
     const BRIDGE_WINDOW_MS = 8000;
     const ANSWER_POLL_MS = 200;
+    const GAP_BUDGET_MS = 1000;
     const deadline = Date.now() + BRIDGE_WINDOW_MS;
     let bridged = false;
     let stopped = false;
@@ -885,8 +945,10 @@ export async function acceptCall(callId: string) {
         lastErr = msg;
         const isNotAnsweredYet = msg.includes("90034") || msg.includes("not been answered") || msg.includes("Call not answered");
         if (!isNotAnsweredYet) break; // leg gone or other fatal — straight to missed path
-        // Wait for the answer stamp (or a terminal state), polling quickly.
-        while (Date.now() < deadline) {
+        // Wait for the answer stamp (or a terminal state), polling quickly
+        // but bounded per gap so attempts stay spread across the window.
+        const gapEnd = Date.now() + GAP_BUDGET_MS;
+        while (Date.now() < deadline && Date.now() < gapEnd) {
           await new Promise((r) => setTimeout(r, ANSWER_POLL_MS));
           // Refresh: if either side ended while we wait, stop retrying.
           call = await calls.findById(callId).catch(() => null) ?? call;
@@ -928,9 +990,17 @@ export async function acceptCall(callId: string) {
     await calls.updateState(call.id, "failed", call.agency_id, { ended_at: new Date().toISOString() });
     return null;
   }
-  call = await calls.updateState(call.id, "connected", call.agency_id, {
+  // Claim accepted->connected: if the call moved on mid-bridge (caller hung
+  // up, failover claimed), do NOT resurrect it back to connected.
+  const connected = await calls.claimState(call.id, "connecting", "connected", call.agency_id, {
     connected_at: new Date().toISOString(),
-  });
+  }).catch(() => null);
+  if (!connected) {
+    const current = await calls.findById(callId).catch(() => null);
+    console.warn(`[acceptCall] bridge won but call=${callId.slice(0, 8)} already moved to ${current?.state ?? "gone"} — not resurrecting`);
+    return current;
+  }
+  call = connected;
   if (call.agent_id) {
     const agent = await agents.findById(call.agent_id);
     if (agent?.membership_id) {

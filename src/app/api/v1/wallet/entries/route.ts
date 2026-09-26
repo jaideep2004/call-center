@@ -30,6 +30,18 @@ export const GET = apiHandler(async (req, context) => {
 
 export const POST = apiHandler(async (req, context) => {
   const body = validate(createWalletEntrySchema, await req.json());
-  const entry = await walletEntries.create({ ...body, agency_id: context.agencyId ?? body.agency_id });
+  // Explicit columns only — the table has no description field, the type
+  // must be a ledger_type (the old schema 500d on both), and undefined
+  // values must never reach the INSERT (pg rejects undefined binds).
+  const entry = await walletEntries.create({
+    agency_id: context.agencyId ?? body.agency_id,
+    ...(body.agent_id ? { agent_id: body.agent_id } : {}),
+    type: body.type,
+    amount_cents: body.amount_cents,
+    currency: body.currency,
+    ...(body.call_id ? { call_id: body.call_id } : {}),
+    ...(body.provider_reference ? { provider_reference: body.provider_reference } : {}),
+    idempotency_key: body.idempotency_key,
+  });
   return ok(entry);
 }, { resource: "wallet", action: "manage" });

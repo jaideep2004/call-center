@@ -201,7 +201,6 @@ function AgentsInner() {
       {selected.size > 0 && (
         <div className="card" style={{ padding: "var(--space-3) var(--space-4)", marginBottom: "var(--space-2)", display: "flex", gap: 8, alignItems: "center", background: "var(--panel)" }}>
           <span className="text-mono-sm">{selected.size} selected</span>
-          <button className="btn btn-sm btn-secondary" onClick={() => showToast("Bulk actions coming soon — approve/reject selected agents", "info")}>Bulk actions</button>
           <button className="btn btn-sm btn-ghost" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}

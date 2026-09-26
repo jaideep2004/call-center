@@ -1,4 +1,5 @@
 import { query, queryOne } from "@/server/db";
+import type { PoolClient } from "pg";
 
 export interface PaymentRow {
   id: string;
@@ -28,11 +29,12 @@ export class PaymentRepository {
     fee_cents?: number;
     currency?: string;
     livemode?: boolean;
-  }): Promise<PaymentRow> {
+  }, client?: PoolClient): Promise<PaymentRow> {
     const row = await queryOne<PaymentRow>(
       `INSERT INTO app.payments (agency_id, agent_id, plan_id, stripe_session_id, amount_cents, fee_cents, currency, livemode)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [data.agency_id, data.agent_id ?? null, data.plan_id ?? null, data.stripe_session_id, data.amount_cents, data.fee_cents ?? 0, data.currency ?? "usd", data.livemode ?? true],
+      client,
     );
     return row!;
   }
@@ -44,12 +46,13 @@ export class PaymentRepository {
     );
   }
 
-  async markCompleted(id: string, paymentIntentId: string): Promise<PaymentRow> {
+  async markCompleted(id: string, paymentIntentId: string, client?: PoolClient): Promise<PaymentRow> {
     const row = await queryOne<PaymentRow>(
       `UPDATE app.payments
        SET status = 'completed', stripe_payment_intent_id = $2, completed_at = NOW()
        WHERE id = $1 RETURNING *`,
       [id, paymentIntentId],
+      client,
     );
     return row!;
   }

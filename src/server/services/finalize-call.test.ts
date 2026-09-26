@@ -10,6 +10,7 @@ const {
   bidOverrideMock,
   dispositionFindMock,
   payoutFindMock,
+  spendAllocationMock,
 } = vi.hoisted(() => ({
   incrementCallsUsedMock: vi.fn(),
   walletCreateMock: vi.fn(),
@@ -20,6 +21,7 @@ const {
   bidOverrideMock: vi.fn().mockResolvedValue(null),
   dispositionFindMock: vi.fn().mockResolvedValue(null),
   payoutFindMock: vi.fn().mockResolvedValue([]),
+  spendAllocationMock: vi.fn(async () => 50),
 }));
 
 const invoiceInsertMock = vi.fn();
@@ -27,6 +29,11 @@ const clientQueryMock = vi.fn();
 
 vi.mock("@/server/db", () => ({
   transaction: vi.fn(async (fn: (client: any) => Promise<unknown>) => fn({ query: clientQueryMock })),
+}));
+
+vi.mock("@/server/repositories/agency-wallets", () => ({
+  agencyWallets: { spendAllocation: spendAllocationMock },
+  effectiveBalanceSql: vi.fn(() => "1"),
 }));
 
 vi.mock("@/server/repositories", () => ({
@@ -42,6 +49,9 @@ vi.mock("@/server/repositories", () => ({
   walletEntries: {
     sumByAgent: sumByAgentMock,
     create: walletCreateMock,
+  },
+  agencyWallets: {
+    spendAllocation: spendAllocationMock,
   },
 }));
 
@@ -129,6 +139,19 @@ describe("finalizeCall idempotency & balance handling", () => {
       expect.stringContaining("SET status = 'failed'"),
       expect.anything(),
     );
+  });
+
+  it("splits the per-call debit across personal ledger and pool allocation", async () => {
+    mockInvoiceInsert([{ id: "inv-1", status: "paid" }]);
+    sumByAgentMock.mockResolvedValue(50);
+    spendAllocationMock.mockResolvedValue(50);
+    await finalizeCall("call-1");
+    // $1 flat charge: $0.50 personal + $0.50 pool (pool finite now).
+    expect(spendAllocationMock).toHaveBeenCalledWith("agency-1", "agent-1", 50, expect.anything());
+    const amounts = walletCreateMock.mock.calls
+      .map((args: any[]) => args[0]?.amount_cents)
+      .filter((n: unknown) => n === -50);
+    expect(amounts.length).toBeGreaterThanOrEqual(2);
   });
 
   it("creates a charge entry for the agency wallet on successful billing", async () => {

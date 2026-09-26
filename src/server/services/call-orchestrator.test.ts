@@ -347,6 +347,8 @@ describe("processProviderEvent — agent leg handling", () => {
     // No call row was created for the unknown DID — the webhook layer turns
     // the throw into a 400 so nothing is ever billed to a random agency.
     expect(createMock).not.toHaveBeenCalled();
+    // The already-answered caller leg is hung up first — no dangling silence.
+    expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-unknown" });
   });
 });
 

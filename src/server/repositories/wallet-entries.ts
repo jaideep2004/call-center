@@ -67,17 +67,28 @@ export class WalletEntryRepository extends BaseRepository<WalletEntryRow> {
     return parseInt(rows[0]?.total ?? "0", 10);
   }
 
-  /** Effective balance = personal ledger + agency-pool allocation (P1.4). */
+  /** Effective balance = personal ledger + agency-pool allocation (P1.4).
+   * The allocation counts ONLY while the agency pool is enabled — matching
+   * effectiveBalanceSql used by the router. Otherwise agents go online on
+   * paper but never ring. */
   async sumEffectiveByAgent(agentId: string, client?: PoolClient): Promise<number> {
-    const [rows, allocated] = await Promise.all([
+    const [rows, allocated, pool] = await Promise.all([
       query<{ total: string }>(
         "SELECT COALESCE(SUM(amount_cents), 0) as total FROM app.wallet_entries WHERE agent_id = $1",
         [agentId],
         client,
       ),
       allocationForAgent(agentId, client),
+      query<{ enabled: boolean }>(
+        `SELECT COALESCE(aw.enabled, false) AS enabled
+           FROM app.agents a LEFT JOIN app.agency_wallets aw ON aw.agency_id = a.agency_id
+          WHERE a.id = $1`,
+        [agentId],
+        client,
+      ),
     ]);
-    return parseInt(rows[0]?.total ?? "0", 10) + allocated;
+    const enabled = pool[0]?.enabled === true;
+    return parseInt(rows[0]?.total ?? "0", 10) + (enabled ? allocated : 0);
   }
 }
 

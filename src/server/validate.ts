@@ -317,10 +317,12 @@ export const updateMembershipSchema = z.object({
 
 export const createWalletEntrySchema = z.object({
   agency_id: z.string().min(1),
-  type: z.enum(["deposit", "withdrawal", "fee", "refund", "payment", "commission"]),
-  amount_cents: z.number().int(),
+  agent_id: z.string().uuid().optional(),
+  type: z.enum(["top_up", "reserve", "release", "charge", "refund", "manual_adjustment", "payout"]),
+  amount_cents: z.number().int().refine((n) => n !== 0, "Amount cannot be zero"),
   currency: z.string().length(3).default("USD"),
-  description: z.string().max(500).optional(),
+  call_id: z.string().uuid().optional(),
+  provider_reference: z.string().max(255).optional(),
   idempotency_key: z.string().min(1),
 });
 

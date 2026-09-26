@@ -68,6 +68,7 @@ function WalletInner() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalEntries, setTotalEntries] = useState(0);
   const [showRecharge, setShowRecharge] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
@@ -99,6 +100,7 @@ function WalletInner() {
         const body = await entriesRes.json();
         setEntries(body.data ?? []);
         setTotalPages(body.pagination?.totalPages ?? 1);
+        setTotalEntries(body.pagination?.total ?? (body.data ?? []).length);
       }
       if (balanceRes.ok) {
         const body = await balanceRes.json();
@@ -118,6 +120,7 @@ function WalletInner() {
       const body = await entriesRes.json();
       setEntries(body.data ?? []);
       setTotalPages(body.pagination?.totalPages ?? 1);
+      setTotalEntries(body.pagination?.total ?? (body.data ?? []).length);
     }
     if (balanceRes.ok) {
       const body = await balanceRes.json();
@@ -363,7 +366,7 @@ function WalletInner() {
               <h2 style={{ margin: 0, font: "500 16px var(--serif)" }}>Transaction History</h2>
               <span className="filter-bar__meta">
                 {verifying ? "Verifying payment with Stripe…" : dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim()
-                  ? `${entries.length} shown · page ${page}/${totalPages}`
+                  ? `${entries.length} of ${totalEntries} shown · page ${page}/${totalPages}`
                   : `${visibleEntries.length} match filters`}
               </span>
             </div>
@@ -424,7 +427,7 @@ function WalletInner() {
               emptyMessage="No transactions match these filters."
               page={dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim() ? page : 1}
               totalPages={dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim() ? totalPages : 1}
-              total={dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim() ? entries.length : visibleEntries.length}
+              total={dirFilter === "all" && typeFilter === "all" && !debouncedQ.trim() ? totalEntries : visibleEntries.length}
               onPageChange={setPage}
               sortBy="created_at"
               order="desc"

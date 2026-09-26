@@ -43,7 +43,11 @@ function MembersInner() {
         const body = await res.json();
         const r = body.data?.publisherId || body.data?.publisher?.id ? "publisher" : body.data?.user?.role;
         if (r === "admin") { router.replace("/dashboard/settings"); return; }
-        setIsHead(body.data?.isHead === true);
+        const head = body.data?.isHead === true;
+        setIsHead(head);
+        // Plain agents always 403 on the members API — send them back to
+        // Settings instead of an erroring table (mirrors phone-numbers).
+        if (!head && r !== "publisher") { router.replace("/dashboard/settings"); return; }
       }
       setRoleChecked(true);
     }).catch(() => setRoleChecked(true));

@@ -8,13 +8,14 @@ const updateStateMock = vi.hoisted(() => vi.fn(async (_id: string, state: string
 const findCallMock = vi.hoisted(() => vi.fn());
 const findAgentMock = vi.hoisted(() => vi.fn(async () => ({ id: "agent-1", membership_id: "m-1" })));
 const publishMock = vi.hoisted(() => vi.fn());
+const claimStateMock = vi.hoisted(() => vi.fn(async (id: string, _from: string, to: string) => ({ ...RINGING_CALL, id, state: to })));
 
 vi.mock("@/server/telephony-registry", () => ({
   getTelephonyProvider: vi.fn(() => ({ bridge: bridgeMock, stopAudio: stopAudioMock, startRecording: startRecordingMock })),
 }));
 
 vi.mock("@/server/repositories", () => ({
-  calls: { findById: findCallMock, updateState: updateStateMock },
+  calls: { findById: findCallMock, updateState: updateStateMock, claimState: claimStateMock },
   agents: { findById: findAgentMock },
   campaigns: { findById: campaignFindMock },
 }));
@@ -56,7 +57,7 @@ describe("acceptCall bridge wait loop", () => {
     bridgeMock.mockResolvedValue(undefined);
     const result = await runAccept();
     expect(bridgeMock).toHaveBeenCalledTimes(1);
-    expect(updateStateMock).toHaveBeenCalledWith("call-1", "connected", "agency-1", expect.anything());
+    expect(claimStateMock).toHaveBeenCalledWith("call-1", "connecting", "connected", "agency-1", expect.anything());
     expect(result).toMatchObject({ state: "connected" });
   });
 
@@ -67,7 +68,7 @@ describe("acceptCall bridge wait loop", () => {
       .mockResolvedValue(undefined);
     const result = await runAccept();
     expect(bridgeMock).toHaveBeenCalledTimes(3);
-    expect(updateStateMock).toHaveBeenCalledWith("call-1", "connected", "agency-1", expect.anything());
+    expect(claimStateMock).toHaveBeenCalledWith("call-1", "connecting", "connected", "agency-1", expect.anything());
     expect(result).toMatchObject({ state: "connected" });
   });
 
@@ -81,7 +82,7 @@ describe("acceptCall bridge wait loop", () => {
       .mockResolvedValue({ ...RINGING_CALL, routing_snapshot: { agent_answered_at: "2026-01-01T00:00:05Z" } });
     const result = await runAccept();
     expect(bridgeMock).toHaveBeenCalledTimes(2);
-    expect(updateStateMock).toHaveBeenCalledWith("call-1", "connected", "agency-1", expect.anything());
+    expect(claimStateMock).toHaveBeenCalledWith("call-1", "connecting", "connected", "agency-1", expect.anything());
     expect(result).toMatchObject({ state: "connected" });
   });
 
@@ -105,6 +106,17 @@ describe("acceptCall bridge wait loop", () => {
     const result = await runAccept();
     expect(result).toMatchObject({ state: "connected" });
     expect(startRecordingMock).not.toHaveBeenCalled();
+  });
+
+  it("converges concurrent accepts: claim loser returns without bridging", async () => {
+    bridgeMock.mockResolvedValue(undefined);
+    (claimStateMock as unknown as { mockImplementationOnce: (fn: () => Promise<null>) => void }).mockImplementationOnce(async () => null);
+    findCallMock
+      .mockResolvedValueOnce({ ...RINGING_CALL })
+      .mockResolvedValue({ ...RINGING_CALL, state: "connected" });
+    const result = await runAccept();
+    expect(bridgeMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ state: "connected" });
   });
 
   it("gives up after bounded retries and marks missed (never hangs forever)", async () => {
@@ -134,3 +146,4 @@ describe("acceptCall bridge wait loop", () => {
     expect(result).toBeNull();
   });
 });
+

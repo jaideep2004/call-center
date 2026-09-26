@@ -9,6 +9,12 @@ export const GET = apiHandler(async () => {
 
 export const POST = apiHandler(async (req, { membership }) => {
   const body = validate(createCmsSectionSchema, await req.json());
+  // Retired/separated slugs have dedicated managers (Campaign Ads tab,
+  // Blog tab) — creating them here would make invisible rows.
+  const retired = ["creatives", "banner", "banners", "posts", "blog"];
+  if (retired.includes(body.slug.toLowerCase())) {
+    return fail(`"${body.slug}" is managed in its own tab — create it there`, 422);
+  }
   const existing = await cmsSections.findBySlug(body.slug);
   if (existing) return fail("Slug already exists", 409);
   const row = await cmsSections.create({

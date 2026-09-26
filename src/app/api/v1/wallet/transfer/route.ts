@@ -16,4 +16,4 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
   });
 
   return ok(transfer, "Transfer completed");
-}, { resource: "wallet", action: "manage" });
+}, { resource: "wallet", action: "manage", allowHead: true });

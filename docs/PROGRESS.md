@@ -452,3 +452,23 @@
 - Tests: typecheck clean, npm test 793 passed | 5 skipped, build clean.
 
 2026-09-25 - reviewer - reviewed dashboards/RBAC/content/settings - FAIL - top: unscoped agents GET + reports leak + phone-numbers fetch bug
+## 2026-09-24 - assistant - FULL REVIEW REMEDIATION (3x FAIL to green)
+- Did: 3 independent reviewers returned FAIL (6 criticals, 20+ majors). Triaged every claim, fixed all verified ones: call path (unknown-DID caller cancel, accept ringing-accepted-connecting-connected claims, PATCH server checklist via onlineBlockers, sweep caller cancel, ping postpaid bypass, funding unverified blocks, singleton retry + missed-state poll, disposition outcome guard, null-state match-all, 1s bridge cadence, agent-leg fallback lookup, recordings unassigned tighten, tracking bot filter); money (pool single-pot, pool debit on completion, effective-balance enabled parity, atomic credit txn, subscription orphan heal + single receipt, free-plan/transfer/invoice guards, entries enum fix, finalize agency-only gate, payments 403, sub  reject); dashboards (agents GET scope, 5 reports scoped, phone fetch deps, wallet team 403s, dispositions scoping, FAQ markup repair, members/tutorials gating, publisher redirects, invite toast, newsletter wiring, social stubs removed, settings reload, CMS slug guards, ledger totals, campaigns per-agent browse, pool default).
+- Deferred with reasons: per-call pricing (product call), recurring fee collection (undeveloped engine), leads shared pipeline (by design), per-agent SIP identities (unproven need), call-waiting (feature).
+- Reviewer claims disproven: ping bid nondeterminism (single-row upsert), ping busy skip (exists), disposition lead phone (hash field correct).
+- Tests: typecheck clean, npm test 840 passed | 5 skipped (105 files), build clean.
+
+## 2026-09-26 - assistant - BUILD FIX corrupted .next types
+- Did: deleted stale .next (routes.d.ts line 261 truncated to 'hboard/...' + validator.ts line 1781 truncated to 'r = ...', both stale dev-type appends), rebuilt clean.
+- Decisions: root cause was corrupted .next/dev/types cache (likely dev server race), not source code; no source changes needed.
+- Tests: npm run build green (TS 20s, 166/166 static pages, prod routes.d.ts clean).
+- Next: stop 
+pm run dev before 
+pm run build to avoid re-corrupting dev types.
+
+
+## 2026-09-26 - assistant - ADMIN USERS all-roles + hard delete + agent-detail null crash
+- Did: admin users page now lists ALL users (platform role, agencies, delete); new DELETE /api/v1/users/[id] admin-only hard delete (tx: invites/agents/memberships/publisher-unlink/session/account/user; 400 self + last-admin, 409 FK history); users GET adds role+createdAt; agent detail GET 404 on null + UI not-found guard (was ok(null) -> crash on body.data.npn).
+- Decisions: publisher rows unlinked not deleted; history owners blocked with suspend guidance; heads excluded from delete guard.
+- Tests: tsc clean, vitest users/[id] 6/6 + agents/agency-wallet 15/15, npm run build green.
+

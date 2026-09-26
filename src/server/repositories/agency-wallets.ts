@@ -129,8 +129,7 @@ export async function allocationForAgent(
   return rows.reduce((sum, r) => sum + (r.allocated_cents ?? 0), 0);
 }
 
-/** Upsert one agent's allocation (head-only route validates agency + cap). */
-export async function setAllocation(
+/** Upsert one agent's allocation (head-only route validates agency + cap). */export async function setAllocation(
   agencyId: string,
   agentId: string,
   allocatedCents: number,
@@ -148,6 +147,42 @@ export async function setAllocation(
   return rows[0]!;
 }
 
+/**
+ * Spend pool-backed funds for one call: decrements the agent's allocation AND
+ * the pool balance together (both floored at zero). Returns the actual cents
+ * spent (may be less than requested when the allocation is thin). Without
+ * this, pool money would route unlimited calls — credit without debit.
+ */
+export async function spendAllocation(
+  agencyId: string,
+  agentId: string,
+  cents: number,
+  client?: PoolClient,
+): Promise<number> {
+  const before = await query<{ allocated_cents: string }>(
+    `SELECT COALESCE(allocated_cents, 0)::text AS allocated_cents
+       FROM app.agency_wallet_allocations WHERE agency_id = $1 AND agent_id = $2`,
+    [agencyId, agentId],
+    client,
+  );
+  const available = parseInt(before[0]?.allocated_cents ?? "0", 10);
+  const spend = Math.max(0, Math.min(available, cents));
+  if (spend <= 0) return 0;
+  await query(
+    `UPDATE app.agency_wallet_allocations SET allocated_cents = allocated_cents - $3, updated_at = now()
+      WHERE agency_id = $1 AND agent_id = $2`,
+    [agencyId, agentId, spend],
+    client,
+  );
+  await query(
+    `UPDATE app.agency_wallets SET balance_cents = GREATEST(balance_cents - $2, 0), updated_at = now()
+      WHERE agency_id = $1`,
+    [agencyId, spend],
+    client,
+  );
+  return spend;
+}
+
 export const agencyWallets = {
   getPool,
   setPoolEnabled,
@@ -156,4 +191,5 @@ export const agencyWallets = {
   sumAllocated,
   allocationForAgent,
   setAllocation,
+  spendAllocation,
 };

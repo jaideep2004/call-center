@@ -5,10 +5,11 @@ import { validate } from "@/server/validate";
 
 const callsVolumeQuerySchema = z.object({ days: z.coerce.number().int().positive().default(30) });
 
-export const GET = apiHandler(async (req) => {
+export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
   const params = Object.fromEntries(url.searchParams.entries());
   const { days } = validate(callsVolumeQuerySchema, params);
+  const agencyId = context.user?.role === "admin" ? null : (context.agencyId ?? null);
 
   // Event date is COALESCE(started_at, ended_at): missed/failed calls never
   // get a started_at, and filtering on started_at alone made them invisible
@@ -22,9 +23,10 @@ export const GET = apiHandler(async (req) => {
            COUNT(*) FILTER (WHERE state IN ('failed', 'cancelled', 'disputed'))::int as failed
     FROM app.calls
     WHERE COALESCE(started_at, ended_at) >= NOW() - ($1::int || ' days')::interval
+      ${agencyId ? "AND agency_id = $2" : ""}
     GROUP BY DATE(COALESCE(started_at, ended_at))
     ORDER BY date ASC
-  `, [days]);
+  `, agencyId ? [days, agencyId] : [days]);
 
   return ok(rows);
 }, { resource: "calls", action: "view" });

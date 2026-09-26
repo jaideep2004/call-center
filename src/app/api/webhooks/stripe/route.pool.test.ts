@@ -49,6 +49,12 @@ vi.mock("@/server/repositories", () => ({
   agentSubscriptions: { findActiveByAgent: vi.fn(), create: vi.fn() },
 }));
 
+vi.mock("@/server/db", () => ({
+  query: vi.fn(async () => []),
+  queryOne: vi.fn(async () => null),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
+}));
+
 vi.mock("@/server/services/offer-wallet-sync", () => ({
   syncOfferWalletPauses: syncMock,
 }));
@@ -78,19 +84,12 @@ describe("stripe webhook — agency pool top-up (P1.4)", () => {
     });
   });
 
-  it("credits the pool ledger + balance exactly once", async () => {
+  it("credits ONLY the pool balance (single pot — no agency-ledger double-mint)", async () => {
     const res = await POST(makeRequest());
     expect(res.status).toBe(200);
-    expect(markCompletedMock).toHaveBeenCalledWith("pay-1", "pi_pool_9");
-    expect(walletCreateMock).toHaveBeenCalledWith({
-      agency_id: "agency-1",
-      type: "top_up",
-      amount_cents: 500000,
-      currency: "usd",
-      idempotency_key: "stripe_cs_pool_9",
-      provider_reference: "pi_pool_9",
-    });
-    expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 500000);
+    expect(markCompletedMock).toHaveBeenCalledWith("pay-1", "pi_pool_9", expect.anything());
+    expect(walletCreateMock).not.toHaveBeenCalled();
+    expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 500000, expect.anything());
     expect(syncMock).toHaveBeenCalledWith("agency-1");
   });
 
@@ -128,10 +127,8 @@ describe("stripe webhook — agency pool top-up (P1.4)", () => {
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({ stripe_session_id: "cs_pool_9", amount_cents: 500000 }),
     );
-    expect(walletCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ amount_cents: 500000, idempotency_key: "stripe_cs_pool_9" }),
-    );
-    expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 500000);
+    expect(walletCreateMock).not.toHaveBeenCalled();
+    expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 500000, expect.anything());
     fakeEvent.data.object.metadata = { type: "agency_wallet_topup", agency_id: "agency-1" };
   });
 
@@ -157,9 +154,8 @@ describe("stripe webhook — agency pool top-up (P1.4)", () => {
     });
     const res = await POST(makeRequest());
     expect(res.status).toBe(200);
-    expect(walletCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ amount_cents: 25000 }),
-    );
-    expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 25000);
+    // Single pot: pool only, never an agency-ledger entry.
+    expect(walletCreateMock).not.toHaveBeenCalled();
+    expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 25000, expect.anything());
   });
 });

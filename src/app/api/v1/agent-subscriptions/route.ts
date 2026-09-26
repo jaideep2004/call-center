@@ -40,4 +40,4 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
     auto_renew: body.auto_renew ?? false,
   });
   return created(sub, "Subscribed");
-}, { resource: "agents", action: "manage" });
+}, { resource: "agents", action: "update", allowHead: true });

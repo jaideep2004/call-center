@@ -27,12 +27,12 @@ export class DispositionRepository extends BaseRepository<DispositionRow> {
     return rows[0] ?? null;
   }
 
-  async findByCallIdForAgency(callId: string, agencyId: string): Promise<DispositionRow | null> {
+  async findByCallIdForAgency(callId: string, agencyId: string, agentId?: string): Promise<DispositionRow | null> {
     const rows = await query<DispositionRow>(
       `SELECT d.* FROM app.dispositions d
-       JOIN app.calls c ON c.id = d.call_id
-       WHERE d.call_id = $1 AND c.agency_id = $2`,
-      [callId, agencyId],
+        JOIN app.calls c ON c.id = d.call_id
+       WHERE d.call_id = $1 AND c.agency_id = $2${agentId ? " AND d.agent_id = $3" : ""}`,
+      agentId ? [callId, agencyId, agentId] : [callId, agencyId],
     );
     return rows[0] ?? null;
   }
@@ -47,23 +47,23 @@ export class DispositionRepository extends BaseRepository<DispositionRow> {
     return rows[0] ?? null;
   }
 
-  async findByAgency(agencyId: string): Promise<DispositionRow[]> {
+  async findByAgency(agencyId: string, agentId?: string): Promise<DispositionRow[]> {
     return query<DispositionRow>(
       `SELECT d.* FROM app.dispositions d
-       JOIN app.calls c ON c.id = d.call_id
-       WHERE c.agency_id = $1
+        JOIN app.calls c ON c.id = d.call_id
+       WHERE c.agency_id = $1${agentId ? " AND d.agent_id = $2" : ""}
        ORDER BY d.created_at DESC`,
-      [agencyId],
+      agentId ? [agencyId, agentId] : [agencyId],
     );
   }
 
-  async findPendingByAgency(agencyId: string): Promise<DispositionRow[]> {
+  async findPendingByAgency(agencyId: string, agentId?: string): Promise<DispositionRow[]> {
     return query<DispositionRow>(
       `SELECT d.* FROM app.dispositions d
-       JOIN app.calls c ON c.id = d.call_id
-       WHERE c.agency_id = $1 AND d.admin_confirmed = false
+        JOIN app.calls c ON c.id = d.call_id
+       WHERE c.agency_id = $1 AND d.admin_confirmed = false${agentId ? " AND d.agent_id = $2" : ""}
        ORDER BY d.created_at DESC`,
-      [agencyId],
+      agentId ? [agencyId, agentId] : [agencyId],
     );
   }
 

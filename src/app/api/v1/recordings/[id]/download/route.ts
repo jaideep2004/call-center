@@ -8,12 +8,13 @@ export const GET = apiHandler(async (req, context) => {
   const recording = await recordings.findById(id, context.agencyId ?? undefined);
   if (!recording) return fail("Recording not found", 404);
 
-  // Plain agents may download ONLY their own calls' recordings.
+  // Plain agents may download ONLY their own calls' recordings — including
+  // unassigned ones (nobody's call is nobody's recording).
   if (context.user?.role !== "admin" && !context.isHead) {
     const me = context.membership ? await agents.findByMembershipId(context.membership.id).catch(() => null) : null;
     if (!me) return fail("Agent profile not found", 403);
     const call = await calls.findById(recording.call_id, context.agencyId ?? undefined).catch(() => null);
-    if (!call || (call.agent_id && call.agent_id !== me.id)) return fail("Recording not found", 404);
+    if (!call || call.agent_id !== me.id) return fail("Recording not found", 404);
   }
 
   const ext = recording.content_type?.split("/")[1] ?? "wav";

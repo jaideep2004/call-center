@@ -71,7 +71,7 @@ function PhoneNumbersInner() {
       setCampaigns(campBody.data ?? []);
       setLoading(false);
     });
-  }, []);
+  }, [roleChecked]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -202,7 +202,7 @@ function PhoneNumbersInner() {
         </div>
         <div className="search-bar">
           <input className="input" type="search" placeholder="Search numbers..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ maxWidth: 180 }} />
-          {isHead !== false && <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>+ Add number</button>}
+          {isHead === true && <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>+ Add number</button>}
         </div>
       </div>
 

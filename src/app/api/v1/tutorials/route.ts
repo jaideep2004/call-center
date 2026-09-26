@@ -32,4 +32,4 @@ export const POST = apiHandler(async (req, context) => {
     required: body.required,
   });
   return created(row);
-}, { resource: "agents", action: "manage" });
+}, { resource: "agents", action: "manage", allowHead: true });

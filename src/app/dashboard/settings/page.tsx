@@ -232,10 +232,9 @@ export default function SettingsPage() {
       const body = await res.json();
       if (res.ok) {
         showToast("Agency created — you are now the head", "success");
-        setAgency(body.data);
-        setLeaveConfirm(false);
-        setNewAgencyName("");
-        setNewAgencySlug("");
+        // Membership/headship changed server-side (/me, tabs, head-only UI
+        // all derive from it) — reload so nothing renders stale.
+        window.location.reload();
       } else {
         showToast(body.message ?? "Failed to create agency", "error");
       }
@@ -349,7 +348,7 @@ export default function SettingsPage() {
       </div>
       <nav className="tabs" style={{ marginBottom: "var(--space-2)" }}>
         <Link className="tab active" href="/dashboard/settings">Agency</Link>
-        <Link className="tab" href="/dashboard/settings/members">Members</Link>
+        {isHead && <Link className="tab" href="/dashboard/settings/members">Members</Link>}
         {isHead && <Link className="tab" href="/dashboard/settings/phone-numbers">Phone Numbers</Link>}
       </nav>
 
@@ -469,10 +468,12 @@ export default function SettingsPage() {
           <section className="card" style={{ padding:16, background:"linear-gradient(135deg, rgba(168,85,247,.12), rgba(255,255,255,.02))", borderColor:"rgba(168,85,247,.18)" }}>
             <h3 style={{ font:"600 13px var(--sans)", margin:0, color:"var(--ink)" }}>Need help?</h3>
             <p className="text-muted" style={{ fontSize:12, margin:"6px 0 0", lineHeight:1.5 }}>Manage members and agency setup from the tabs above.{isHead ? " Heads can also attach phone numbers to campaigns." : ""}</p>
+            {isHead && (
             <div style={{ display:"flex", gap:8, marginTop:12, flexWrap:"wrap" }}>
               <Link href="/dashboard/settings/members" className="btn btn-secondary btn-sm">Members</Link>
               <Link href="/dashboard/settings/phone-numbers" className="btn btn-ghost btn-sm">Numbers</Link>
             </div>
+            )}
           </section>
         </aside>
       </div>

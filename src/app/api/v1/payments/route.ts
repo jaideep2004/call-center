@@ -28,5 +28,5 @@ export const GET = apiHandler(async (req, context) => {
     const me = await agents.findByMembershipId(context.membership.id).catch(() => null);
     if (me) return ok(await payments.findByAgent(me.id, livemode));
   }
-  return ok(await payments.findByAgency(agencyId, livemode));
+  return fail("Agent profile not found", 403);
 }, { resource: "wallet", action: "view" });
