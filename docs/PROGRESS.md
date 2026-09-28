@@ -491,3 +491,13 @@ pm run build to avoid re-corrupting dev types.
 - Decisions: membership-keyed agents stay RESTRICT (history protection); NOT VALID avoids validate-fail on live orphans; prod migrate NOT run (remote) - 0066+0067 pending, user runs npm run migrate.
 - Tests: tsc 0, vitest 122 files 863 passed | 5 skipped, build green, migrations 0001-0067 lint ok.
 
+
+## 2026-09-26 - assistant - RETREAVER sync mirrors deletions
+- Did: syncRetreaverCampaigns only created/updated - Retreaver-side deletes never reflected. Added findRetreaverLinked + archive pass (linked active/paused missing remotely -> archived, history kept; pure-local + terminal statuses untouched; skipped on empty remote as API-failure guard); toast shows archived count.
+- Tests: tsc 0, retreaver-campaigns 19/19 (3 new), full vitest 122 files 866 passed | 5 skipped, build green.
+
+
+## 2026-09-26 - assistant - ARCHIVED campaigns hidden by default
+- Did: findManyWithBid excludes archived unless status=all or exact match; admin list default renamed All current (Archived still selectable); take-calls/calls-filters/script-assign/admin-home now archived-free automatically; routing/publisher already active-only.
+- Tests: tsc 0, new repo test 1/1, full vitest 122 files 867 passed | 5 skipped, build green.
+

@@ -113,6 +113,17 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
     return rows[0] ?? null;
   }
 
+  /**
+   * Every local campaign linked to Retreaver (soft-deleted excluded).
+   * Used by the sync to archive campaigns deleted on the Retreaver side.
+   */
+  async findRetreaverLinked(): Promise<Pick<CampaignRow, "id" | "retreaver_cid" | "status">[]> {
+    return query(
+      `SELECT id, retreaver_cid, status FROM app.campaigns
+        WHERE retreaver_cid IS NOT NULL AND deleted_at IS NULL`,
+    );
+  }
+
   async findByPublisher(publisherId: string): Promise<CampaignRow[]> {
     // Use join table (multi-select) with fallback to legacy publisher_id for old rows not yet backfilled
     return query<CampaignRow>(
@@ -172,9 +183,16 @@ export class CampaignRepository extends BaseRepository<CampaignRow> {
       where.push(`c.agency_id = $${i++}`);
       queryParams.push(params.agencyId);
     }
-    if (params.status) {
+    // Archived campaigns stay out of every list by default (they are dead —
+    // e.g. deleted in Retreaver). Pass status=all for everything, or an
+    // exact status (archived included) to see them on demand.
+    if (params.status === "all") {
+      // no status filter
+    } else if (params.status) {
       where.push(`c.status = $${i++}`);
       queryParams.push(params.status);
+    } else {
+      where.push(`c.status != 'archived'`);
     }
     if (params.search) {
       where.push(`c.name ILIKE $${i++}`);

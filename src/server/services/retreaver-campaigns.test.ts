@@ -27,6 +27,7 @@ vi.mock("@/server/repositories", () => ({
   campaigns: {
     findById: vi.fn(),
     findByRetreaverCid: vi.fn(),
+    findRetreaverLinked: vi.fn(),
     linkRetreaverCid: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -136,6 +137,7 @@ describe("syncRetreaverCampaigns", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (repos.campaigns.findByRetreaverCid as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (repos.campaigns.findRetreaverLinked as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (repos.campaigns.create as ReturnType<typeof vi.fn>).mockImplementation((data) =>
       Promise.resolve({ id: "new-1", ...data, retreaver_cid: null }),
     );
@@ -155,7 +157,7 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 2, updated: 0, total: 2 });
+    expect(result).toEqual({ created: 2, updated: 0, archived: 0, total: 2 });
     expect(repos.campaigns.create).toHaveBeenCalledWith(expect.objectContaining({
       agency_id: "agency-1", name: "Client Campaign", routing_strategy: "round_robin", status: "active",
     }));
@@ -184,7 +186,7 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 0, updated: 1, total: 1 });
+    expect(result).toEqual({ created: 0, updated: 1, archived: 0, total: 1 });
     expect(repos.campaigns.update).toHaveBeenCalledWith("camp-1", { name: "New Name" });
     expect(repos.campaigns.create).not.toHaveBeenCalled();
   });
@@ -212,7 +214,7 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 0, updated: 1, total: 3 });
+    expect(result).toEqual({ created: 0, updated: 1, archived: 0, total: 3 });
     expect(repos.campaigns.update).toHaveBeenCalledWith("c1", { status: "active" });
     expect(repos.campaigns.update).not.toHaveBeenCalledWith("c2", { status: "active" });
     expect(repos.campaigns.update).not.toHaveBeenCalledWith("c3", { status: "active" });
@@ -233,7 +235,7 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 1, updated: 1, total: 2 });
+    expect(result).toEqual({ created: 1, updated: 1, archived: 0, total: 2 });
     expect(repos.campaigns.update).toHaveBeenCalledWith("c1", { status: "paused" });
     expect(repos.campaigns.create).toHaveBeenCalledWith(expect.objectContaining({ name: "Paused New", status: "paused" }));
   });
@@ -248,7 +250,7 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 0, updated: 1, total: 1 });
+    expect(result).toEqual({ created: 0, updated: 1, archived: 0, total: 1 });
     expect(repos.campaigns.update).toHaveBeenCalledWith("c1", { status: "active" });
   });
 
@@ -266,7 +268,7 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 0, updated: 0, total: 1 });
+    expect(result).toEqual({ created: 0, updated: 0, archived: 0, total: 1 });
     expect(repos.campaigns.update).not.toHaveBeenCalled();
   });
 
@@ -278,7 +280,7 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 0, updated: 0, total: 2 });
+    expect(result).toEqual({ created: 0, updated: 0, archived: 0, total: 2 });
     expect(repos.campaigns.create).not.toHaveBeenCalled();
   });
 
@@ -292,8 +294,58 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 0, updated: 0, total: 1 });
+    expect(result).toEqual({ created: 0, updated: 0, archived: 0, total: 1 });
     expect(repos.campaigns.update).not.toHaveBeenCalled();
+  });
+
+  it("archives linked campaigns deleted in Retreaver", async () => {
+    (repos.campaigns.findByRetreaverCid as ReturnType<typeof vi.fn>).mockImplementation((cid: string) =>
+      Promise.resolve(cid === "cid-1" ? { ...campaign, id: "c1", retreaver_cid: "cid-1", status: "active" } : null),
+    );
+    (repos.campaigns.findRetreaverLinked as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "c1", retreaver_cid: "cid-1", status: "active" },
+      { id: "c2", retreaver_cid: "cid-gone", status: "active" },
+      { id: "c3", retreaver_cid: "cid-paused-gone", status: "paused" },
+    ]);
+    (retreaver.listCampaigns as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { cid: "cid-1", name: "Test Campaign", record_calls: true, timers: [], menu_options: [], created_at: "", updated_at: "" },
+    ]);
+
+    const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
+
+    expect(result).toEqual({ created: 0, updated: 0, archived: 2, total: 1 });
+    expect(repos.campaigns.update).toHaveBeenCalledWith("c2", { status: "archived" });
+    expect(repos.campaigns.update).toHaveBeenCalledWith("c3", { status: "archived" });
+    expect(repos.campaigns.update).not.toHaveBeenCalledWith("c1", expect.anything());
+  });
+
+  it("never archives completed/draft campaigns missing remotely", async () => {
+    (repos.campaigns.findRetreaverLinked as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "c9", retreaver_cid: "cid-old", status: "completed" },
+      { id: "c10", retreaver_cid: "cid-draft", status: "draft" },
+    ]);
+    (retreaver.listCampaigns as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { cid: "cid-1", name: "Other", record_calls: true, timers: [], menu_options: [], created_at: "", updated_at: "" },
+    ]);
+
+    const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
+
+    expect(result.archived).toBe(0);
+    expect(repos.campaigns.update).not.toHaveBeenCalledWith("c9", expect.anything());
+    expect(repos.campaigns.update).not.toHaveBeenCalledWith("c10", expect.anything());
+  });
+
+  it("skips archiving entirely when Retreaver returns an empty list", async () => {
+    (repos.campaigns.findRetreaverLinked as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "c1", retreaver_cid: "cid-1", status: "active" },
+    ]);
+    (retreaver.listCampaigns as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+    const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
+
+    expect(result).toEqual({ created: 0, updated: 0, archived: 0, total: 0 });
+    expect(repos.campaigns.update).not.toHaveBeenCalled();
+    expect(repos.campaigns.findRetreaverLinked).not.toHaveBeenCalled();
   });
 });
 

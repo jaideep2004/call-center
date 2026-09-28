@@ -104,7 +104,7 @@ function CampaignsInner() {
       </div>
       <div className="filter-bar">
         <select className="select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 160 }}>
-          <option value="">All statuses</option>
+          <option value="">All current</option>
           <option value="draft">Draft</option>
           <option value="active">Active</option>
           <option value="paused">Paused</option>

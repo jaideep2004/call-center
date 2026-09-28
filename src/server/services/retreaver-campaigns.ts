@@ -60,7 +60,7 @@ export async function getCampaignRetreaverNumbers(campaignId: string) {
   return retreaver.listNumbers({ cid: campaign.retreaver_cid });
 }
 
-export async function syncRetreaverCampaigns(options: { agencyId?: string | null } = {}): Promise<{ created: number; updated: number; total: number }> {
+export async function syncRetreaverCampaigns(options: { agencyId?: string | null } = {}): Promise<{ created: number; updated: number; archived: number; total: number }> {
   retreaverConfigured();
   const remote = await retreaver.listCampaigns();
   // The list endpoint omits `paused` — only the per-campaign detail endpoint reports it.
@@ -120,5 +120,25 @@ export async function syncRetreaverCampaigns(options: { agencyId?: string | null
     created++;
   }
 
-  return { created, updated, total: remote.length };
+  // Mirror Retreaver-side deletions: a linked local campaign whose cid no
+  // longer exists remotely was deleted over there — archive it here so it
+  // stops routing and leaves active views (history is kept). Pure-local
+  // campaigns (no cid) and terminal statuses are never touched. Skipped
+  // entirely when Retreaver returns an empty list, since that is
+  // indistinguishable from an API failure — archiving everything would be
+  // the catastrophic misread.
+  let archived = 0;
+  const liveRemote = remote.filter((c) => c.cid && c.name);
+  if (liveRemote.length > 0) {
+    const remoteCids = new Set(liveRemote.map((c) => c.cid as string));
+    const linked = await campaigns.findRetreaverLinked();
+    for (const local of linked) {
+      if (!local.retreaver_cid || remoteCids.has(local.retreaver_cid)) continue;
+      if (local.status !== "active" && local.status !== "paused") continue;
+      await campaigns.update(local.id, { status: "archived" });
+      archived++;
+    }
+  }
+
+  return { created, updated, archived, total: remote.length };
 }

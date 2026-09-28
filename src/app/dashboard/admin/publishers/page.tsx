@@ -294,10 +294,11 @@ export default function AdminPublishersPage() {
       const res = await fetch("/api/v1/retreaver/campaigns/sync", { method: "POST" });
       const body = await res.json();
       if (res.ok) {
-        const { created = 0, updated = 0 } = body.data ?? {};
+        const { created = 0, updated = 0, archived = 0 } = body.data ?? {};
         const parts = [`Synced Retreaver campaigns`];
         if (created > 0) parts.push(`${created} created`);
         if (updated > 0) parts.push(`${updated} updated`);
+        if (archived > 0) parts.push(`${archived} archived (deleted in Retreaver)`);
         showToast(parts.join(" — "), "success");
         setLastSync(new Date().toISOString());
       } else {

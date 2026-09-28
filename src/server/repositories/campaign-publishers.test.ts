@@ -102,4 +102,25 @@ describe("campaigns multi-publisher repo (publisher + campaigns logic)", () => {
     expect(selectParams).toContain("%Medicare%");
     expect(selectParams.slice(-2)).toEqual([10, 20]);
   });
+
+  it("findManyWithBid hides archived by default, allows all/archived on demand", async () => {
+    queryMock.mockImplementation(async (sql: string) => {
+      if (sql.includes("COUNT(*)")) return [{ count: "0" }];
+      return [];
+    });
+
+    await campaigns.findManyWithBid({ limit: 10, offset: 0 });
+    let sql = queryMock.mock.calls[1]![0] as string;
+    expect(sql).toContain("c.status != 'archived'");
+
+    vi.clearAllMocks();
+    await campaigns.findManyWithBid({ limit: 10, offset: 0, status: "all" });
+    sql = queryMock.mock.calls[1]![0] as string;
+    expect(sql).not.toContain("c.status");
+
+    vi.clearAllMocks();
+    await campaigns.findManyWithBid({ limit: 10, offset: 0, status: "archived" });
+    sql = queryMock.mock.calls[1]![0] as string;
+    expect(sql).toContain("c.status = $1");
+  });
 });
