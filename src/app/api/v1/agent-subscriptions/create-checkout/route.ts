@@ -12,14 +12,18 @@ const checkoutSchema = z.object({
 export const runtime = "nodejs";
 
 export const POST = apiHandler(async (req, { membership, agencyId }) => {
-  if (!membership) return fail("Agent membership required", 403);
-  if (!agencyId) return fail("Agency not found", 404);
+  // Paid checkout genuinely needs an agency: payment rows, Stripe metadata
+  // and webhook crediting are all agency-keyed. Free plans subscribe
+  // directly without one.
+  if (!membership || !agencyId) {
+    return fail("Join or create an agency before subscribing to a paid plan — free plans work right away", 403);
+  }
 
   const body = checkoutSchema.parse(await req.json());
 
   const plan = await agentPlans.findById(body.plan_id).catch(() => null);
   if (!plan) return fail("Plan not found", 404);
-  if (plan.agency_id !== agencyId) return fail("Plan not available", 403);
+  // Plans are a shared platform catalog — gate on active, not same-agency.
   if (!plan.active) return fail("Plan is no longer available", 400);
   if (!Number.isInteger(plan.price_cents) || plan.price_cents < 100) {
     return fail("Free plans subscribe directly — paid plans need a positive price", 422);

@@ -33,6 +33,41 @@ function PublisherOverviewInner(){
   const [userName,setUserName]=useState<string | null>(null);
   const [clicksByCampaign,setClicksByCampaign]=useState<Record<string,number>>({});
 
+  interface RetreaverInfo {
+    linked: boolean; reason?: string; campaign_id: string; campaign_name: string;
+    retreaver_cid: string | null; provisioned: boolean; tracking_number: string | null;
+    rtb: { enabled: boolean; endpoint: string; publisher_id: string | null; key: string | null } | null;
+  }
+  const [retModal,setRetModal]=useState<{ campaignId: string; name: string }|null>(null);
+  const [retData,setRetData]=useState<RetreaverInfo|null>(null);
+  const [retLoading,setRetLoading]=useState(false);
+  const [retError,setRetError]=useState<string|null>(null);
+  const [showKey,setShowKey]=useState(false);
+
+  const openRetreaver = async (campaignId: string, name: string) => {
+    setRetModal({ campaignId, name });
+    setRetData(null); setRetError(null); setShowKey(false); setRetLoading(true);
+    try {
+      const res = await fetch(`/api/v1/publisher/campaigns/${campaignId}/retreaver`);
+      const body = await res.json().catch(()=>({}));
+      if (res.ok) setRetData(body.data);
+      else setRetError(body.message ?? "Could not load Retreaver details");
+    } catch {
+      setRetError("Network error loading Retreaver details");
+    } finally {
+      setRetLoading(false);
+    }
+  };
+
+  const copyText = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`${label} copied`,"success");
+    } catch {
+      showToast(text,"info");
+    }
+  };
+
   /** Tracking links are origin-aware (localhost in dev, domain in prod). */
   const trackingLinkFor = (afid: string, campaignId: string | null) => {
     const base = typeof window !== "undefined" ? window.location.origin : "https://coveragecalls.com";
@@ -332,19 +367,20 @@ function PublisherOverviewInner(){
           <div className="cc-card__head"><div><h2>Your Tracking Links</h2><small>Affiliate ID • copy to share</small></div><span className="cc-badge" style={{ fontFamily:"var(--mono)", fontSize:11 }}>{overview?.publisher.afid ?? overview?.publisher.id?.slice(0,8) ?? "—"}</span></div>
           {campaignPerf.length ? (
             <div style={{ display:"flex", flexDirection:"column", gap:0, marginTop:8 }}>
-              <div style={{ display:"grid", gridTemplateColumns:"1.2fr 1.6fr 64px 64px", gap:8, padding:"10px 8px", borderBottom:"1px solid var(--line)", font:"10px var(--mono)", letterSpacing:"1px", color:"var(--muted)", textTransform:"uppercase" }}>
-                <span>Campaign</span><span>Tracking Link</span><span>Clicks</span><span>Copy</span>
+              <div style={{ display:"grid", gridTemplateColumns:"1.2fr 1.4fr 56px 64px 84px", gap:8, padding:"10px 8px", borderBottom:"1px solid var(--line)", font:"10px var(--mono)", letterSpacing:"1px", color:"var(--muted)", textTransform:"uppercase" }}>
+                <span>Campaign</span><span>Tracking Link</span><span>Clicks</span><span>Copy</span><span>Retreaver</span>
               </div>
               {(campaignPerf.slice(0,5)).map(c=>{
                 const afid = overview?.publisher.afid ?? overview?.publisher.id ?? "AFF123";
                 const link = trackingLinkFor(afid, c.campaign_id ?? c.id);
                 const clicks = clicksByCampaign[c.campaign_id ?? c.id] ?? 0;
                 return (
-                  <div key={c.id} style={{ display:"grid", gridTemplateColumns:"1.2fr 1.6fr 64px 64px", gap:8, padding:"12px 8px", borderTop:"1px solid var(--line)", alignItems:"center" }}>
+                  <div key={c.id} style={{ display:"grid", gridTemplateColumns:"1.2fr 1.4fr 56px 64px 84px", gap:8, padding:"12px 8px", borderTop:"1px solid var(--line)", alignItems:"center" }}>
                     <span style={{fontSize:13, fontWeight:500, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>{c.campaign_name}</span>
                     <span className="text-mono-sm" style={{fontSize:10, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", color:"var(--muted)"}}>{link}</span>
                     <span className="text-mono-sm" style={{fontSize:11}} title="Link visits, last 30 days">{clicks}</span>
                     <button className="btn btn-ghost btn-sm" style={{ fontSize:11, padding:"4px 8px", borderRadius:6 }} onClick={()=>copyTrackingLink(link)}>Copy</button>
+                    <button className="btn btn-secondary btn-sm" style={{ fontSize:11, padding:"4px 8px", borderRadius:6 }} title="Retreaver number + ping details for your own tracker" onClick={()=>{ const cid = c.campaign_id ?? c.id; if (cid) void openRetreaver(cid, c.campaign_name ?? "Campaign"); }}>Retreaver</button>
                   </div>
                 );
               })}
@@ -352,9 +388,83 @@ function PublisherOverviewInner(){
           ) : (
             <div className="empty-state" style={{padding:"24px 0", display:"grid", placeItems:"center"}}><p className="text-muted" style={{fontSize:12, margin:0}}>No campaigns — tracking links appear after assignment</p></div>
           )}
-          <p className="text-muted" style={{fontSize:11, margin:"12px 0 0", lineHeight:1.5}}>Place this link in your ads, landing pages and emails. Calls through this link attribute payout to you.</p>
+          <p className="text-muted" style={{fontSize:11, margin:"12px 0 0", lineHeight:1.5}}>Place this link in your ads, landing pages and emails. Calls through this link attribute payout to you. Already run your own tracking? Use the <strong>Retreaver</strong> button for the Retreaver number + ping details instead.</p>
         </section>
       </div>
+
+      {retModal && (
+        <div role="dialog" aria-modal="true" aria-label={`Retreaver connection for ${retModal.name}`} onClick={()=>setRetModal(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", display:"grid", placeItems:"center", zIndex:80, padding:16 }}>
+          <div className="cc-card cc-card--spacious" onClick={(e)=>e.stopPropagation()} style={{ maxWidth:520, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
+            <div className="cc-card__head"><div><h2>Retreaver connection</h2><small>{retModal.name}</small></div><button className="btn btn-ghost btn-sm" onClick={()=>setRetModal(null)}>Close ✕</button></div>
+            {retLoading ? (
+              <div className="stack" style={{ gap:8, marginTop:12 }}>{[0,1,2].map(i=><div key={i} className="skeleton skeleton-text" />)}</div>
+            ) : retError ? (
+              <p style={{ fontSize:13, color:"var(--danger,#ef4444)", marginTop:12 }}>{retError}</p>
+            ) : retData && !retData.linked ? (
+              <p className="text-muted" style={{ fontSize:13, marginTop:12 }}>{retData.reason ?? "Retreaver details are not available for this campaign yet."}</p>
+            ) : retData?.linked && !retData.provisioned ? (
+              <div style={{ marginTop:12, padding:12, border:"1px solid rgba(245,158,11,.4)", background:"rgba(245,158,11,.08)", borderRadius:10 }}>
+                <p style={{ fontSize:13, fontWeight:600, margin:0 }}>Not provisioned on Retreaver yet</p>
+                <p className="text-muted" style={{ fontSize:12, margin:"6px 0 0", lineHeight:1.5 }}>{retData.reason ?? "Ask your account manager to provision your account. Your Retreaver number + ping details will appear here after that."}</p>
+              </div>
+            ) : retData?.linked ? (
+              <div style={{ display:"flex", flexDirection:"column", gap:12, marginTop:12 }}>
+                <div>
+                  <p className="call-detail-label">Retreaver tracking number (your afid)</p>
+                  {retData.tracking_number ? (
+                    <div style={{ display:"flex", gap:8, alignItems:"center", marginTop:4 }}>
+                      <span className="text-mono-sm" style={{ fontSize:15, fontWeight:700 }}>{retData.tracking_number}</span>
+                      <button className="btn btn-ghost btn-sm" onClick={()=>copyText(retData.tracking_number!, "Tracking number")}>Copy</button>
+                    </div>
+                  ) : (
+                    <p className="text-muted" style={{ fontSize:12, marginTop:4 }}>No dedicated number assigned yet — use the ping details below or ask your account manager.</p>
+                  )}
+                </div>
+                {retData.rtb && (
+                  <div style={{ borderTop:"1px solid var(--line)", paddingTop:12 }}>
+                    <p className="call-detail-label">Ping-post (rtb.retreaver.com){retData.rtb.enabled ? "" : " — currently disabled"}</p>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:8 }}>
+                      <div>
+                        <p className="text-muted" style={{ fontSize:11, margin:"0 0 2px" }}>Endpoint (POST)</p>
+                        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                          <span className="text-mono-sm" style={{ fontSize:11, wordBreak:"break-all" }}>{retData.rtb.endpoint}</span>
+                          <button className="btn btn-ghost btn-sm" onClick={()=>copyText(retData.rtb!.endpoint, "Endpoint")}>Copy</button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted" style={{ fontSize:11, margin:"0 0 2px" }}>Your publisher ID</p>
+                        {retData.rtb.publisher_id ? (
+                          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                            <span className="text-mono-sm" style={{ fontSize:12 }}>{retData.rtb.publisher_id}</span>
+                            <button className="btn btn-ghost btn-sm" onClick={()=>copyText(retData.rtb!.publisher_id!, "Publisher ID")}>Copy</button>
+                          </div>
+                        ) : (
+                          <p className="text-muted" style={{ fontSize:12, margin:0 }}>Pending provisioning — ask your account manager.</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-muted" style={{ fontSize:11, margin:"0 0 2px" }}>Campaign key</p>
+                        {retData.rtb.key ? (
+                          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                            <span className="text-mono-sm" style={{ fontSize:12 }}>{showKey ? retData.rtb.key : "••••••••••••"}</span>
+                            <button className="btn btn-ghost btn-sm" onClick={()=>setShowKey(v=>!v)}>{showKey ? "Hide" : "Show"}</button>
+                            <button className="btn btn-ghost btn-sm" onClick={()=>copyText(retData.rtb!.key!, "Campaign key")}>Copy</button>
+                          </div>
+                        ) : (
+                          <p className="text-muted" style={{ fontSize:12, margin:0 }}>No key configured — ask your account manager.</p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-muted" style={{ fontSize:11, margin:"10px 0 0", lineHeight:1.5 }}>
+                      Paste these into your tracker/dialer to ping Retreaver directly with each call (send <span className="text-mono-sm">caller_number</span> with every ping). Calls attribute to your ID automatically. Keep the key private — anyone with it can ping as you.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -71,4 +71,16 @@ describe("POST subscription checkout guards", () => {
     const res = await post({ plan_id: "00000000-0000-0000-0000-000000000002" });
     expect(res.status).toBe(200);
   });
+
+  it("accepts active plans from another agency (shared catalog)", async () => {
+    findPlanMock.mockResolvedValue({ id: "00000000-0000-0000-0000-000000000003", agency_id: "agency-admin", active: true, price_cents: 5000, name: "Pro" });
+    const res = await post({ plan_id: "00000000-0000-0000-0000-000000000003" });
+    expect(res.status).toBe(200);
+  });
+
+  it("400s inactive plans even from the home agency", async () => {
+    findPlanMock.mockResolvedValue({ id: "00000000-0000-0000-0000-000000000004", agency_id: "agency-1", active: false, price_cents: 5000, name: "Old" });
+    const res = await post({ plan_id: "00000000-0000-0000-0000-000000000004" });
+    expect(res.status).toBe(400);
+  });
 });

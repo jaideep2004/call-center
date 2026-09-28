@@ -25,6 +25,16 @@ export class AgentPlanRepository extends BaseRepository<AgentPlanRow> {
     const { rows } = await this.findMany({ filters: { agency_id: agencyId } });
     return rows;
   }
+
+  /**
+   * Shared catalog: plans are created once by the platform admin but bought
+   * by agents from every agency (and agency-less signups). Cheapest first,
+   * matching the homepage pricing order.
+   */
+  async findActive(): Promise<AgentPlanRow[]> {
+    const { rows } = await this.findMany({ filters: { active: true }, sortBy: "price_cents", order: "asc" });
+    return rows;
+  }
 }
 
 export const agentPlans = new AgentPlanRepository();

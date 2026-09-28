@@ -17,18 +17,36 @@ export const GET = apiHandler(async (req, context) => {
   return ok(rows);
 }, { resource: "agents", action: "view" });
 
-export const POST = apiHandler(async (req, { membership, agencyId }) => {
-  if (!membership) return fail("Agent membership required", 403);
+export const POST = apiHandler(async (req, { membership, user }) => {
   const body = validate(createAgentSubscriptionSchema, await req.json());
 
   const plan = await agentPlans.findById(body.plan_id).catch(() => null);
   if (!plan) return fail("Plan not found", 404);
-  if (plan.agency_id !== agencyId) return fail("Plan not available", 403);
+  // Plans are a shared platform catalog (any agency's agent may buy any
+  // active plan) — gate on active, not on same-agency.
+  if (!plan.active) return fail("Plan is no longer available", 400);
   // This is the $0-plan path (the UI only offers it for free plans) — paid
   // plans must go through Stripe checkout, never a direct insert.
   if (plan.price_cents !== 0) return fail("Paid plans require checkout", 402);
 
-  const agent = await agents.findByMembershipId(membership.id);
+  // Buyer resolution: membership agents use their membership profile, but a
+  // fresh signup has no membership yet — fall back to the login-keyed
+  // profile (created on demand). The row is adopted into the agency later,
+  // so the subscription survives the join.
+  let agent = membership
+    ? await agents.findByMembershipId(membership.id).catch(() => null)
+    : null;
+  if (!agent && user) {
+    agent = await agents.findByUserId(user.id);
+    if (!agent) {
+      agent = await agents.create({
+        agency_id: null,
+        membership_id: null,
+        user_id: user.id,
+        endpoint_types: ["webrtc"],
+      });
+    }
+  }
   if (!agent) return fail("Agent profile not found", 404);
 
   const existing = await agentSubscriptions.findActiveByAgent(agent.id);

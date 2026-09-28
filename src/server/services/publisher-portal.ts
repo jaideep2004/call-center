@@ -1,7 +1,9 @@
 import { randomBytes } from "crypto";
 import { query, queryOne } from "@/server/db";
 import { publishers, publisherInvites, memberships, campaigns, phoneNumbers } from "@/server/repositories";
-import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { retreaver } from "@/domain/providers/retreaver";
+import { decryptSecret } from "@/server/crypto";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 
 export interface PortalOverview {
   publisher: { id: string; name: string; fixed_price_cents: number | null; retreaver_status: string };
@@ -346,4 +348,124 @@ export async function getClickStats(publisherId: string): Promise<{ campaign_id:
   } catch {
     return [];
   }
+}
+
+export interface PublisherRetreaverLink {
+  linked: boolean;
+  reason?: string;
+  campaign_id: string;
+  campaign_name: string;
+  retreaver_cid: string | null;
+  /** False when the publisher was never provisioned on Retreaver (no afid):
+   * ping values would not attribute, so the portal shows a provisioning
+   * notice instead of misleading IDs. */
+  provisioned: boolean;
+  /** Retreaver DID assigned to this publisher's afid on the campaign, if any. */
+  tracking_number: string | null;
+  rtb: {
+    enabled: boolean;
+    /** The rtb.retreaver.com ping endpoint publishers POST calls to. */
+    endpoint: string;
+    /** Publisher identity Retreaver attributes calls to. Null until provisioned. */
+    publisher_id: string | null;
+    /** Campaign RTB key (revealed on demand in the portal). Null when unset. */
+    key: string | null;
+  } | null;
+}
+
+/**
+ * The Retreaver-side connection details for one publisher + campaign — the
+ * rtb.retreaver.com details publishers paste into their own tracker/dialer
+ * when they already run their own tracking (as opposed to our /t/ link,
+ * which routes through our numbers first). Throws 404/403 for unknown,
+ * unassigned, or soft-deleted rows; returns linked:false when the campaign
+ * is not active on Retreaver yet.
+ */
+export async function getPublisherCampaignRetreaverLink(
+  publisherId: string,
+  campaignId: string,
+): Promise<PublisherRetreaverLink> {
+  const publisher = await publishers.findById(publisherId).catch(() => null);
+  if (!publisher || (publisher as { deleted_at?: string | null }).deleted_at) {
+    throw new NotFoundError("Publisher not found");
+  }
+  const campaign = await campaigns.findById(campaignId).catch(() => null);
+  if (!campaign || (campaign as { deleted_at?: string | null }).deleted_at) {
+    throw new NotFoundError("Campaign not found");
+  }
+  const assigned = await queryOne<{ one: number }>(
+    `SELECT 1 AS one FROM app.campaign_publishers WHERE campaign_id = $1 AND publisher_id = $2
+      UNION SELECT 1 AS one FROM app.campaigns WHERE id = $1 AND publisher_id = $2
+     LIMIT 1`,
+    [campaignId, publisher.id],
+  ).catch(() => null);
+  if (!assigned) throw new ForbiddenError("This campaign is not assigned to you");
+
+  const base = {
+    campaign_id: campaign.id,
+    campaign_name: campaign.name,
+    retreaver_cid: campaign.retreaver_cid,
+    provisioned: publisher.afid != null,
+  };
+  if (campaign.status !== "active" || !campaign.retreaver_cid) {
+    return {
+      ...base,
+      linked: false,
+      reason: !campaign.retreaver_cid
+        ? "Not deployed to Retreaver yet — ask your account manager"
+        : `Campaign is ${campaign.status} — Retreaver details unlock when it is active`,
+      tracking_number: null,
+      rtb: null,
+    };
+  }
+
+  // Without an afid nothing Retreaver-side can attribute to this publisher:
+  // surface the provisioning gap instead of an internal UUID that would
+  // silently misattribute pings.
+  if (!publisher.afid) {
+    return {
+      ...base,
+      linked: true,
+      reason: "Your account is not provisioned on Retreaver yet — ask your account manager to provision it. The number + ping details unlock after that.",
+      tracking_number: null,
+      rtb: {
+        enabled: campaign.rtb_enabled,
+        endpoint: "https://rtb.retreaver.com/rtbs.json",
+        publisher_id: null,
+        key: null,
+      },
+    };
+  }
+
+  // Retreaver DID carrying this publisher's afid (best-effort: a Retreaver
+  // outage must not hide the RTB ping block below).
+  let tracking_number: string | null = null;
+  try {
+    const numbers = await retreaver.listNumbers({ cid: campaign.retreaver_cid });
+    tracking_number =
+      numbers.find((n) => n.afid === publisher.afid)?.number ?? null;
+  } catch {
+    tracking_number = null;
+  }
+
+  let key: string | null = null;
+  if (campaign.rtb_enabled && campaign.rtb_postback_key_encrypted) {
+    try {
+      key = decryptSecret(campaign.rtb_postback_key_encrypted);
+    } catch {
+      key = null;
+    }
+  }
+
+  return {
+    ...base,
+    linked: true,
+    tracking_number,
+    rtb: {
+      enabled: campaign.rtb_enabled,
+      endpoint: "https://rtb.retreaver.com/rtbs.json",
+      publisher_id: publisher.afid,
+      key,
+    },
+  };
 }

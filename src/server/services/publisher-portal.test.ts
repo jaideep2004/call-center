@@ -5,11 +5,22 @@ vi.mock("@/server/db", () => ({
   queryOne: vi.fn(),
 }));
 
+vi.mock("@/domain/providers/retreaver", () => ({
+  retreaver: { listNumbers: vi.fn() },
+}));
+
+vi.mock("@/server/crypto", () => ({
+  decryptSecret: vi.fn((s: string) => `decrypted:${s}`),
+}));
+
 vi.mock("@/server/repositories", () => ({
   publishers: {
     findById: vi.fn(),
     findByUserId: vi.fn(),
     linkUser: vi.fn(),
+  },
+  campaigns: {
+    findById: vi.fn(),
   },
   publisherInvites: {
     findByToken: vi.fn(),
@@ -305,5 +316,99 @@ describe("acceptPortalInvite", () => {
 
     await expect(acceptPortalInvite("token-1", "user-1", {})).rejects.toThrow("SWITCH_REQUIRED");
     expect(repos.memberships.updateStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("getPublisherCampaignRetreaverLink", () => {
+  const campaign = {
+    id: "camp-1", name: "Medicare", status: "active", retreaver_cid: "cid-1",
+    rtb_enabled: true, rtb_postback_key_encrypted: "enc-key", deleted_at: null,
+  };
+
+  beforeEach(() => {
+    (repos.publishers.findById as ReturnType<typeof vi.fn>).mockResolvedValue(publisher);
+  });
+
+  async function link(campaignOverrides = {}) {
+    const { retreaver } = await import("@/domain/providers/retreaver");
+    (retreaver.listNumbers as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 7, number: "+18005550001", toll_free: true, afid: "0001", cid: "cid-1", sid: null, created_at: "", updated_at: "" },
+    ]);
+    const { campaigns } = repos as unknown as { campaigns: { findById: ReturnType<typeof vi.fn> } };
+    campaigns.findById.mockResolvedValue({ ...campaign, ...campaignOverrides });
+    (db.queryOne as ReturnType<typeof vi.fn>).mockResolvedValue({ one: 1 });
+    const { getPublisherCampaignRetreaverLink } = await import("./publisher-portal");
+    return getPublisherCampaignRetreaverLink("pub-1", "camp-1");
+  }
+
+  it("returns the afid tracking number + rtb ping block", async () => {
+    const out = await link();
+    expect(out.linked).toBe(true);
+    expect(out.tracking_number).toBe("+18005550001");
+    expect(out.rtb).toMatchObject({
+      enabled: true,
+      endpoint: "https://rtb.retreaver.com/rtbs.json",
+      publisher_id: "0001",
+      key: "decrypted:enc-key",
+    });
+  });
+
+  it("returns linked:false when the campaign is not deployed to Retreaver", async () => {
+    const out = await link({ retreaver_cid: null });
+    expect(out.linked).toBe(false);
+    expect(out.reason).toMatch(/not deployed/i);
+    expect(out.rtb).toBeNull();
+  });
+
+  it("returns linked:false when the campaign is not active", async () => {
+    const out = await link({ status: "paused" });
+    expect(out.linked).toBe(false);
+    expect(out.rtb).toBeNull();
+  });
+
+  it("still returns the rtb block when Retreaver numbers fail", async () => {
+    const { retreaver } = await import("@/domain/providers/retreaver");
+    (retreaver.listNumbers as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("down"));
+    const { campaigns } = repos as unknown as { campaigns: { findById: ReturnType<typeof vi.fn> } };
+    campaigns.findById.mockResolvedValue({
+      id: "camp-1", name: "Medicare", status: "active", retreaver_cid: "cid-1",
+      rtb_enabled: true, rtb_postback_key_encrypted: "enc-key", deleted_at: null,
+    });
+    (db.queryOne as ReturnType<typeof vi.fn>).mockResolvedValue({ one: 1 });
+    const { getPublisherCampaignRetreaverLink } = await import("./publisher-portal");
+    const out = await getPublisherCampaignRetreaverLink("pub-1", "camp-1");
+    expect(out.linked).toBe(true);
+    expect(out.tracking_number).toBeNull();
+    expect(out.rtb?.key).toBe("decrypted:enc-key");
+  });
+
+  it("404s unknown publishers and 403s unassigned campaigns", async () => {
+    const { getPublisherCampaignRetreaverLink } = await import("./publisher-portal");
+    (repos.publishers.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    await expect(getPublisherCampaignRetreaverLink("missing", "camp-1")).rejects.toThrow("Publisher not found");
+
+    (repos.publishers.findById as ReturnType<typeof vi.fn>).mockResolvedValue(publisher);
+    const { campaigns } = repos as unknown as { campaigns: { findById: ReturnType<typeof vi.fn> } };
+    campaigns.findById.mockResolvedValue(campaign);
+    (db.queryOne as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    await expect(getPublisherCampaignRetreaverLink("pub-1", "camp-1")).rejects.toThrow("not assigned");
+  });
+
+  it("flags unprovisioned publishers instead of leaking an internal id", async () => {
+    (repos.publishers.findById as ReturnType<typeof vi.fn>).mockResolvedValue({ ...publisher, afid: null });
+    const { campaigns } = repos as unknown as { campaigns: { findById: ReturnType<typeof vi.fn> } };
+    campaigns.findById.mockResolvedValue({
+      id: "camp-1", name: "Medicare", status: "active", retreaver_cid: "cid-1",
+      rtb_enabled: true, rtb_postback_key_encrypted: "enc-key", deleted_at: null,
+    });
+    (db.queryOne as ReturnType<typeof vi.fn>).mockResolvedValue({ one: 1 });
+    const { getPublisherCampaignRetreaverLink } = await import("./publisher-portal");
+    const out = await getPublisherCampaignRetreaverLink("pub-1", "camp-1");
+    expect(out.linked).toBe(true);
+    expect(out.provisioned).toBe(false);
+    expect(out.tracking_number).toBeNull();
+    expect(out.rtb?.publisher_id).toBeNull();
+    expect(out.rtb?.key).toBeNull();
+    expect(out.reason).toMatch(/provision/i);
   });
 });

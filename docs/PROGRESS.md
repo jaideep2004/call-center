@@ -501,3 +501,24 @@ pm run build to avoid re-corrupting dev types.
 - Did: findManyWithBid excludes archived unless status=all or exact match; admin list default renamed All current (Archived still selectable); take-calls/calls-filters/script-assign/admin-home now archived-free automatically; routing/publisher already active-only.
 - Tests: tsc 0, new repo test 1/1, full vitest 122 files 867 passed | 5 skipped, build green.
 
+
+## 2026-09-26 - assistant - PUBLISHER Retreaver link (rtb.retreaver.com)
+- Did: new getPublisherCampaignRetreaverLink (afid DID + RTB ping endpoint/publisher_id/key, assignment-checked, linked:false states, Retreaver-outage tolerant) + GET /api/v1/publisher/campaigns/[id]/retreaver + portal Tracking Links Retreaver button/modal (copy buttons, masked key reveal). Our /t/ tracking link untouched.
+- Decisions: key shown masked-with-reveal + keep-private warning (classic ping-post model; admin rotates via campaign RTB tab if leaked); publishers see own rows only.
+- Tests: tsc 0, publisher-portal 25/25 (5 new), full vitest 122 files 872 passed | 5 skipped, build green.
+
+
+## 2026-09-26 - assistant - RETREAVER popup provisioning guard
+- Did: live test showed publisher without afid got internal UUID as publisher_id (would misattribute). Service now returns provisioned:false + nulls with provisioning reason; portal shows amber Not provisioned notice instead of ping values.
+- Tests: tsc 0, publisher-portal 26/26 (1 new), full vitest 122 files 873 passed | 5 skipped, build green.
+
+
+## 2026-09-26 - assistant - SUBSCRIPTION plans invisible to new signups (urgent)
+- Did: root cause = plans agency-scoped; agency-less signups got [] and cross-agency subscribe/checkout 403d. Plans now shared catalog: GET ?active=true returns all active cheapest-first; free subscribe + paid checkout gate on active instead of same-agency; management list stays scoped.
+- Tests: tsc 0, new agent-plans 2/2 + cross-agency cases in subs/checkout suites, full vitest 123 files 879 passed | 5 skipped, build green.
+
+
+## 2026-09-26 - assistant - SUBSCRIBE membership-required for fresh signups
+- Did: free-plan POST now resolves buyer via membership OR login profile (auto-created pending row, adopted on agency join so sub survives); paid checkout keeps agency requirement but with actionable message (free works now, join/create agency for paid).
+- Tests: tsc 0, subs isolation 8/8 (2 new membership-less), full vitest 123 files 881 passed | 5 skipped, build green.
+
