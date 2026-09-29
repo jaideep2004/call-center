@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe, getWebhookSecret } from "@/server/stripe";
 import { payments } from "@/server/repositories/payments";
 import { agentSubscriptions } from "@/server/repositories";
-import { creditTopupPayment, findOrCreateTopupPayment } from "@/server/services/payment-credit";
+import { creditTopupPayment, findOrCreateTopupPayment, reversePaymentCredit } from "@/server/services/payment-credit";
 
 export const runtime = "nodejs";
 
@@ -158,6 +158,71 @@ export async function POST(request: Request) {
       // amount_cents == amount_total, so behavior there is unchanged.
       await creditTopupPayment(found.payment, found.kind, paymentIntentId, session.id);
     }
+  }
+
+  if (event.type === "charge.refunded" || event.type === "charge.dispute.funds_withdrawn") {
+    // Money-back out: reverse the wallet/pool credit (or cancel the sub) so
+    // a refund-after-spend cannot double-spend. Unknown/ancient charges ack
+    // cleanly (no retry storm); partial refunds reverse only their slice.
+    const obj = event.data.object as {
+      id: string;
+      payment_intent?: string | null;
+      charge?: string | null;
+      amount?: number | null;
+      amount_refunded?: number | null;
+    };
+    try {
+      const stripe = await getStripe();
+      let paymentIntentId = typeof obj.payment_intent === "string" ? obj.payment_intent : null;
+      let reversalId = obj.id;
+      let amountCents: number | null = null;
+      if (event.type === "charge.refunded") {
+        const refundId = (obj as { refunds?: { data?: { id: string; amount: number }[] } }).refunds?.data?.[0];
+        if (refundId) {
+          reversalId = refundId.id;
+          amountCents = refundId.amount;
+        } else {
+          amountCents = obj.amount_refunded ?? null;
+        }
+        if (!paymentIntentId && obj.id) {
+          const charge = await stripe.charges.retrieve(obj.id).catch(() => null) as { payment_intent?: unknown } | null;
+          if (charge && typeof charge.payment_intent === "string") paymentIntentId = charge.payment_intent;
+        }
+      } else {
+        // dispute withdrawal: the dispute id is the dedup key.
+        amountCents = obj.amount ?? null;
+        if (!paymentIntentId && typeof obj.charge === "string") {
+          const charge = await stripe.charges.retrieve(obj.charge).catch(() => null) as { payment_intent?: unknown } | null;
+          if (charge && typeof charge.payment_intent === "string") paymentIntentId = charge.payment_intent;
+        }
+      }
+      if (!paymentIntentId) {
+        console.warn(`[stripe-webhook] ${event.type} without payment_intent — acknowledged without action`);
+        return NextResponse.json({ received: true });
+      }
+      const payment = await payments.findByPaymentIntentId(paymentIntentId);
+      if (!payment) {
+        console.warn(`[stripe-webhook] ${event.type} for unknown payment_intent ${paymentIntentId.slice(0, 12)} — acknowledged without action`);
+        return NextResponse.json({ received: true });
+      }
+      const amount = amountCents ?? payment.amount_cents;
+      const out = await reversePaymentCredit(payment, {
+        reversalId,
+        amountCents: amount,
+        reason: event.type,
+      });
+      return NextResponse.json({ received: true, reversed: out.reversed, shortfall_cents: out.shortfall_cents });
+    } catch (e) {
+      console.error(`[stripe-webhook] ${event.type} reversal failed: ${String(e).slice(0, 200)}`);
+      return NextResponse.json({ error: "Reversal failed" }, { status: 500 });
+    }
+  }
+
+  if (event.type === "charge.dispute.created") {
+    // Funds not pulled yet — admin visibility only. The actual clawback is
+    // handled at charge.dispute.funds_withdrawn above.
+    console.warn(`[stripe-webhook] dispute opened: ${String((event.data.object as { id?: unknown })?.id ?? "unknown")} — watch for funds_withdrawn`);
+    return NextResponse.json({ received: true });
   }
 
   return NextResponse.json({ received: true });

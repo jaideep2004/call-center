@@ -12,6 +12,8 @@ export interface CallRow {
   provider_agent_call_id: string | null;
   state: string;
   from_hash: string | null;
+  /** Server-encrypted raw caller number (escrow for post-buffer reveal). */
+  caller_number_encrypted: string | null;
   to_number: string | null;
   caller_state: string | null;
   ring_started_at: string | null;

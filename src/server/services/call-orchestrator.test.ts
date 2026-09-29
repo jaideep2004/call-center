@@ -77,7 +77,7 @@ vi.mock("@/server/repositories", () => ({
   },
 }));
 
-const { processProviderEvent, routeCall, handleNoAnswer } = await import("@/server/services/call-orchestrator");
+const { processProviderEvent, routeCall, handleNoAnswer, hangupCall } = await import("@/server/services/call-orchestrator");
 
 function makeCall(overrides: Record<string, unknown> = {}) {
   return {
@@ -267,7 +267,56 @@ describe("processProviderEvent — agent leg handling", () => {
     const result = await processProviderEvent(agentLegEvent("ended", "call-1", "agent-leg-1"));
 
     expect(claimStateMock).toHaveBeenCalledWith("call-1", "connected", "ended", "agency-1", expect.any(Object), expect.anything());
-    expect(cancelMock).not.toHaveBeenCalled();
+    // Surviving legs are hung up best-effort so no dead air / runaway recording.
+    expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-1" });
+    expect(result).toBeTruthy();
+  });
+
+  it("ends (not wedges) a call when the customer hangs up mid-bridge", async () => {
+    findByProviderCallIdMock.mockResolvedValue(
+      makeCall({ state: "connecting", provider_agent_call_id: "agent-leg-1" }),
+    );
+    // The claim RETURNING * preserves the leg ids (unlike the default mock).
+    claimStateMock.mockResolvedValueOnce(
+      makeCall({ state: "ended", provider_agent_call_id: "agent-leg-1", ended_at: "2026-01-01T00:00:08Z" }),
+    );
+
+    const result = await processProviderEvent({
+      provider: "mock", eventId: "evt-hangup-bridge", type: "ended",
+      providerCallId: "caller-leg-1", occurredAt: "2026-01-01T00:00:08Z", raw: {},
+    });
+
+    expect(claimStateMock).toHaveBeenCalledWith("call-1", "connecting", "ended", "agency-1", expect.any(Object), expect.anything());
+    expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "agent-leg-1" });
+    expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-1" });
+    expect(result).toBeTruthy();
+  });
+
+  it("stores the recording even when recording.save arrives after hangup", async () => {
+    findByProviderCallIdMock.mockResolvedValue(makeCall({ state: "ended", ended_at: "2026-01-01T00:00:10Z" }));
+
+    await processProviderEvent({
+      provider: "mock", eventId: "evt-rec-late", type: "recording_ready",
+      providerCallId: "caller-leg-1", occurredAt: "2026-01-01T00:00:25Z",
+      raw: { data: { payload: { recording_id: "rec-late" } } },
+    });
+
+    expect(enqueueRecordingMock).toHaveBeenCalledWith(expect.objectContaining({
+      callId: "call-1",
+      recordingId: "rec-late",
+    }));
+  });
+
+  it("hangupCall works from the bridge window (accepted/connecting), not just connected", async () => {
+    findByIdMock.mockResolvedValue(
+      makeCall({ state: "connecting", provider_agent_call_id: "agent-leg-1", agent_id: null }),
+    );
+
+    const result = await hangupCall("call-1");
+
+    expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "agent-leg-1" });
+    expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-1" });
+    expect(updateStateMock).toHaveBeenCalledWith("call-1", "ended", "agency-1", expect.any(Object));
     expect(result).toBeTruthy();
   });
 

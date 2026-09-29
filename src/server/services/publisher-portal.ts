@@ -362,6 +362,8 @@ export interface PublisherRetreaverLink {
   provisioned: boolean;
   /** Retreaver DID assigned to this publisher's afid on the campaign, if any. */
   tracking_number: string | null;
+  /** How many Retreaver numbers were checked. Null = the lookup itself failed. */
+  numbers_checked: number | null;
   rtb: {
     enabled: boolean;
     /** The rtb.retreaver.com ping endpoint publishers POST calls to. */
@@ -415,6 +417,7 @@ export async function getPublisherCampaignRetreaverLink(
         ? "Not deployed to Retreaver yet — ask your account manager"
         : `Campaign is ${campaign.status} — Retreaver details unlock when it is active`,
       tracking_number: null,
+      numbers_checked: null,
       rtb: null,
     };
   }
@@ -428,6 +431,7 @@ export async function getPublisherCampaignRetreaverLink(
       linked: true,
       reason: "Your account is not provisioned on Retreaver yet — ask your account manager to provision it. The number + ping details unlock after that.",
       tracking_number: null,
+      numbers_checked: null,
       rtb: {
         enabled: campaign.rtb_enabled,
         endpoint: "https://rtb.retreaver.com/rtbs.json",
@@ -440,12 +444,15 @@ export async function getPublisherCampaignRetreaverLink(
   // Retreaver DID carrying this publisher's afid (best-effort: a Retreaver
   // outage must not hide the RTB ping block below).
   let tracking_number: string | null = null;
+  let numbers_checked: number | null = null;
   try {
     const numbers = await retreaver.listNumbers({ cid: campaign.retreaver_cid });
+    numbers_checked = numbers.length;
     tracking_number =
       numbers.find((n) => n.afid === publisher.afid)?.number ?? null;
   } catch {
     tracking_number = null;
+    numbers_checked = null;
   }
 
   let key: string | null = null;
@@ -461,6 +468,7 @@ export async function getPublisherCampaignRetreaverLink(
     ...base,
     linked: true,
     tracking_number,
+    numbers_checked,
     rtb: {
       enabled: campaign.rtb_enabled,
       endpoint: "https://rtb.retreaver.com/rtbs.json",

@@ -33,6 +33,12 @@ vi.mock("@/server/services/offer-wallet-sync", () => ({
   syncOfferWalletPauses: syncMock,
 }));
 
+vi.mock("@/server/db", () => ({
+  transaction: vi.fn(async (fn: (c: unknown) => Promise<unknown>) =>
+    fn({ query: vi.fn(async () => ({ rows: [] })) }),
+  ),
+}));
+
 vi.mock("@/server/api-utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/server/api-utils")>();
   return {
@@ -155,7 +161,7 @@ describe("agency pool wallet API (P1.4)", () => {
     setAllocationMock.mockResolvedValue({ agent_id: "agent-1", allocated_cents: 2000 });
     const res = await allocationsRoute.PUT(req("PUT", { agent_id: "agent-1", allocated_cents: 2000 }), ctx);
     expect(res.status).toBe(200);
-    expect(setAllocationMock).toHaveBeenCalledWith("agency-1", "agent-1", 2000);
+    expect(setAllocationMock).toHaveBeenCalledWith("agency-1", "agent-1", 2000, expect.anything());
     expect(syncMock).toHaveBeenCalledWith("agency-1");
   });
 
@@ -172,6 +178,18 @@ describe("agency pool wallet API (P1.4)", () => {
     findAgentMock.mockRejectedValueOnce(new Error("not found"));
     const res = await allocationsRoute.PUT(req("PUT", { agent_id: "agent-other", allocated_cents: 100 }), ctx);
     expect(res.status).toBe(404);
+    expect(setAllocationMock).not.toHaveBeenCalled();
+  });
+
+  it("PUT re-checks the cap inside the locked txn (concurrent PUTs cannot jointly exceed)", async () => {
+    findAgentMock.mockResolvedValue({ id: "agent-1", agency_id: "agency-1" });
+    // Pre-check sees 5000 (passes), but by txn time the pool dropped to 1000.
+    getPoolMock
+      .mockResolvedValueOnce({ agency_id: "agency-1", balance_cents: 5000, enabled: true })
+      .mockResolvedValueOnce({ agency_id: "agency-1", balance_cents: 1000, enabled: true });
+    listAllocationsMock.mockResolvedValue([{ agent_id: "agent-2", allocated_cents: 1500 }]);
+    const res = await allocationsRoute.PUT(req("PUT", { agent_id: "agent-1", allocated_cents: 2000 }), ctx);
+    expect(res.status).toBe(422);
     expect(setAllocationMock).not.toHaveBeenCalled();
   });
 });

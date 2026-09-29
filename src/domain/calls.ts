@@ -11,8 +11,10 @@ const transitions: Record<CallState, readonly CallState[]> = {
   validating: ["routing", "failed", "cancelled"],
   routing: ["ringing", "missed", "failed", "cancelled"],
   ringing: ["accepted", "routing", "missed", "failed", "cancelled"],
-  accepted: ["connecting", "routing", "failed", "cancelled"],
-  connecting: ["connected", "routing", "failed", "cancelled"],
+  // Customer (or agent) can hang up mid-bridge: accepted/connecting must
+  // reach ended or the webhook 400s and the call wedges forever.
+  accepted: ["connecting", "routing", "ended", "failed", "cancelled"],
+  connecting: ["connected", "routing", "ended", "failed", "cancelled"],
   connected: ["ended", "failed", "disputed"],
   ended: [], failed: [], missed: [], cancelled: [], disputed: [],
 };

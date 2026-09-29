@@ -36,6 +36,7 @@ function PublisherOverviewInner(){
   interface RetreaverInfo {
     linked: boolean; reason?: string; campaign_id: string; campaign_name: string;
     retreaver_cid: string | null; provisioned: boolean; tracking_number: string | null;
+    numbers_checked: number | null;
     rtb: { enabled: boolean; endpoint: string; publisher_id: string | null; key: string | null } | null;
   }
   const [retModal,setRetModal]=useState<{ campaignId: string; name: string }|null>(null);
@@ -416,8 +417,12 @@ function PublisherOverviewInner(){
                       <span className="text-mono-sm" style={{ fontSize:15, fontWeight:700 }}>{retData.tracking_number}</span>
                       <button className="btn btn-ghost btn-sm" onClick={()=>copyText(retData.tracking_number!, "Tracking number")}>Copy</button>
                     </div>
+                  ) : retData.numbers_checked == null ? (
+                    <p className="text-muted" style={{ fontSize:12, marginTop:4 }}>Couldn&apos;t reach Retreaver right now — use the ping details below or try again shortly.</p>
+                  ) : retData.numbers_checked === 0 ? (
+                    <p className="text-muted" style={{ fontSize:12, marginTop:4 }}>This campaign has no numbers in Retreaver yet — ask your account manager to add one.</p>
                   ) : (
-                    <p className="text-muted" style={{ fontSize:12, marginTop:4 }}>No dedicated number assigned yet — use the ping details below or ask your account manager.</p>
+                    <p className="text-muted" style={{ fontSize:12, marginTop:4 }}>Checked {retData.numbers_checked} Retreaver number{retData.numbers_checked === 1 ? "" : "s"} — none is assigned to your ID yet. Ask your account manager to assign one, or use the ping details below.</p>
                   )}
                 </div>
                 {retData.rtb && (

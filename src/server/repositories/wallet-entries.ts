@@ -51,18 +51,20 @@ export class WalletEntryRepository extends BaseRepository<WalletEntryRow> {
     return super.create(data, client);
   }
 
-  async sumByAgency(agencyId: string): Promise<number> {
+  async sumByAgency(agencyId: string, client?: PoolClient): Promise<number> {
     const rows = await query<{ total: string }>(
       "SELECT COALESCE(SUM(amount_cents), 0) as total FROM app.wallet_entries WHERE agency_id = $1 AND agent_id IS NULL",
       [agencyId],
+      client,
     );
     return parseInt(rows[0]?.total ?? "0", 10);
   }
 
-  async sumByAgent(agentId: string): Promise<number> {
+  async sumByAgent(agentId: string, client?: PoolClient): Promise<number> {
     const rows = await query<{ total: string }>(
       "SELECT COALESCE(SUM(amount_cents), 0) as total FROM app.wallet_entries WHERE agent_id = $1",
       [agentId],
+      client,
     );
     return parseInt(rows[0]?.total ?? "0", 10);
   }

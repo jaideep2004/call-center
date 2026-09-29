@@ -353,6 +353,11 @@ describe("getPublisherCampaignRetreaverLink", () => {
     });
   });
 
+  it("reports how many Retreaver numbers were checked", async () => {
+    const out = await link();
+    expect(out.numbers_checked).toBe(1);
+  });
+
   it("returns linked:false when the campaign is not deployed to Retreaver", async () => {
     const out = await link({ retreaver_cid: null });
     expect(out.linked).toBe(false);

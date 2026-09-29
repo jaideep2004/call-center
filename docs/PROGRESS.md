@@ -522,3 +522,44 @@ pm run build to avoid re-corrupting dev types.
 - Did: free-plan POST now resolves buyer via membership OR login profile (auto-created pending row, adopted on agency join so sub survives); paid checkout keeps agency requirement but with actionable message (free works now, join/create agency for paid).
 - Tests: tsc 0, subs isolation 8/8 (2 new membership-less), full vitest 123 files 881 passed | 5 skipped, build green.
 
+
+## 2026-09-26 - assistant - RETREAVER popup precise number guidance
+- Did: live test showed number missing with no reason. Service now returns numbers_checked; portal distinguishes lookup failure (retry message) vs zero numbers vs N checked none-assigned (tells publisher to ask manager to assign one to their ID).
+- Tests: tsc 0, publisher-portal 27/27, full vitest 123 files 882 passed | 5 skipped, build green.
+
+
+## 2026-09-26 - assistant - CALL LIFECYCLE deep diagnosis + hangup cluster fix
+- Diagnosed all 4: (1) concurrency = Telnyx 2-channel/shared-SIP/1-call-per-agent config, not code; (2) wallet skips = min_seconds gate / missing connected_at / missed-vs-ended / insufficient balance - needs DB check per call; (3) number reveal = impossible by design (hash-only storage, buffer is billing-only).
+- Fixed hangup cluster: accepted/connecting->ended transitions; ended branch cancels surviving legs; recording_ready stored post-terminal; hangupCall works from bridge states; softphone keeps+shows notes after hangup; detail page Add-note on ended.
+- Tests: tsc 0, full vitest 123 files 886 passed | 5 skipped (5 new/updated), build green.
+
+
+## 2026-09-26 - assistant - 3RD AGENT never rings (live DB diagnosis, no code change)
+- Probed prod (read-only): failing window shows candidates=2 always - routing fairly picks among eligible (Zulkar/Solar/Jai each selected when available); 3rd was ineligible (offline/pending/not-live). No stuck rows currently. Likely: Temp-DLT pending approval, or live-toggle/wallet/states gate.
+- Note: repeated missed = selected agent never answers while other shows busy (stuck-leg era, pre leg-cancel fix). No code change; client checklist given.
+
+
+## 2026-09-26 - assistant - 3RD AGENT no-sdk-call (shared SIP user)
+- Diagnosis from client loom description: popup via socket but no SIP INVITE in 3rd tab -> 'Browser didn't receive this call' -> missed. Cause: single shared TELNYX_WEBRTC_SIP_USER for all agents; server dials identical toSip per ring; 3 incognito windows = 3 registrations, INVITE lands wrong/rejected. Code already documents this class (use-telnyx-webrtc.ts:43-52) for the fixed in-browser case.
+- No code change: needs per-agent SIP credentials (feature) or PSTN-forward testing; Telnyx channel limit secondary check.
+
+
+## 2026-09-26 - assistant - WALLET no-deduction root-caused (live data)
+- Probed prod: billable calls get correct totals but invoices=failed, 0 ledger rows; agency-level balance = -7240c (only charges+transfer, never topped up). Gate works as designed (no negative wallets). Short calls paid(0) correctly.
+- Client action: top up agency wallet; failed invoices stay failed (no auto-retry) - needs decision on recovery. Also campaign price_cents NULL -> 10c/s default.
+
+
+## 2026-09-26 - assistant - MONEY audit fixes (C1/C2/C3/H1/H2/H5) + caller escrow
+- Escrow Option A: migration 0068 caller_number_encrypted; capture at inbound; reveal past buffer on list+detail for entitled viewers; audit-logged; 10 new tests.
+- Money race fixes: payment-credit FOR UPDATE re-check (pool double-credit); agency-funds advisory lock in transfers/finalize/spend; spendAllocation guarded (no GREATEST clamp); allocations txn+recheck; sumBy* client param.
+- Left open (reported): H3 Stripe refunds never reverse ledger; H4 weekly-invoice concurrent duplicate; M1 sub index/finder lockout + missing 23505 catch on free path.
+- Tests: tsc 0, full vitest 125 files 900 passed | 5 skipped, build green.
+
+
+## 2026-09-26 - assistant - H3/H4/M1 money fixes
+- H3 refunds: charge.refunded + dispute.funds_withdrawn reverse per kind (agent/agency ledger entries, pool debit, sub cancel), idempotent via 0069 payment_reversals, partials supported, shortfall warned; dispute.created logged.
+- H4 weekly invoices: single txn + FOR UPDATE SKIP LOCKED claim-first (no concurrent dupes).
+- M1 stale subs: expireStaleByAgent + retry-once on 23505, else 409 (no more 500 lockout).
+- Note: remote DB has 0066+0067 applied; 0068+0069 pending migrate.
+- Tests: tsc 0, full vitest 126 files 907 passed | 5 skipped (7 new), build green, migrations 0001-0069 lint ok.
+

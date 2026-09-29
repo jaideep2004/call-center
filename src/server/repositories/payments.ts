@@ -46,6 +46,13 @@ export class PaymentRepository {
     );
   }
 
+  async findByPaymentIntentId(paymentIntentId: string): Promise<PaymentRow | null> {
+    return queryOne<PaymentRow>(
+      "SELECT * FROM app.payments WHERE stripe_payment_intent_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [paymentIntentId],
+    );
+  }
+
   async markCompleted(id: string, paymentIntentId: string, client?: PoolClient): Promise<PaymentRow> {
     const row = await queryOne<PaymentRow>(
       `UPDATE app.payments
@@ -61,6 +68,15 @@ export class PaymentRepository {
     const row = await queryOne<PaymentRow>(
       `UPDATE app.payments SET status = 'failed' WHERE id = $1 RETURNING *`,
       [id],
+    );
+    return row!;
+  }
+
+  async markRefunded(id: string, client?: PoolClient): Promise<PaymentRow> {
+    const row = await queryOne<PaymentRow>(
+      `UPDATE app.payments SET status = 'refunded' WHERE id = $1 RETURNING *`,
+      [id],
+      client,
     );
     return row!;
   }

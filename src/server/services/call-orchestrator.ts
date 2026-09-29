@@ -7,6 +7,7 @@ import { assertTransition, isTerminal } from "@/domain/calls";
 import { calculateBilling } from "@/server/services/billing";
 import { publishCallEvent } from "@/lib/event-bridge";
 import { hashPhone, normalizeE164 } from "@/domain/phone";
+import { encryptSecret } from "@/server/crypto";
 import { callerStateFromNumber, resolveNpaState } from "@/server/services/ping-evaluator";
 import { enqueueRouteCall, isAsyncRoutingEnabled } from "@/server/services/route-queue";
 import { enqueueFinalizeCall } from "@/server/services/finalize-queue";
@@ -16,6 +17,20 @@ import type { NormalizedProviderEvent } from "@/domain/telephony";
 import type { PoolClient } from "pg";
 
 const PII_KEYS = /^(from|to|caller_number|caller_name|phone_number|number|ani|dnis)$/i;
+
+/**
+ * Server-encrypts the raw caller number for the post-buffer reveal escrow.
+ * Returns null when there is nothing to store or crypto is unavailable —
+ * inbound must never fail because of the escrow.
+ */
+function escrowCallerNumber(from: string | null | undefined): string | null {
+  if (!from) return null;
+  try {
+    return encryptSecret(from);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Removes caller PII from a raw provider webhook before persisting to
@@ -115,6 +130,9 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
         to_number: event.to ?? null,
         caller_state: callerState,
         started_at: event.occurredAt,
+        // Encrypted escrow: enables post-buffer reveal to entitled viewers.
+        // Best-effort — a crypto failure must never fail inbound.
+        caller_number_encrypted: escrowCallerNumber(event.from),
       }, client);
 
       // Let the answer finish in the background while routing proceeds.
@@ -147,6 +165,35 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
     }
 
     if (!call) return null;
+
+    // recording.save normally arrives AFTER call.hangup already marked the
+    // row terminal — it must still be stored (storeRecording is idempotent),
+    // so handle it before the terminal early-return below.
+    if (event.type === "recording_ready") {
+      // The raw payload nests recording_id under data.payload (webhook v2).
+      const rawPayload = (event.raw as any)?.data?.payload;
+      const recordingId = typeof rawPayload?.recording_id === "string"
+        ? rawPayload.recording_id
+        : typeof (event.raw as any)?.recording_id === "string"
+          ? (event.raw as any).recording_id
+          : null;
+      // Store the CALLER leg's recording — it captures the full bridged conversation.
+      // Agent-leg recording events (callId present) are ignored.
+      if (recordingId && !event.callId) {
+        try {
+          await enqueueRecordingStore({
+            callId: call.id,
+            agencyId: call.agency_id,
+            provider: call.provider,
+            recordingId,
+            providerCallId: call.provider_call_id,
+          });
+        } catch (e: any) {
+          console.error(`[recording_ready] enqueue failed for call=${call.id.slice(0,8)}: ${e?.message ?? e}`);
+        }
+      }
+      return { call };
+    }
 
     // If call is already in a terminal state, just log the event and return
     if (isTerminal(call.state as any)) {
@@ -265,6 +312,18 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
         }, client);
         if (!claimed) return { call, finalized: false };
         call = claimed;
+        // One leg hung up — the surviving leg does NOT always die on its own
+        // (PSTN forwards, flaky BYE). Hang up both sides best-effort so the
+        // agent stops hearing dead air and Telnyx finalizes the recording.
+        try {
+          const provider = getTelephonyProvider(call.provider);
+          if (call.provider_agent_call_id) {
+            await provider.cancel({ providerAttemptId: call.provider_agent_call_id });
+          }
+          await provider.cancel({ providerAttemptId: call.provider_call_id });
+        } catch (e: any) {
+          console.error(`[processProviderEvent] hangup surviving legs failed: ${e?.message ?? e}`);
+        }
       }
       if (call.agent_id) {
         const agent = await agents.findById(call.agent_id).catch(() => null);
@@ -283,32 +342,6 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
         const billing = await finalizeCall(call.id, client);
         return { call, billing };
       }
-    }
-
-    if (event.type === "recording_ready") {
-      // The raw payload nests recording_id under data.payload (webhook v2).
-      const rawPayload = (event.raw as any)?.data?.payload;
-      const recordingId = typeof rawPayload?.recording_id === "string"
-        ? rawPayload.recording_id
-        : typeof (event.raw as any)?.recording_id === "string"
-          ? (event.raw as any).recording_id
-          : null;
-      // Store the CALLER leg's recording — it captures the full bridged conversation.
-      // Agent-leg recording events (callId present) are ignored.
-      if (recordingId && !event.callId) {
-        try {
-          await enqueueRecordingStore({
-            callId: call.id,
-            agencyId: call.agency_id,
-            provider: call.provider,
-            recordingId,
-            providerCallId: call.provider_call_id,
-          });
-        } catch (e: any) {
-          console.error(`[recording_ready] enqueue failed for call=${call.id.slice(0,8)}: ${e?.message ?? e}`);
-        }
-      }
-      return { call };
     }
 
     return { call };
@@ -752,6 +785,10 @@ export async function finalizeCall(callId: string, client?: PoolClient) {
   }
 
   return transaction(async (client) => {
+    // Serialize agency-money writers (this charge vs pool spend vs transfers):
+    // without it, simultaneous finalizes all pass the balance gate below and
+    // drive the wallet negative.
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`agency-funds:${call.agency_id}`]);
     // IDEMPOTENCY ANCHOR: only the first finalize per call creates the invoice.
     // Every money movement below runs exclusively inside this winner branch, so
     // duplicate/redelivered finalize jobs can never double-bill.
@@ -847,7 +884,7 @@ async function deductAgentForCall(agentId: string, agencyId: string, callId: str
     // unlimited calls (credit without debit). Runs inside finalize's
     // transaction via client.
     const amount = 100;
-    const personal = await walletEntries.sumByAgent(agentId);
+    const personal = await walletEntries.sumByAgent(agentId, client);
     const fromPersonal = personal > 0 ? Math.min(personal, amount) : 0;
     const fromPool = amount - fromPersonal;
     if (fromPersonal > 0) {
@@ -1033,13 +1070,15 @@ export async function rejectCall(callId: string) {
 
 export async function hangupCall(callId: string) {
   const call = await calls.findById(callId);
-  if (!call || (call.state !== "connected" && call.state !== "ringing")) return null;
+  // Manual hangup works from any live leg state (ringing, bridge window,
+  // connected) — terminal rows stay no-ops.
+  if (!call || isTerminal(call.state as any)) return null;
   const provider = getTelephonyProvider(call.provider);
-  if (call.state === "ringing" && call.provider_agent_call_id) {
-    // Also cancel the ringing agent leg — no phantom ring.
+  // Cancel every leg we know about — no phantom rings, no dead-air survivors.
+  if (call.provider_agent_call_id) {
     try { await provider.cancel({ providerAttemptId: call.provider_agent_call_id }); } catch { /* already gone */ }
   }
-  await provider.cancel({ providerAttemptId: call.provider_call_id });
+  try { await provider.cancel({ providerAttemptId: call.provider_call_id }); } catch { /* already gone */ }
   await calls.updateState(call.id, "ended", call.agency_id, {
     ended_at: new Date().toISOString(),
   });

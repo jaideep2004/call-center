@@ -39,6 +39,25 @@ export class AgentSubscriptionRepository extends BaseRepository<AgentSubscriptio
   }
 
   /**
+   * Retire `active` rows the finder no longer counts (past end_date or
+   * allowance exhausted). Without this, the 0029 partial unique index keeps
+   * rejecting re-subscribes that findActiveByAgent says are free — a
+   * permanent 500/409 lockout. Returns the retired ids.
+   */
+  async expireStaleByAgent(agentId: string, client?: PoolClient): Promise<string[]> {
+    const rows = await query<{ id: string }>(
+      `UPDATE app.agent_subscriptions s SET status = 'expired', updated_at = now()
+        WHERE s.agent_id = $1 AND s.status = 'active'
+          AND ((s.end_date IS NOT NULL AND s.end_date <= now())
+            OR s.calls_used >= (SELECT call_allowance FROM app.agent_plans WHERE id = s.plan_id))
+        RETURNING s.id`,
+      [agentId],
+      client,
+    );
+    return rows.map((r) => r.id);
+  }
+
+  /**
    * Increments calls_used by one for the given call. Idempotent at the SQL
    * level via app.subscription_call_charges (UNIQUE on subscription_id+call_id).
    * If a row already exists for this (subscription, call) pair, the calls_used

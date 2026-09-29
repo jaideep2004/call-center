@@ -1,6 +1,7 @@
 import { apiHandler, ok, fail, requireHeadOr } from "@/server/api-utils";
 import { validate, agencyAllocationSchema } from "@/server/validate";
 import { agencyWallets, agents } from "@/server/repositories";
+import { transaction } from "@/server/db";
 import { syncOfferWalletPauses } from "@/server/services/offer-wallet-sync";
 
 export const runtime = "nodejs";
@@ -34,7 +35,31 @@ export const PUT = apiHandler(async (req, context) => {
     );
   }
 
-  const row = await agencyWallets.setAllocation(agencyId, body.agent_id, body.allocated_cents);
+  // Read-check-write must be atomic: two concurrent PUTs otherwise interleave
+  // reads and jointly exceed the pool. Re-check INSIDE the locked txn.
+  const row = await transaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`agency-funds:${agencyId}`]);
+    const [lockedPool, lockedAllocs] = await Promise.all([
+      agencyWallets.getPool(agencyId, client),
+      agencyWallets.listAllocations(agencyId, client),
+    ]);
+    const lockedOthers = lockedAllocs
+      .filter((a) => a.agent_id !== body.agent_id)
+      .reduce((sum, a) => sum + (a.allocated_cents ?? 0), 0);
+    if (lockedOthers + body.allocated_cents > lockedPool.balance_cents) {
+      throw new Error(
+        `Allocations would exceed the pool balance (${lockedOthers + body.allocated_cents} > ${lockedPool.balance_cents})`,
+      );
+    }
+    return agencyWallets.setAllocation(agencyId, body.agent_id, body.allocated_cents, client);
+  }).catch((e: unknown) => {
+    const msg = (e as Error)?.message ?? "";
+    if (msg.startsWith("Allocations would exceed")) return null;
+    throw e;
+  });
+  if (!row) {
+    return fail("Allocations would exceed the pool balance — refresh and retry", 422);
+  }
   // Best-effort: re-evaluate Retreaver pauses now instead of waiting for the
   // 30s sweep. Never breaks the write path.
   void syncOfferWalletPauses(agencyId).catch((e) =>

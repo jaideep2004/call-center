@@ -326,7 +326,17 @@ Read-only profile (name, affiliate ID, fixed price, Retreaver status) + editable
 
 ### 5.6 Joining as a publisher (test flow)
 
-Admin creates publisher (email) → **⋮ → Invite** (emails link + backup copy) → register/verify via link → account switches to publisher → portal links automatically (email match) → copy a tracking link → test call through it → watch Overview/Calls/Payouts update after qualification.
+Admin creates publisher (email) → **⋮ → Provision** (creates their Retreaver ID/afid) → **⋮ → Invite** (emails link + backup copy) → register/verify via link → account switches to publisher → portal links automatically (email match) → copy a tracking link → test call through it → watch Overview/Calls/Payouts update after qualification.
+
+### 5.7 The Retreaver button (for publishers with their own tracking)
+
+Publishers who run their own ads/tracker don't need our tracking link — they need the **Retreaver connection**. Each campaign row has a **Retreaver** button opening a popup with:
+
+- **Retreaver tracking number** — the Retreaver phone number carrying *their* affiliate ID on that campaign (+ Copy). **Important: this only appears after YOU assign a number to their affiliate ID inside Retreaver** (Retreaver dashboard → campaign numbers → assign). Until then the popup says exactly that (including how many numbers it checked).
+- **Ping-post block** — endpoint (`https://rtb.retreaver.com/rtbs.json`), their publisher ID, campaign key (masked, Show/Hide + Copy). Their tracker sends one web request per call with these three values + the caller's number; Retreaver replies with where to connect the call and books it under their ID automatically.
+- If the publisher was never provisioned, or the campaign isn't deployed/active, the popup says so plainly instead of showing values that wouldn't work.
+
+**Your checklist before a publisher can use it:** Provision them (afid appears in the publishers table) → Deploy the campaign → assign one of the campaign's Retreaver numbers to their afid → save the campaign's RTB key (campaign → RTB & Numbers tab). Keys stay secret — if one leaks, replace it in the same tab.
 
 ---
 

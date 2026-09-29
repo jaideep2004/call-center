@@ -52,10 +52,31 @@ export const POST = apiHandler(async (req, { membership, user }) => {
   const existing = await agentSubscriptions.findActiveByAgent(agent.id);
   if (existing) return fail("Already has an active subscription", 409);
 
-  const sub = await agentSubscriptions.create({
-    agent_id: agent.id,
-    plan_id: plan.id,
-    auto_renew: body.auto_renew ?? false,
-  });
-  return created(sub, "Subscribed");
+  try {
+    const sub = await agentSubscriptions.create({
+      agent_id: agent.id,
+      plan_id: plan.id,
+      auto_renew: body.auto_renew ?? false,
+    });
+    return created(sub, "Subscribed");
+  } catch (e: unknown) {
+    // Race: two subscribes (double-click / webhook-adjacent) passed the
+    // check together — the partial unique index (0029) makes the loser a
+    // conflict instead of a duplicate row. Worse variant: a stale `active`
+    // row the finder no longer counts (expired/exhausted) blocks forever —
+    // retire those and retry once before giving up.
+    if ((e as { code?: string })?.code !== "23505") throw e;
+    await agentSubscriptions.expireStaleByAgent(agent.id).catch(() => []);
+    try {
+      const sub = await agentSubscriptions.create({
+        agent_id: agent.id,
+        plan_id: plan.id,
+        auto_renew: body.auto_renew ?? false,
+      });
+      return created(sub, "Subscribed");
+    } catch (retryErr: unknown) {
+      if ((retryErr as { code?: string })?.code !== "23505") throw retryErr;
+      return fail("Already has an active subscription", 409);
+    }
+  }
 }, { resource: "agents", action: "update", allowHead: true });

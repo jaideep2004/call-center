@@ -42,6 +42,11 @@ export class WalletTransferRepository extends BaseRepository<WalletTransferRow> 
     const { fromMembershipId, fromAgencyId, toAgentId, amountCents, reason } = data;
 
     return transaction(async (client) => {
+      // Serialize ALL agency-money writers (transfers, pool spend, per-call
+      // charges) on one per-agency lock: the balance read below is otherwise
+      // raceable (double-click / retry / two heads) into overdrafts and
+      // duplicate transfers. Lock is xact-scoped — auto-released on commit.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`agency-funds:${fromAgencyId}`]);
       const agent = await queryOne<{ id: string; agency_id: string }>(
         "SELECT id, agency_id FROM app.agents WHERE id = $1",
         [toAgentId],

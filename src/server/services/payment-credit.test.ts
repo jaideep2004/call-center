@@ -24,7 +24,9 @@ vi.mock("@/server/repositories", () => ({
 vi.mock("@/server/db", () => ({
   query: vi.fn(async () => []),
   queryOne: vi.fn(async () => null),
-  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) =>
+    fn({ query: vi.fn(async () => ({ rows: [] })) }),
+  ),
 }));
 
 vi.mock("@/server/services/action-emails", () => ({
@@ -74,6 +76,19 @@ describe("creditTopupPayment duplicate convergence", () => {
     const res = await creditTopupPayment({ ...pending, status: "completed" }, "agent", "pi_1", "cs_1");
     expect(res).toEqual({ credited: false });
     expect(walletCreateMock).not.toHaveBeenCalled();
+    expect(markCompletedMock).not.toHaveBeenCalled();
+    expect(sendTopupMock).not.toHaveBeenCalled();
+  });
+
+  it("concurrent second credit converges via the locked status re-check (pool path)", async () => {
+    const { transaction } = await import("@/server/db");
+    (transaction as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      async (fn: (client: unknown) => Promise<unknown>) =>
+        fn({ query: vi.fn(async () => ({ rows: [{ status: "completed" }] })) }),
+    );
+    const res = await creditTopupPayment({ ...pending }, "agency-pool", "pi_1", "cs_1");
+    expect(res).toEqual({ credited: false });
+    expect(creditPoolMock).not.toHaveBeenCalled();
     expect(markCompletedMock).not.toHaveBeenCalled();
     expect(sendTopupMock).not.toHaveBeenCalled();
   });

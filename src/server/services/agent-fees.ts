@@ -63,51 +63,59 @@ export async function generateWeeklyInvoices(sinceDate: Date = new Date(Date.now
   emailsSent: number;
 }> {
   const since = sinceDate.toISOString().slice(0, 10);
-  const dueFees = await query<{ id: string; agency_id: string; amount_cents: number }>(
-    `SELECT id, agency_id, amount_cents
-     FROM app.agent_fees
-     WHERE status = 'pending' AND invoice_id IS NULL AND due_date >= $1`,
-    [since],
-  );
 
-  const byAgency = new Map<string, { ids: string[]; total: number }>();
-  for (const f of dueFees) {
-    const agg = byAgency.get(f.agency_id) ?? { ids: [], total: 0 };
-    agg.ids.push(f.id);
-    agg.total += f.amount_cents;
-    byAgency.set(f.agency_id, agg);
-  }
+  // Claim-first under one transaction: FOR UPDATE SKIP LOCKED means a
+  // concurrent scheduler run (or retry) skips rows this run already holds,
+  // so the same fees can never land on two invoices. Previously the SELECT
+  // ran outside any txn and both runners INSERTed duplicates.
+  const claimed = await transaction(async (client) => {
+    const locked = await client.query<{ id: string; agency_id: string; amount_cents: number }>(
+      `SELECT id, agency_id, amount_cents
+        FROM app.agent_fees
+       WHERE status = 'pending' AND invoice_id IS NULL AND due_date >= $1
+       FOR UPDATE SKIP LOCKED`,
+      [since],
+    );
+    const byAgency = new Map<string, { ids: string[]; total: number }>();
+    for (const f of locked.rows) {
+      const agg = byAgency.get(f.agency_id) ?? { ids: [], total: 0 };
+      agg.ids.push(f.id);
+      agg.total += f.amount_cents;
+      byAgency.set(f.agency_id, agg);
+    }
+    const made: { invoiceId: string; feeCount: number }[] = [];
+    for (const [agencyId, agg] of byAgency) {
+      const invoice = await client.query<{ id: string }>(
+        `INSERT INTO app.invoices (agency_id, call_id, total_cents, currency, status)
+          VALUES ($1, NULL, $2, 'USD', 'pending')
+          RETURNING id`,
+        [agencyId, agg.total],
+      );
+      // Rows are ours (locked + still unclaimed); the IS NULL guard stays as
+      // belt-and-braces against anything committed between lock and write.
+      await client.query(
+        `UPDATE app.agent_fees SET invoice_id = $2, updated_at = now()
+          WHERE id = ANY($1::uuid[]) AND invoice_id IS NULL`,
+        [agg.ids, invoice.rows[0].id],
+      );
+      made.push({ invoiceId: invoice.rows[0].id, feeCount: agg.ids.length });
+    }
+    return made;
+  });
 
   let invoices = 0;
   let feesIncluded = 0;
   let emailsSent = 0;
-  for (const [agencyId, agg] of byAgency) {
-    let invoiceId: string | null = null;
-    await transaction(async (client) => {
-      const invoice = await client.query<{ id: string }>(
-        `INSERT INTO app.invoices (agency_id, call_id, total_cents, currency, status)
-         VALUES ($1, NULL, $2, 'USD', 'pending')
-         RETURNING id`,
-        [agencyId, agg.total],
-      );
-      await client.query(
-        `UPDATE app.agent_fees SET invoice_id = $2, updated_at = now()
-         WHERE id = ANY($1::uuid[]) AND invoice_id IS NULL`,
-        [agg.ids, invoice.rows[0].id],
-      );
-      invoiceId = invoice.rows[0].id;
-      invoices++;
-      feesIncluded += agg.ids.length;
-    });
+  for (const { invoiceId, feeCount } of claimed) {
+    invoices++;
+    feesIncluded += feeCount;
     // Best-effort delivery next to invoice creation: a send failure never
     // rolls back the invoice; the next run retries unsent invoices.
-    if (invoiceId) {
-      try {
-        const delivery = await sendWeeklyInvoice(invoiceId);
-        if (delivery.sent) emailsSent++;
-      } catch (e) {
-        console.warn(`[agent-fees] invoice delivery threw for ${invoiceId}:`, String(e).slice(0, 200));
-      }
+    try {
+      const delivery = await sendWeeklyInvoice(invoiceId);
+      if (delivery.sent) emailsSent++;
+    } catch (e) {
+      console.warn(`[agent-fees] invoice delivery threw for ${invoiceId}:`, String(e).slice(0, 200));
     }
   }
   return { invoices, feesIncluded, emailsSent };

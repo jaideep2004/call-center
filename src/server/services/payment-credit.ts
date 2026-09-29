@@ -1,5 +1,5 @@
 import { payments, type PaymentRow } from "@/server/repositories/payments";
-import { walletEntries, agencyWallets } from "@/server/repositories";
+import { walletEntries, agencyWallets, agentSubscriptions } from "@/server/repositories";
 import { transaction } from "@/server/db";
 
 export type TopupKind = "agent" | "agency-pool" | "agency";
@@ -116,6 +116,15 @@ export async function creditTopupPayment(
   const key = `stripe_${sessionId}`;
   let duplicate = false;
   await transaction(async (client) => {
+    // Re-check under a row lock: the pre-txn object above is stale under
+    // concurrency (webhook + reconcile hitting together both saw pending).
+    // The pool path has no unique ledger key, so this lock is its ONLY
+    // double-credit defense — never remove it.
+    const fresh = await client.query(`SELECT status FROM app.payments WHERE id = $1 FOR UPDATE`, [payment.id]);
+    if ((fresh.rows[0] as { status?: string } | undefined)?.status === "completed") {
+      duplicate = true;
+      return;
+    }
     try {
       if (kind === "agency-pool") {
         await agencyWallets.creditPool(payment.agency_id, payment.amount_cents, client);
@@ -163,4 +172,114 @@ export async function creditTopupPayment(
     feeCents: payment.fee_cents,
   }).catch(() => {});
   return { credited: true };
+}
+
+export interface RefundReversal {
+  /** Stripe refund/dispute id for idempotency (refund_<pi>_<id>). */
+  reversalId: string;
+  /** Cents to claw back (partial refunds supported). */
+  amountCents: number;
+  reason: string;
+}
+
+/**
+ * Reverse a credited top-up after a Stripe refund / dispute withdrawal.
+ * Mirrors creditTopupPayment per kind (agent ledger, agency ledger, pool
+ * debit, subscription cancel) inside ONE transaction with the same
+ * agency-funds lock + locked status re-check, so redelivered refund events
+ * converge instead of double-reversing. Partial refunds reverse only the
+ * refunded slice and leave the payment completed; full refunds flip it to
+ * `refunded`. A shortfall (already spent) still reverses — the negative
+ * balance is the honest debt signal — and is logged loudly for the admin.
+ */
+export async function reversePaymentCredit(
+  payment: PaymentRow,
+  reversal: RefundReversal,
+): Promise<{ reversed: boolean; shortfall_cents: number }> {
+  const key = `refund_${payment.stripe_payment_intent_id ?? payment.stripe_session_id}_${reversal.reversalId}`;
+  let shortfall = 0;
+  const res = await transaction(async (client) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`agency-funds:${payment.agency_id}`]);
+    const fresh = await client.query(`SELECT status FROM app.payments WHERE id = $1 FOR UPDATE`, [payment.id]);
+    if ((fresh.rows[0] as { status?: string } | undefined)?.status === "refunded") {
+      return { reversed: false };
+    }
+    // Idempotency anchor: redelivered refund/dispute events carry the same
+    // reversal id and converge here instead of reversing twice.
+    const marker = await client.query(
+      `INSERT INTO app.payment_reversals (payment_id, reversal_key, amount_cents, reason)
+        VALUES ($1, $2, $3, $4) ON CONFLICT (reversal_key) DO NOTHING RETURNING id`,
+      [payment.id, key, Math.max(0, reversal.amountCents), reversal.reason],
+    );
+    if (marker.rows.length === 0) return { reversed: false };
+    const amount = Math.max(0, Math.min(reversal.amountCents, payment.amount_cents));
+    if (amount <= 0) return { reversed: false };
+
+    if (payment.plan_id) {
+      // Subscription money is revenue, not wallet funds: cancel the active
+      // sub for this plan so no further calls ride on refunded money.
+      if (payment.agent_id) {
+        const subs = await agentSubscriptions.findByAgent(payment.agent_id);
+        const active = subs.find((s) => s.plan_id === payment.plan_id && s.status === "active");
+        if (active) {
+          await agentSubscriptions.update(active.id, { status: "cancelled" });
+        }
+      }
+    } else if (payment.agent_id) {
+      await walletEntries.create({
+        agency_id: payment.agency_id,
+        agent_id: payment.agent_id,
+        type: "refund",
+        amount_cents: -amount,
+        currency: payment.currency,
+        provider_reference: reversal.reversalId,
+        idempotency_key: key,
+      }, client);
+    } else {
+      // Agency-level: pool top-ups debit the pool, ledger top-ups reverse
+      // the agency ledger. Pool leaves no ledger row, so probe for the
+      // original stripe_* top_up entry to tell them apart.
+      const originals = await client.query(
+        `SELECT id, type FROM app.wallet_entries WHERE idempotency_key = $1`,
+        [`stripe_${payment.stripe_session_id}`],
+      );
+      if ((originals.rows as unknown[]).length > 0) {
+        await walletEntries.create({
+          agency_id: payment.agency_id,
+          type: "refund",
+          amount_cents: -amount,
+          currency: payment.currency,
+          provider_reference: reversal.reversalId,
+          idempotency_key: key,
+        }, client);
+      } else {
+        await agencyWallets.debitPool(payment.agency_id, amount, client);
+      }
+    }
+
+    if (reversal.amountCents >= payment.amount_cents) {
+      await payments.markRefunded(payment.id, client);
+    }
+    return { reversed: true };
+  });
+  if (!res.reversed) return { reversed: false, shortfall_cents: 0 };
+
+  // Debt signal: reversal pushed some balance negative — admin must see it.
+  try {
+    const [agencyBal, agentBal] = await Promise.all([
+      walletEntries.sumByAgency(payment.agency_id),
+      payment.agent_id ? walletEntries.sumByAgent(payment.agent_id) : Promise.resolve(0),
+    ]);
+    if (agencyBal < 0 || agentBal < 0) {
+      shortfall = Math.min(agencyBal, agentBal);
+      console.warn(JSON.stringify({
+        event: "refund_shortfall",
+        paymentId: payment.id.slice(0, 8),
+        agencyBal,
+        agentBal,
+        reversalId: reversal.reversalId,
+      }));
+    }
+  } catch { /* audit best-effort */ }
+  return { reversed: true, shortfall_cents: shortfall };
 }

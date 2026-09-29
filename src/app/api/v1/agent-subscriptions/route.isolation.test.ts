@@ -9,7 +9,7 @@ const createSubMock = vi.hoisted(() => vi.fn(async () => ({ id: "sub-1" })));
 const findActiveSubMock = vi.hoisted(() => vi.fn(async () => null));
 
 vi.mock("@/server/repositories", () => ({
-  agentSubscriptions: { findByAgent: findByAgentMock, findActiveByAgent: findActiveSubMock, create: createSubMock },
+  agentSubscriptions: { findByAgent: findByAgentMock, findActiveByAgent: findActiveSubMock, create: createSubMock, expireStaleByAgent: vi.fn(async () => []) },
   agentPlans: { findById: findPlanMock },
   agents: { findByMembershipId: findAgentMock, findByUserId: findAgentByUserMock, create: createAgentMock },
 }));
@@ -132,5 +132,28 @@ describe("POST /agent-subscriptions free-plan guard", () => {
     expect(createAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({ agency_id: null, membership_id: null, user_id: "u-1" }),
     );
+  });
+
+  it("retires stale active rows and retries instead of 500 lockout (M1)", async () => {
+    const { agentSubscriptions } = await import("@/server/repositories");
+    const dup = new Error("duplicate key");
+    (dup as { code?: string }).code = "23505";
+    createSubMock.mockRejectedValueOnce(dup);
+    vi.mocked(agentSubscriptions.expireStaleByAgent).mockResolvedValueOnce(["sub-old"]);
+    createSubMock.mockResolvedValueOnce({ id: "sub-new" });
+    const res = await post({ plan_id: "00000000-0000-0000-0000-000000000001" });
+    expect(res.status).toBe(201);
+    expect(vi.mocked(agentSubscriptions.expireStaleByAgent)).toHaveBeenCalledWith("agent-own");
+  });
+
+  it("409s when the race loser finds a true active sub on retry", async () => {
+    const { agentSubscriptions } = await import("@/server/repositories");
+    const dup = new Error("duplicate key");
+    (dup as { code?: string }).code = "23505";
+    createSubMock.mockRejectedValue(dup);
+    vi.mocked(agentSubscriptions.expireStaleByAgent).mockResolvedValue([]);
+    const res = await post({ plan_id: "00000000-0000-0000-0000-000000000001" });
+    expect(res.status).toBe(409);
+    expect(createSubMock).toHaveBeenCalledTimes(2);
   });
 });

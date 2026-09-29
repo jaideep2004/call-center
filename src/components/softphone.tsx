@@ -166,17 +166,18 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
       setIsHeld(false);
       setShowDialer(false);
       setDialDigits("");
-      setNoteBody("");
-      setNotes([]);
+      // NOTE: notes + draft are intentionally kept (not wiped): the agent
+      // reviews what was saved after hangup, and the list resets on the
+      // NEXT incoming call (see call:ringing handler below).
       setIsRecording(true);
       setSdkError(null);
       autoAcceptedRef.current = null;
     }
   }, [callState]);
 
-  // fetch notes when connected
+  // fetch notes when connected (and keep them visible after hangup)
   useEffect(() => {
-    if (callState !== "connected" || !incoming?.callId) return;
+    if ((callState !== "connected" && callState !== "ended") || !incoming?.callId) return;
     fetch(`/api/v1/calls/${incoming.callId}/notes`).then(async (r) => {
       if (r.ok) {
         const b = await r.json();
@@ -186,6 +187,12 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   }, [callState, incoming?.callId]);
 
   useSocketEvent<IncomingCall>(socket as Socket | null, "call:ringing", (data) => {
+    // New call starting: reset the previous call's notes/draft (they live on
+    // in the call detail page + admin views).
+    if (data.callId && data.callId !== activeCallId) {
+      setNotes([]);
+      setNoteBody("");
+    }
     setIncoming(data);
     setCallState("ringing");
     setActiveCallId(data.callId);
@@ -729,7 +736,15 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
           <div className="softphone-body">
             <p className="softphone-status softphone-ended">Call Ended</p>
             {elapsed > 0 && <p className="softphone-timer">{formatTimer(elapsed)}</p>}
-            {notes.length > 0 && <p style={{ fontSize: 11, color: "var(--muted)" }}>{notes.length} note(s) saved for this call.</p>}
+            {notes.length > 0 ? (
+              <div style={{ maxHeight: 120, overflow: "auto", display: "flex", flexDirection: "column", gap: 4, borderTop: "1px solid var(--line)", paddingTop: 6, marginTop: 6 }}>
+                {notes.map((n) => (
+                  <div key={n.id} style={{ fontSize: 10, color: "var(--muted)", fontFamily: "var(--mono)", background: "rgba(168,85,247,0.06)", padding: "4px 6px", borderRadius: 4 }}>{new Date(n.created_at).toLocaleTimeString()} — {n.body}</div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 11, color: "var(--muted)" }}>No notes saved for this call.</p>
+            )}
           </div>
         )}
 

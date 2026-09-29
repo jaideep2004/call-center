@@ -76,6 +76,22 @@ export async function setPoolEnabled(
   return row!;
 }
 
+/** Debit the pool (Stripe refund/dispute reversal only). Mirrors creditPool. */
+export async function debitPool(
+  agencyId: string,
+  amountCents: number,
+  client?: PoolClient,
+): Promise<AgencyWalletRow> {
+  await getOrCreatePool(agencyId, client);
+  const row = await queryOne<AgencyWalletRow>(
+    `UPDATE app.agency_wallets SET balance_cents = balance_cents - $2, updated_at = now()
+      WHERE agency_id = $1 RETURNING *`,
+    [agencyId, amountCents],
+    client,
+  );
+  return row!;
+}
+
 /** Credit the pool (Stripe webhook only — never mints, only adds paid amounts). */
 export async function creditPool(
   agencyId: string,
@@ -149,9 +165,11 @@ export async function allocationForAgent(
 
 /**
  * Spend pool-backed funds for one call: decrements the agent's allocation AND
- * the pool balance together (both floored at zero). Returns the actual cents
- * spent (may be less than requested when the allocation is thin). Without
- * this, pool money would route unlimited calls — credit without debit.
+ * the pool balance together. Both decrements are guarded (allocation covered
+ * AND pool covered) — a shortfall on either side spends nothing, so pool
+ * money can neither overdraft nor silently evaporate via the old
+ * GREATEST(...,0) clamp. Callers run inside a txn; the agency-funds
+ * advisory lock serializes concurrent spenders per agency.
  */
 export async function spendAllocation(
   agencyId: string,
@@ -159,14 +177,24 @@ export async function spendAllocation(
   cents: number,
   client?: PoolClient,
 ): Promise<number> {
+  if (client) {
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`agency-funds:${agencyId}`]);
+  }
   const before = await query<{ allocated_cents: string }>(
     `SELECT COALESCE(allocated_cents, 0)::text AS allocated_cents
        FROM app.agency_wallet_allocations WHERE agency_id = $1 AND agent_id = $2`,
     [agencyId, agentId],
     client,
   );
+  const pool = await query<{ balance_cents: string }>(
+    `SELECT COALESCE(balance_cents, 0)::text AS balance_cents
+       FROM app.agency_wallets WHERE agency_id = $1`,
+    [agencyId],
+    client,
+  );
   const available = parseInt(before[0]?.allocated_cents ?? "0", 10);
-  const spend = Math.max(0, Math.min(available, cents));
+  const poolBalance = parseInt(pool[0]?.balance_cents ?? "0", 10);
+  const spend = Math.max(0, Math.min(available, poolBalance, cents));
   if (spend <= 0) return 0;
   await query(
     `UPDATE app.agency_wallet_allocations SET allocated_cents = allocated_cents - $3, updated_at = now()
@@ -175,7 +203,7 @@ export async function spendAllocation(
     client,
   );
   await query(
-    `UPDATE app.agency_wallets SET balance_cents = GREATEST(balance_cents - $2, 0), updated_at = now()
+    `UPDATE app.agency_wallets SET balance_cents = balance_cents - $2, updated_at = now()
       WHERE agency_id = $1`,
     [agencyId, spend],
     client,
@@ -187,6 +215,7 @@ export const agencyWallets = {
   getPool,
   setPoolEnabled,
   creditPool,
+  debitPool,
   listAllocations,
   sumAllocated,
   allocationForAgent,

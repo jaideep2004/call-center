@@ -1,6 +1,7 @@
 import { apiHandler, ok, created, paginated, fail } from "@/server/api-utils";
-import { calls, agents } from "@/server/repositories";
+import { calls, agents, campaigns } from "@/server/repositories";
 import { validate, createCallSchema, paginationSchema, searchSchema, sortSchema } from "@/server/validate";
+import { callerRevealFor } from "@/server/services/caller-reveal";
 
 export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
@@ -40,7 +41,24 @@ export const GET = apiHandler(async (req, context) => {
     },
   });
 
-  return paginated(rows, pagination);
+  // Post-buffer caller reveal (Option A escrow), batched per campaign.
+  // Rows are already visibility-scoped above (own/agency/all).
+  const campaignIds = [...new Set(rows.map((r) => r.campaign_id).filter(Boolean))];
+  const buffers = new Map<string, number>();
+  await Promise.all(
+    campaignIds.map(async (cid) => {
+      const c = await campaigns.findById(cid, scopeAgency).catch(() => null);
+      buffers.set(cid, c?.buffer_seconds ?? 30);
+    }),
+  );
+  const visible = rows.map((r) => {
+    const { caller_number_encrypted: _escrow, ...rest } = r as typeof r & { caller_number_encrypted?: string | null };
+    void _escrow;
+    const reveal = callerRevealFor(r, buffers.get(r.campaign_id) ?? 30);
+    return { ...rest, caller_revealed: reveal.revealed, caller_number: reveal.caller_number };
+  });
+
+  return paginated(visible, pagination);
 }, { resource: "calls", action: "view" });
 
 export const POST = apiHandler(async (req, context) => {

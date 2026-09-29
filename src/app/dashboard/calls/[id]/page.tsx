@@ -14,6 +14,8 @@ interface CallDetail {
   provider_call_id: string;
   state: string;
   from_hash: string | null;
+  caller_revealed?: boolean;
+  caller_number?: string | null;
   caller_state: string | null;
   started_at: string | null;
   connected_at: string | null;
@@ -192,7 +194,11 @@ export default function CallDetailPage() {
             <div className="call-detail-grid">
               <div className="call-detail-field">
                 <span className="call-detail-label">Caller</span>
-                <span className="call-detail-value" title={call.from_hash ?? ""}>{formatHash(call.from_hash)}</span>
+                {call.caller_number ? (
+                  <span className="call-detail-value" style={{ fontWeight: 600 }}>{call.caller_number}</span>
+                ) : (
+                  <span className="call-detail-value" title={call.from_hash ?? ""}>{formatHash(call.from_hash)}</span>
+                )}
               </div>
               <div className="call-detail-field">
                 <span className="call-detail-label">Caller State</span>
@@ -367,7 +373,7 @@ export default function CallDetailPage() {
                 ))}
               </div>
             )}
-            {call.state === "connected" && (
+            {(call.state === "connected" || call.state === "ended") && (
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => {
                   const body = prompt("Add a quick note for this call:");
@@ -376,10 +382,12 @@ export default function CallDetailPage() {
                     if (r.ok) { const b = await r.json(); setCallNotes((prev) => [...prev, b.data]); showToast("Note saved", "success"); } else showToast("Failed to save note", "error");
                   });
                 }}>+ Add note</button>
-                <button className="btn btn-warning btn-sm" onClick={async () => {
-                  const res = await fetch(`/api/v1/calls/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: "disputed" }) });
-                  if (res.ok) { setCall({ ...call, state: "disputed" } as any); showToast("Call marked as disputed — will appear in Admin → Disputes", "success"); } else { const b = await res.json().catch(() => ({})); showToast(b.message ?? "Failed to dispute", "error"); }
-                }}>Mark disputed</button>
+                {call.state === "connected" && (
+                  <button className="btn btn-warning btn-sm" onClick={async () => {
+                    const res = await fetch(`/api/v1/calls/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: "disputed" }) });
+                    if (res.ok) { setCall({ ...call, state: "disputed" } as any); showToast("Call marked as disputed — will appear in Admin → Disputes", "success"); } else { const b = await res.json().catch(() => ({})); showToast(b.message ?? "Failed to dispute", "error"); }
+                  }}>Mark disputed</button>
+                )}
               </div>
             )}
           </div>

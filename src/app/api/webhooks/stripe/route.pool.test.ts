@@ -52,7 +52,9 @@ vi.mock("@/server/repositories", () => ({
 vi.mock("@/server/db", () => ({
   query: vi.fn(async () => []),
   queryOne: vi.fn(async () => null),
-  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) =>
+    fn({ query: vi.fn(async () => ({ rows: [] })) }),
+  ),
 }));
 
 vi.mock("@/server/services/offer-wallet-sync", () => ({

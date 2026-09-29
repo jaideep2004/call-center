@@ -1,8 +1,9 @@
 import { apiHandler, ok, noContent, fail } from "@/server/api-utils";
-import { calls, callEvents, agents } from "@/server/repositories";
+import { calls, callEvents, agents, campaigns } from "@/server/repositories";
 import { ForbiddenError, ConflictError } from "@/server/errors";
 import { validate, updateCallSchema } from "@/server/validate";
 import { assertTransition, type CallState } from "@/domain/calls";
+import { callerRevealFor } from "@/server/services/caller-reveal";
 import type { CallRow } from "@/server/repositories/calls";
 import type { NextResponse } from "next/server";
 
@@ -49,7 +50,22 @@ export const GET = apiHandler(async (req, context) => {
   const access = await requireCallAccess(id, scope, { user, membership, isHead });
   if ("error" in access) return access.error;
   const events = await callEvents.findByCallId(id, scope);
-  return ok({ ...access.call, events });
+  // Post-buffer caller reveal (Option A escrow): entitled viewers are admin,
+  // heads, and the assigned agent (visibility already enforced above). Every
+  // reveal is logged for audit.
+  const campaign = await campaigns.findById(access.call.campaign_id, scope).catch(() => null);
+  const reveal = callerRevealFor(access.call, campaign?.buffer_seconds ?? 30);
+  if (reveal.revealed) {
+    console.info(JSON.stringify({
+      event: "caller_revealed",
+      callId: id.slice(0, 8),
+      viewer: user?.id?.slice(0, 8) ?? "unknown",
+      role: user?.role ?? "unknown",
+    }));
+  }
+  const { caller_number_encrypted: _escrow, ...rest } = access.call as CallRow & { caller_number_encrypted?: string | null };
+  void _escrow;
+  return ok({ ...rest, events, caller_revealed: reveal.revealed, caller_number: reveal.caller_number });
 }, { resource: "calls", action: "view" });
 
 export const PATCH = apiHandler(async (req, context) => {

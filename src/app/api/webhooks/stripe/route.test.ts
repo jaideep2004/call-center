@@ -30,6 +30,7 @@ const fakeEvent: {
 vi.mock("@/server/stripe", () => {
   const client = {
     webhooks: { constructEvent: vi.fn(() => fakeEvent) },
+    charges: { retrieve: vi.fn(async () => ({ id: "ch_1", payment_intent: "pi_1" })) },
   };
   return {
     getStripe: vi.fn(async () => client),
@@ -41,7 +42,9 @@ vi.mock("@/server/stripe", () => {
 vi.mock("@/server/repositories/payments", () => ({
   payments: {
     findBySessionId: findBySessionIdMock,
+    findByPaymentIntentId: vi.fn(),
     markCompleted: markCompletedMock,
+    markRefunded: vi.fn(),
     setLivemode: setLivemodeMock,
     create: vi.fn(),
   },
@@ -49,20 +52,36 @@ vi.mock("@/server/repositories/payments", () => ({
 
 vi.mock("@/server/repositories", () => ({
   walletEntries: { create: walletCreateMock },
-  agencyWallets: { creditPool: vi.fn() },
-  agentSubscriptions: { findActiveByAgent: vi.fn(), create: vi.fn() },
+  agencyWallets: { creditPool: vi.fn(), debitPool: vi.fn() },
+  agentSubscriptions: { findActiveByAgent: vi.fn(), findByAgent: vi.fn(async () => []), update: vi.fn(), create: vi.fn() },
 }));
 
 vi.mock("@/server/db", () => ({
   query: vi.fn(async () => []),
   queryOne: vi.fn(async () => null),
-  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) =>
+    fn({
+      query: vi.fn(async (sql: string) =>
+        typeof sql === "string" && sql.includes("INSERT INTO app.payment_reversals")
+          ? { rows: [{ id: "rev-1" }] }
+          : { rows: [] },
+      ),
+    }),
+  ),
 }));
 
 vi.mock("@/server/db", () => ({
   query: vi.fn(async () => []),
   queryOne: vi.fn(async () => null),
-  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) => fn({})),
+  transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) =>
+    fn({
+      query: vi.fn(async (sql: string) =>
+        typeof sql === "string" && sql.includes("INSERT INTO app.payment_reversals")
+          ? { rows: [{ id: "rev-1" }] }
+          : { rows: [] },
+      ),
+    }),
+  ),
 }));
 
 process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
@@ -193,5 +212,66 @@ describe("stripe webhook — subscription orphan heal + single receipt", () => {
       expect.objectContaining({ stripe_session_id: "cs_test_123", plan_id: "plan-1" }),
     );
     expect(markCompletedMock).toHaveBeenCalled();
+  });
+});
+
+describe("stripe webhook — refunds reverse ledger (H3)", () => {
+  const refundEvent = {
+    type: "charge.refunded",
+    data: {
+      object: {
+        id: "ch_1",
+        payment_intent: "pi_1",
+        amount_refunded: 2500,
+        refunds: { data: [{ id: "re_1", amount: 2500 }] },
+      },
+    },
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const { getStripe } = await import("@/server/stripe");
+    const client = await getStripe();
+    vi.mocked(client.webhooks.constructEvent).mockImplementation(() => refundEvent as never);
+    const { payments } = await import("@/server/repositories/payments");
+    vi.mocked(payments.findByPaymentIntentId).mockResolvedValue({
+      id: "pay-9", agency_id: "agency-1", agent_id: "agent-9", plan_id: null,
+      stripe_session_id: "cs_9", stripe_payment_intent_id: "pi_1",
+      amount_cents: 2500, fee_cents: 0, currency: "usd", status: "completed", livemode: true,
+    } as never);
+  });
+
+  it("writes a refund entry and marks the payment refunded", async () => {
+    const { payments } = await import("@/server/repositories/payments");
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    expect(walletCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "refund", amount_cents: -2500, agent_id: "agent-9" }),
+      expect.anything(),
+    );
+    expect(vi.mocked(payments.markRefunded)).toHaveBeenCalledWith("pay-9", expect.anything());
+  });
+
+  it("acks unknown payment intents without action (no retry storm)", async () => {
+    const { payments } = await import("@/server/repositories/payments");
+    vi.mocked(payments.findByPaymentIntentId).mockResolvedValue(null);
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    expect(walletCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("dispute withdrawals reverse like refunds", async () => {
+    const { getStripe } = await import("@/server/stripe");
+    const client = await getStripe();
+    vi.mocked(client.webhooks.constructEvent).mockImplementation(() => ({
+      type: "charge.dispute.funds_withdrawn",
+      data: { object: { id: "dp_1", charge: "ch_1", amount: 2500 } },
+    }) as never);
+    const res = await POST(makeRequest());
+    expect(res.status).toBe(200);
+    expect(walletCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "refund", amount_cents: -2500 }),
+      expect.anything(),
+    );
   });
 });

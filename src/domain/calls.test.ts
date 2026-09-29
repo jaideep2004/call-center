@@ -18,6 +18,11 @@ describe("call state machine", () => {
     expect(() => assertTransition("connected", "ended")).not.toThrow();
   });
 
+  it("allows hangup mid-bridge (accepted/connecting to ended)", () => {
+    expect(() => assertTransition("accepted", "ended")).not.toThrow();
+    expect(() => assertTransition("connecting", "ended")).not.toThrow();
+  });
+
   it("rejects ended to any state", () => {
     expect(() => assertTransition("ended", "connected")).toThrow();
   });

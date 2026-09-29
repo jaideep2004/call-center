@@ -85,16 +85,39 @@ describe("effective balance (P1.4)", () => {
   });
 
   it("spendAllocation decrements allocation + pool and returns actual spend", async () => {
-    queryMock.mockResolvedValueOnce([{ allocated_cents: "100" }]);
+    queryMock
+      .mockResolvedValueOnce([{ allocated_cents: "100" }])
+      .mockResolvedValueOnce([{ balance_cents: "5000" }])
+      .mockResolvedValue([]);
     await expect(agencyWallets.spendAllocation("agency-1", "agent-1", 60, undefined)).resolves.toBe(60);
     const sqls = queryMock.mock.calls.map((c) => c[0] as string);
     expect(sqls.some((s) => s.includes("agency_wallet_allocations SET allocated_cents"))).toBe(true);
     expect(sqls.some((s) => s.includes("agency_wallets SET balance_cents"))).toBe(true);
+    expect(sqls.some((s) => s.includes("GREATEST"))).toBe(false);
   });
 
   it("spendAllocation floors at the available allocation (never negative)", async () => {
-    queryMock.mockResolvedValueOnce([{ allocated_cents: "30" }]);
+    queryMock
+      .mockResolvedValueOnce([{ allocated_cents: "30" }])
+      .mockResolvedValueOnce([{ balance_cents: "5000" }])
+      .mockResolvedValue([]);
     await expect(agencyWallets.spendAllocation("agency-1", "agent-1", 100, undefined)).resolves.toBe(30);
+  });
+
+  it("spendAllocation never overdrafts a thin pool (shortfall spends nothing extra)", async () => {
+    queryMock
+      .mockResolvedValueOnce([{ allocated_cents: "100" }])
+      .mockResolvedValueOnce([{ balance_cents: "20" }])
+      .mockResolvedValue([]);
+    await expect(agencyWallets.spendAllocation("agency-1", "agent-1", 60, undefined)).resolves.toBe(20);
+  });
+
+  it("spendAllocation returns 0 on an empty pool without writing", async () => {
+    queryMock
+      .mockResolvedValueOnce([{ allocated_cents: "100" }])
+      .mockResolvedValueOnce([{ balance_cents: "0" }]);
+    await expect(agencyWallets.spendAllocation("agency-1", "agent-1", 60, undefined)).resolves.toBe(0);
+    expect(queryMock).toHaveBeenCalledTimes(2);
   });
 
   it("effectiveBalanceSql gates the allocation on the pool flag", () => {
