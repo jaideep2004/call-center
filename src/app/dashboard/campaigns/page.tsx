@@ -85,7 +85,7 @@ function CampaignsInner() {
     { key: "status", header: "Status", sortable: true, render: (c) => <span className={`badge${c.status === "active" ? " badge-success" : c.status === "paused" ? " badge-warning" : c.status === "archived" ? " badge-danger" : ""}`}>{c.status}</span> },
     { key: "routing_strategy", header: "Strategy", render: (c) => <span className="text-mono-sm">{c.routing_strategy}</span> },
     { key: "price_cents", header: "Price", sortable: true, render: (c) => <span className="text-mono-sm" style={{ color: "var(--accent)" }}>{c.price_cents != null ? formatCents(c.price_cents) : "\u2014"}</span> },
-    { key: "retreaver_cid", header: "Retreaver", render: (c) => c.retreaver_cid ? <span className="badge badge-success">Linked · {c.retreaver_cid}</span> : <span className="text-muted text-mono-sm">\u2014</span> },
+    { key: "retreaver_cid", header: "Retreaver", render: (c) => c.retreaver_cid ? <span className="badge badge-success">Linked · {c.retreaver_cid}</span> : <span className="text-muted text-mono-sm">—</span> },
     { key: "min_connected_seconds", header: "Min connect", render: (c) => <span className="text-mono-sm">{c.min_connected_seconds}s</span> },
     { key: "created_at", header: "Created", sortable: true, render: (c) => <span className="text-mono-sm">{new Date(c.created_at).toLocaleDateString()}</span> },
   ];

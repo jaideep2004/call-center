@@ -287,6 +287,11 @@ function WalletInner() {
       return true;
     });
   }, [entries, dirFilter, typeFilter, debouncedQ]);
+  const agentNameMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const a of agents) if (a.id) m[a.id] = a.name || a.email || a.id.slice(0, 8);
+    return m;
+  }, [agents]);
 
   const entryColumns: Column<WalletEntry>[] = [
     { key: "created_at", header: "Date", render: (e) => <span className="text-mono-sm" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{new Date(e.created_at).toLocaleString()}</span> },
@@ -299,7 +304,7 @@ function WalletInner() {
     { key: "type", header: "Type", render: (e) => <span className={`badge ${TYPE_COLORS[e.type] ?? ""}`}>{TYPE_LABELS[e.type] ?? e.type}</span> },
     {
       key: "agent_id", header: "Agent",
-      render: (e) => <span className="text-mono-sm" style={{ fontSize: 11 }}>{e.agent_id ? e.agent_id.slice(0, 8) : <span className="text-muted">Agency</span>}</span>,
+      render: (e) => <span className="text-mono-sm" style={{ fontSize: 11 }} title={e.agent_id ?? ""}>{e.agent_id ? (agentNameMap[e.agent_id] ?? e.agent_id.slice(0, 8)) : <span className="text-muted">Agency</span>}</span>,
     },
     { key: "amount_cents", header: "Amount", render: (e) => <span className="text-mono-sm" style={{ color: e.amount_cents > 0 ? "var(--accent)" : "var(--orange)", fontWeight: 700, fontSize: 12 }}>{e.amount_cents > 0 ? "+" : "−"}{formatCents(Math.abs(e.amount_cents))}</span> },
     { key: "call_id", header: "Call", render: (e) => <span className="text-mono-sm" style={{ fontSize: 11 }}>{e.call_id?.slice(0, 8) ?? "—"}</span> },

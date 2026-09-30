@@ -38,7 +38,9 @@ export const GET = apiHandler(async (req, context) => {
   if (search) { params.push(`%${search}%`); clauses.push(`(l.email_hash LIKE $${params.length} OR l.phone_hash LIKE $${params.length})`); }
   if (status) { params.push(status); clauses.push(`l.status = $${params.length}`); }
   if (source) { params.push(source); clauses.push(`l.source = $${params.length}`); }
-  if (assignedAgentId) { params.push(assignedAgentId); clauses.push(`l.assigned_agent_id = $${params.length}`); }
+  if (assignedAgentId === "unassigned") {
+    clauses.push(`l.assigned_agent_id IS NULL`);
+  } else if (assignedAgentId) { params.push(assignedAgentId); clauses.push(`l.assigned_agent_id = $${params.length}`); }
   if (startDate) { params.push(startDate); clauses.push(`l.created_at >= $${params.length}`); }
   if (endDate) { params.push(endDate); clauses.push(`l.created_at <= $${params.length}`); }
 

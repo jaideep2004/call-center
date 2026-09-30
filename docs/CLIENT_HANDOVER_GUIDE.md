@@ -88,7 +88,7 @@ Lists every client company: Name, Code, Slug, Status, Currency, Recording Retent
 - **Status filter** (All / Active / Pending / Suspended / Closed) + **search box** (+ × Clear) narrow the list.
 - **Click a row** → agency detail. **Delete** per row hides it (after confirmation). Pages at the bottom.
 
-**New agency** (`.../agencies/new`): type **Agency Name** (the web slug auto-fills, editable, must be unique), check the live **Summary**, click **Create agency** (disabled until both fields are filled), or **Cancel**.
+**New agency** (`.../agencies/new`): type **Agency Name** (the web slug auto-fills, editable, must be unique), optionally add teammate emails in **Invite teammates** (one per line — invites go out on creation), check the live **Summary**, click **Create agency** (disabled until both fields are filled), or **Cancel**. The same invite box exists when agents create their own agency from Settings.
 
 **Agency detail** (`.../agencies/[id]`): rename, edit slug, set **Status**, **Currency** (e.g. USD), **Recording Retention** (days, 1–3650), **Postpaid checkbox** (lets members take calls without prepay — admin-only for a reason), **Save changes**. **Invite agents** box: type an email → **Invite**. **Delete** removes the agency (after confirmation). A bad link shows "Agency not found" + back button.
 
@@ -102,7 +102,7 @@ Everyone who can answer calls, all agencies in one list.
 - **Status tabs:** All / Pending / Approved / Rejected / Suspended. The **Pending** tab shows a count badge when people wait for approval.
 - **Click an agent's name** → their detail page. Tick **checkboxes** to select several (a bar shows the count + **Clear**).
 - Per row: **Approve** (if not approved), **Decline** (if not rejected), **Suspend** (if approved).
-- **Typical flow:** new signup appears under **Pending** → click name to review → **Approve** → they can proceed to go online.
+- **Typical flow:** new signup appears under **Pending** → click name to review → **Approve** → approved agents with no team automatically join your **Platform home agency** (see System Settings), so they can fund, subscribe and go online with zero extra steps.
 
 **Agent detail** (`.../agents/[id]`): profile (name, email, priority, last assigned), **NPN** license-ID field + Save, **Software Access** monthly fee + Save, **Approval** box (Approve / Reject / Suspend buttons match current status), availability badge, **Skills** (Edit → pick/unpick → Save/Cancel), **Call method** (Edit → Browser and/or Phone-forward cards, forwarding number when phone is chosen → Save), **Licensed States** (Edit → state buttons → Save/Cancel/**Clear all** = eligible everywhere). **Back** returns to the list. A removed agent shows a friendly "Agent not found" page instead of an error.
 
@@ -110,7 +110,7 @@ Everyone who can answer calls, all agencies in one list.
 
 **Manual create** (`.../admin/agents/new`): pick **Agency** + **User** from dropdowns (membership auto-created if needed), set **routing priority** (lower number = calls first), **Licenses** (P&C, Health, Life, Auto), **Skills**, **State Coverage** (empty = everywhere), check **Summary**, **Create Agent** (lands on the new profile) or Cancel.
 
-*How to test:* register a fresh agent → confirm they land in **Pending** → open → Approve → confirm status flips and they can go online.
+*How to test:* register a fresh agent → confirm they land in **Pending** → open → Approve → confirm status flips, they join the platform home agency (Users page), and they can go online.
 
 ### 3.4 Users (`/dashboard/admin/users`)
 
@@ -126,7 +126,7 @@ Every login account, every role, in one place. Two tables:
 
 ### 3.5 Leads (`/dashboard/leads` + `/dashboard/leads/[id]`)
 
-Potential customers. List: **search**, filters (**Status, Source, Agent, Start/End date**, **Clear** to reset), **CSV/Excel** download of the filtered list, table (clickable email opens the lead; phone, source, status, last call, talk time, result, sale amount; sortable; pages), per-row **agent reassign dropdown**, per-row **× Delete** (confirms first).
+Potential customers. List: **search**, filters (**Status, Source, Agent** — including an **Unassigned pool** option, Start/End date, **Clear** to reset), **CSV/Excel** download of the filtered list, table (clickable email opens the lead; phone, source, status, last call, talk time, result, sale amount; sortable; pages), per-row **agent reassign dropdown**, **Claim button on unassigned rows** — take the lead for yourself (first click wins), per-row **× Delete** (confirms first).
 
 Lead detail: **Delete**, **Back**, details (masked contact, source badge, **Status dropdown** that saves instantly, agent, dates), **Call History** (each row links to the call), **Tags** (× removes, box + **+** adds), **Notes** (list + add box), **Timeline** of events.
 
@@ -217,6 +217,8 @@ Yours + your agency's setup. **Tabs:** Agency (always), Members + Phone Numbers 
 **Members tab** (heads): search, role filter, per-row role dropdown + **Suspend/Activate**.
 
 **Phone Numbers tab** (heads): search, **+ Add number** popup (number, offer, provider Telnyx/Twilio), per-row offer mover; non-heads see a "Heads only" notice.
+
+**The number rule (read once): one number lives on one campaign at a time.** The number is that campaign's inbound door and its caller ID. The list always shows each number's current campaign — to reuse a number, **move** it with the per-row dropdown (or park it as spare); adding an already-assigned number tells you exactly which campaign holds it (spare-pool numbers are claimed in place automatically).
 
 ### 3.24 System Settings (`/dashboard/admin/settings`)
 
@@ -367,7 +369,15 @@ Publishers who run their own ads/tracker don't need our tracking link — they n
 - **Payouts**: publishers earn per *qualified* call (min talk time + rules); revenue comes from paid invoices.
 - **Suspend, don't delete**, anyone with call/financial history (delete is blocked with that guidance).
 
-## 8. Troubleshooting FAQ
+## 8. Deploy checklist (server — every release, in this order)
+
+1. Pull latest code.
+2. **`npm run migrate`** — applies pending database updates. Skipping this breaks new features (and once took down all inbound calls).
+3. `npm run build`, then restart (`npm run start` / docker).
+4. Open `/api/v1/health` — it must show no `migrations_pending` warning.
+5. Place one test call end-to-end.
+
+## 9. Troubleshooting FAQ
 
 | Symptom | What it means / do this |
 |---|---|
@@ -381,7 +391,7 @@ Publishers who run their own ads/tracker don't need our tracking link — they n
 | Invite link warns about role change | Normal — one account, role switches to the new company. |
 | Calendar page just redirects | Normal — booking lives in GoHighLevel. |
 
-## 9. Glossary
+## 10. Glossary
 
 - **Agency** — a client company/team. **Head** — its manager (an agent with team powers).
 - **Campaign / Offer** — a buyer's deal agents take calls for. **Routing** — Priority (ranked) vs Round robin (even split).

@@ -20,6 +20,17 @@ vi.mock("@/server/db", () => ({
   queryOne: queryOneMock,
 }));
 
+const ensurePlatformMock = vi.hoisted(() =>
+  vi.fn(async (): Promise<{ joined: boolean; membershipId: string | null; reason: string }> => ({
+    joined: false,
+    membershipId: null,
+    reason: "no_platform_agency",
+  })),
+);
+vi.mock("@/server/services/platform-agency", () => ({
+  ensurePlatformMembership: ensurePlatformMock,
+}));
+
 vi.mock("@/server/api-utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/server/api-utils")>();
   return {
@@ -100,5 +111,19 @@ describe("POST /api/v1/agents/ensure", () => {
       expect.objectContaining({ agency_id: "agency-1", membership_id: "m-9", user_id: "u-9" }),
     );
     expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("places the new profile into the platform agency when configured", async () => {
+    queryOneMock
+      .mockResolvedValueOnce({ id: "u-9", role: "agent" })
+      .mockResolvedValueOnce(null);
+    findByUserIdMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: "agent-new", agency_id: null });
+    ensurePlatformMock.mockResolvedValueOnce({ joined: true, membershipId: "m-plat", reason: "joined_platform" });
+    const res = await route.POST(post({ user_id: "u-9" }), ctx);
+    expect(res.status).toBe(201);
+    expect(ensurePlatformMock).toHaveBeenCalledWith("agent-new");
+    const body = await res.json();
+    expect(body.message).toMatch(/platform agency/i);
   });
 });

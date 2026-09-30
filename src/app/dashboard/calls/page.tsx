@@ -197,9 +197,9 @@ function CallsInner() {
     { key: "id", header: "Call ID", render: (c) => <Link href={`/dashboard/calls/${c.id}`} className="clickable" title={c.id}>{c.display_code ?? c.id.slice(0, 8)}</Link> },
     { key: "state", header: "State", sortable: true, render: (c) => <span className={`badge ${STATE_COLORS[c.state] ?? ""}`}>{c.state}</span> },
     { key: "from_hash", header: "Caller", render: (c) => c.caller_number ? (<span className="text-mono-sm" style={{ fontWeight: 600 }}>{c.caller_number}</span>) : (<span className="text-mono-sm" title={c.from_hash ?? ""}>{c.from_hash?.slice(0, 12) ?? "\u2014"}</span>) },
-    { key: "caller_state", header: "Caller State", render: (c) => c.caller_state ? <span className="badge badge-info">{c.caller_state}</span> : <span className="text-muted">\u2014</span> },
+    { key: "caller_state", header: "Caller State", render: (c) => c.caller_state ? <span className="badge badge-info">{c.caller_state}</span> : <span className="text-muted">—</span> },
     { key: "provider", header: "Provider", render: (c) => <span className="text-mono-sm">{c.provider}</span> },
-    { key: "agent_id", header: "Agent", render: (c) => c.agent_id ? <span className="text-mono-sm" title={c.agent_id}>{agentMap[c.agent_id] ?? c.agent_id.slice(0, 8)}</span> : <span className="text-muted">\u2014</span> },
+    { key: "agent_id", header: "Agent", render: (c) => c.agent_id ? <span className="text-mono-sm" title={c.agent_id}>{agentMap[c.agent_id] ?? c.agent_id.slice(0, 8)}</span> : <span className="text-muted">—</span> },
     { key: "campaign_id", header: "Campaign", render: (c) => <span className="text-mono-sm" title={c.campaign_id}>{campaignMap[c.campaign_id] ?? c.campaign_id.slice(0, 8)}</span> },
     { key: "connected_at", header: "Connected", render: (c) => <span className="text-mono-sm">{c.connected_at ? new Date(c.connected_at).toLocaleString() : "\u2014"}</span> },
   ];

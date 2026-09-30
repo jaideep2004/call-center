@@ -47,5 +47,11 @@ export const POST = apiHandler(async (req) => {
     user_id: userId,
     endpoint_types: ["webrtc"],
   });
-  return created(row, "Pending agent profile created — approve it on the Agents page");
+  // Option A backfill: also place them in the platform home agency when
+  // configured, so Create profile fully onboards solo agents.
+  const { ensurePlatformMembership } = await import("@/server/services/platform-agency");
+  const placed = await ensurePlatformMembership(row.id);
+  return created(row, placed.joined
+    ? "Agent profile created and joined to the platform agency — approve it on the Agents page"
+    : "Pending agent profile created — approve it on the Agents page");
 }, { resource: "agents", action: "create" });

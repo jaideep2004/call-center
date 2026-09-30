@@ -26,6 +26,7 @@ function MembershipInner() {
 
   const [members, setMembers] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
+  const [agentsMap, setAgentsMap] = useState<Record<string, { name: string; email: string }>>({});
   const [inviteUserId, setInviteUserId] = useState("");
   const [inviteRole, setInviteRole] = useState("agent");
   const [inviting, setInviting] = useState(false);
@@ -39,6 +40,17 @@ function MembershipInner() {
       if (res.ok) { const b = await res.json(); setMembers(b.data ?? []); }
       setLoading(false);
     });
+    // Names for member rows (agents endpoint carries the joined user identity).
+    fetch("/api/v1/agents?limit=100").then(async (res) => {
+      if (res.ok) {
+        const b = await res.json();
+        const map: Record<string, { name: string; email: string }> = {};
+        for (const a of (b.data ?? []) as any[]) {
+          if (a.membership_id) map[a.membership_id] = { name: a.user_name ?? "", email: a.user_email ?? "" };
+        }
+        setAgentsMap(map);
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -129,14 +141,34 @@ function MembershipInner() {
   const filtered = useMemo(() => {
     if (!debouncedQ) return members;
     const q = debouncedQ;
-    return members.filter((m) => m.user_id.toLowerCase().includes(q) || m.role.toLowerCase().includes(q) || m.status.toLowerCase().includes(q));
-  }, [members, debouncedQ]);
+    return members.filter((m) => {
+      const info = agentsMap[m.id];
+      return (
+        m.user_id.toLowerCase().includes(q) ||
+        m.role.toLowerCase().includes(q) ||
+        m.status.toLowerCase().includes(q) ||
+        (info?.name ?? "").toLowerCase().includes(q) ||
+        (info?.email ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [members, debouncedQ, agentsMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
   const columns: Column<Membership>[] = [
-    { key: "user_id", header: "User ID", render: (m) => <Link href={`/dashboard/membership/${m.id}`} className="clickable text-mono-sm">{m.user_id.slice(0, 16)}</Link> },
+    { key: "user_id", header: "Member", render: (m) => {
+      const info = agentsMap[m.id];
+      if (info?.name || info?.email) {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Link href={`/dashboard/membership/${m.id}`} className="clickable" style={{ fontWeight: 500 }}>{info.name || info.email}</Link>
+            {info.name && info.email && <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11 }}>{info.email}</span>}
+          </div>
+        );
+      }
+      return <Link href={`/dashboard/membership/${m.id}`} className="clickable text-mono-sm">{m.user_id.slice(0, 16)}</Link>;
+    } },
     {
       key: "role", header: "Role",
       render: (m) => (

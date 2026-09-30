@@ -201,6 +201,7 @@ export default function SettingsPage() {
   const [creationAllowed, setCreationAllowed] = useState<boolean | null>(null);
   const [newAgencyName, setNewAgencyName] = useState("");
   const [newAgencySlug, setNewAgencySlug] = useState("");
+  const [inviteEmails, setInviteEmails] = useState("");
   const [creating, setCreating] = useState(false);
   // Phase 3 (point 6): explicit leave-and-create confirmation for members.
   const [leaveConfirm, setLeaveConfirm] = useState(false);
@@ -220,6 +221,9 @@ export default function SettingsPage() {
     if (!newAgencyName.trim()) return;
     setCreating(true);
     try {
+      const invites = [...new Set(
+        inviteEmails.split(/[\n,;]+/).map((s) => s.trim().toLowerCase()).filter((s) => s.includes("@")),
+      )].slice(0, 20).map((email) => ({ email }));
       const res = await fetch("/api/v1/agencies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,11 +231,22 @@ export default function SettingsPage() {
           name: newAgencyName.trim(),
           slug: newAgencySlug.trim() || newAgencyName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
           ...(leave ? { leaveAgency: true } : {}),
+          ...(invites.length > 0 ? { invites } : {}),
         }),
       });
       const body = await res.json();
       if (res.ok) {
-        showToast("Agency created — you are now the head", "success");
+        const sent = body.data?.invites?.sent ?? 0;
+        const failed = body.data?.invites?.failed ?? [];
+        if (sent > 0 && failed.length === 0) {
+          showToast("Agency created — you are now the head (invites sent)", "success");
+        } else if (sent > 0) {
+          showToast(`Agency created — ${sent} invite${sent === 1 ? "" : "s"} sent, ${failed.length} failed`, "warning");
+        } else if (failed.length > 0) {
+          showToast(`Agency created — ${failed.length} invite${failed.length === 1 ? "" : "s"} could not be sent`, "warning");
+        } else {
+          showToast("Agency created — you are now the head", "success");
+        }
         // Membership/headship changed server-side (/me, tabs, head-only UI
         // all derive from it) — reload so nothing renders stale.
         window.location.reload();
@@ -385,6 +400,10 @@ export default function SettingsPage() {
                     <label className="settings-label">New Agency Name</label>
                     <input className="input" value={newAgencyName} onChange={(e) => setNewAgencyName(e.target.value)} placeholder="e.g. Northside Insurance" required maxLength={255} style={{ minHeight: 42 }} />
                   </div>
+                  <div>
+                    <label className="settings-label">Invite teammates (optional)</label>
+                    <textarea className="input" value={inviteEmails} onChange={(e) => setInviteEmails(e.target.value)} placeholder="One email per line — they join your new agency" rows={2} style={{ minHeight: 56, resize: "vertical" }} />
+                  </div>
                   <label style={{ display:"flex", gap:8, alignItems:"flex-start", fontSize:12, color:"var(--muted)", cursor:"pointer" }}>
                     <input type="checkbox" checked={leaveConfirm} onChange={(e) => setLeaveConfirm(e.target.checked)} style={{ marginTop:3 }} />
                     I understand I am leaving {agency.name} and cannot undo this myself
@@ -429,6 +448,10 @@ export default function SettingsPage() {
                 <div>
                   <label className="settings-label">Slug (Optional)</label>
                   <input className="input" value={newAgencySlug} onChange={(e) => setNewAgencySlug(e.target.value)} placeholder="auto-generated from name" maxLength={100} style={{ minHeight: 42 }} />
+                </div>
+                <div>
+                  <label className="settings-label">Invite teammates (optional)</label>
+                  <textarea className="input" value={inviteEmails} onChange={(e) => setInviteEmails(e.target.value)} placeholder="One email per line — they join your new agency" rows={2} style={{ minHeight: 56, resize: "vertical" }} />
                 </div>
                 <button className="btn btn-primary" type="submit" disabled={creating || !newAgencyName.trim()} style={{ height: 42 }}>
                   {creating ? <span className="spinner" /> : "Create Agency"}

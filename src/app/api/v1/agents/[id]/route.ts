@@ -58,6 +58,18 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
   // Best-effort approval email + inbox row (never blocks the update).
   if (body.approval_status === "approved") {
     void sendAgentApproved({ agencyId: agent.agency_id ?? "", agentId: id });
+    // Option A: admin approvals place team-less agents into the platform
+    // home agency (fund/subscribe/calls with no extra steps). Heads approve
+    // within their own agency, so this runs for admins only.
+    if (user?.role === "admin") {
+      void import("@/server/services/platform-agency").then(({ ensurePlatformMembership }) =>
+        ensurePlatformMembership(id).then((r) => {
+          if (r.joined) {
+            console.info(JSON.stringify({ event: "platform_auto_join", agentId: id.slice(0, 8), membershipId: r.membershipId?.slice(0, 8) }));
+          }
+        }),
+      ).catch(() => {});
+    }
   }
   return ok(agent, "Agent updated");
 }, { resource: "agents", action: "update" });

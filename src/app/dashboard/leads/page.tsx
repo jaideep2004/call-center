@@ -146,6 +146,22 @@ function LeadsInner() {
     }
   }
 
+  async function handleClaim(leadId: string) {
+    try {
+      const res = await fetch(`/api/v1/leads/${leadId}/claim`, { method: "POST" });
+      const body = await res.json().catch(() => ({} as { message?: string }));
+      if (res.ok) {
+        fetchLeads();
+        showToast("Lead claimed — it's yours now", "success");
+      } else {
+        showToast(body.message ?? "Failed to claim lead", "error");
+        fetchLeads();
+      }
+    } catch {
+      showToast("Network error claiming lead", "error");
+    }
+  }
+
   function statusBadge(s: string) {
     const cls: Record<string, string> = { new: "", contacted: "badge-info", qualified: "badge-success", converted: "badge-success", lost: "badge-warning", disqualified: "badge-danger" };
     return `badge ${cls[s] ?? ""}`;
@@ -205,15 +221,19 @@ function LeadsInner() {
     { key: "status", header: "Status", sortable: true, render: (l) => <span className={statusBadge(l.status)}>{l.status}</span> },
     { key: "last_call_started_at", header: "Last Call", render: (l) => <span className="text-mono-sm">{l.last_call_started_at ? new Date(l.last_call_started_at).toLocaleDateString() : "\u2014"}</span> },
     { key: "last_call_duration_seconds", header: "Duration", render: (l) => <span className="text-mono-sm">{formatDurationSec(l.last_call_duration_seconds)}</span> },
-    { key: "disposition_outcome", header: "Disposition", render: (l) => l.disposition_outcome ? <span className={statusBadge(l.disposition_outcome)}>{l.disposition_outcome}</span> : <span className="text-muted">\u2014</span> },
+    { key: "disposition_outcome", header: "Disposition", render: (l) => l.disposition_outcome ? <span className={statusBadge(l.disposition_outcome)}>{l.disposition_outcome}</span> : <span className="text-muted">—</span> },
     { key: "annual_premium_cents", header: "Premium", render: (l) => <span className="text-mono-sm" style={{ color: "var(--accent)" }}>{formatPremium(l.annual_premium_cents)}</span> },
     {
       key: "assigned_agent_id", header: "Assigned", className: "actions-cell",
-      render: (l) => (
+      render: (l) => l.assigned_agent_id ? (
         <select className="select" style={{ width: 148, minWidth: 0 }} value={l.assigned_agent_id ?? ""} onChange={(e) => handleAssign(l.id, e.target.value)}>
           <option value="">Unassigned</option>
           {agents.map((a) => <option key={a.id} value={a.id}>{agentMap[a.id] ?? a.membership_id.slice(0, 8)}</option>)}
         </select>
+      ) : (
+        <button className="btn btn-sm btn-primary" style={{ whiteSpace: "nowrap" }} onClick={() => handleClaim(l.id)} title="Take this lead for yourself">
+          Claim
+        </button>
       ),
     },
     {
@@ -261,6 +281,7 @@ function LeadsInner() {
         </select>
         <select className="select" style={{ maxWidth: 160 }} value={agentFilter} onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}>
           <option value="">All agents</option>
+          <option value="unassigned">Unassigned pool</option>
           {agents.map((a) => <option key={a.id} value={a.id}>{agentMap[a.id] ?? a.membership_id.slice(0, 8)}</option>)}
         </select>
         <input className="input" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} style={{ maxWidth: 150 }} />

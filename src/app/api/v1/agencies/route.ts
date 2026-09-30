@@ -1,7 +1,11 @@
 import { apiHandler, ok, created, fail } from "@/server/api-utils";
-import { agencies, agents, systemSettings } from "@/server/repositories";
+import { agencies, agents, systemSettings, recruitmentInvites } from "@/server/repositories";
 import { validate, createAgencySchema } from "@/server/validate";
 import { transaction, query } from "@/server/db";
+import { getAppBaseUrl } from "@/server/app-url";
+import { sendEmail } from "@/server/email";
+import { EMAIL_SUBJECTS, agencyInviteEmail } from "@/server/email-templates";
+import crypto from "node:crypto";
 
 export const runtime = "nodejs";
 
@@ -49,12 +53,15 @@ export const POST = apiHandler(async (req, context) => {
     }
   }
 
+  // Head membership for invite attribution (creator's own membership when
+  // they have one — agents creating their own agency, or the admin's).
+  let headMembershipId: string | null = context.membership?.id ?? null;
+
   const agency = await transaction(async (client) => {
     const agencyRow = await agencies.create({
       name: body.name,
       slug: body.slug,
-    }, client);
-    // Every head needs an agent row too — otherwise they never appear in the
+    }, client);    // Every head needs an agent row too — otherwise they never appear in the
     // agents list and can never take calls (the old flow created memberships
     // only, stranding fresh heads).
     const ensureAgentRow = async (membershipId: string) => {
@@ -84,6 +91,7 @@ export const POST = apiHandler(async (req, context) => {
       );
       await client.query(`UPDATE "user" SET role = 'agent' WHERE id = $1`, [context.user!.id]);
       await ensureAgentRow(context.membership.id);
+      headMembershipId = context.membership.id;
     } else if (isAgent && context.user) {
       // Brand-new account with no membership yet: create one as head.
       // Heads are agents (Phase 5) — headship lives in head_membership_id,
@@ -99,9 +107,45 @@ export const POST = apiHandler(async (req, context) => {
       );
       await client.query(`UPDATE "user" SET role = 'agent' WHERE id = $1`, [context.user.id]);
       await ensureAgentRow(m.rows[0].id);
+      headMembershipId = m.rows[0].id as string;
     }
     return agencyRow;
   });
 
-  return created(agency, isAgent ? "Agency created — you are now the agency head" : "Agency created");
+  // Invite teammates while creating (best-effort — email failures never fail
+  // the creation; the head can re-invite from Recruit/Membership later).
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const inviteSummary = { sent: 0, failed: [] as string[] };
+  const inviteEmails = [...new Set((body.invites ?? []).map((i) => i.email.trim().toLowerCase()).filter(Boolean))];
+  const validEmails = inviteEmails.filter((e) => EMAIL_RE.test(e));
+  inviteSummary.failed.push(...inviteEmails.filter((e) => !EMAIL_RE.test(e)));
+  if (validEmails.length > 0 && headMembershipId) {
+    const origin = getAppBaseUrl(new URL(req.url).origin);
+    for (const email of validEmails) {
+      try {
+        const token = crypto.randomBytes(24).toString("hex");
+        await recruitmentInvites.create({
+          inviter_membership_id: headMembershipId,
+          invitee_email: email,
+          token,
+          sub_agency_id: null,
+          agency_id: agency.id,
+        });
+        await sendEmail({
+          to: email,
+          subject: EMAIL_SUBJECTS.agencyInvite,
+          html: agencyInviteEmail(`${origin}/register?invite=${token}`),
+        });
+        inviteSummary.sent++;
+      } catch {
+        inviteSummary.failed.push(email);
+      }
+    }
+  } else if (validEmails.length > 0) {
+    // No membership to attribute invites to (shouldn't happen — every
+    // creator path above sets one, but fail loud in data, not silent).
+    inviteSummary.failed.push(...validEmails);
+  }
+
+  return created({ ...agency, invites: inviteSummary }, isAgent ? "Agency created — you are now the agency head" : "Agency created");
 }, { resource: "agency", action: "create" });

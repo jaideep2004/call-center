@@ -210,6 +210,27 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     setTimeout(() => { setCallState("idle"); setIncoming(null); setActiveCallId(null); }, 3000);
   });
 
+  // Flash the browser tab title on incoming calls so minimized/background
+  // tabs get noticed (browsers block window.focus(); title + ringtone is the
+  // standard). Stops the moment the call leaves ringing.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const original = document.title;
+    if (callState !== "ringing") {
+      if (original.startsWith("📞")) document.title = original.replace(/^📞 (Incoming call! ?)+/, "");
+      return;
+    }
+    let visible = false;
+    const id = setInterval(() => {
+      visible = !visible;
+      document.title = visible ? "📞 Incoming call! " + original : original;
+    }, 1000);
+    return () => {
+      clearInterval(id);
+      document.title = original;
+    };
+  }, [callState]);
+
   useEffect(() => {
     if (!agentId || callState !== "idle") return;
     addDebug(`Polling started (agent=${agentId.slice(0,8)})`);
@@ -272,8 +293,10 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   // Fallback: poll call state so the UI recovers when transitions arrive
   // without socket events — connected promotes, terminal states (missed /
   // ended / failed) clear a stuck "connecting" popup instead of spinning.
+  // Also runs while "connected": a dropped socket can otherwise leave the
+  // softphone showing a live call forever after the customer hangs up.
   useEffect(() => {
-    if (!agentId || callState !== "connecting") return;
+    if (!agentId || (callState !== "connecting" && callState !== "connected")) return;
     const targetId = activeCallId || incoming?.callId || null;
     addDebug(`Connect-poll started (agent=${agentId.slice(0,8)})`);
     let pollCount = 0;

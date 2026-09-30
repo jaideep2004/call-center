@@ -73,7 +73,11 @@ export class LeadRepository extends BaseRepository<LeadRow> {
     if (search) { values.push(`%${search}%`); where.push(`(l.email_hash::text LIKE ${nextParam()} OR l.phone_hash::text LIKE ${nextParam()})`); }
     if (status) { values.push(status); where.push(`l.status = $${values.length}`); }
     if (source) { values.push(source); where.push(`l.source = $${values.length}`); }
-    if (assignedAgentId) { values.push(assignedAgentId); where.push(`l.assigned_agent_id = $${values.length}`); }
+    // "unassigned" powers the agent claim pool (free-claim now; a wallet
+    // charge can gate the claim route later without list changes).
+    if (assignedAgentId === "unassigned") {
+      where.push(`l.assigned_agent_id IS NULL`);
+    } else if (assignedAgentId) { values.push(assignedAgentId); where.push(`l.assigned_agent_id = $${values.length}`); }
     if (startDate) { values.push(startDate); where.push(`l.created_at >= $${values.length}`); }
     if (endDate) { values.push(endDate); where.push(`l.created_at <= $${values.length}`); }
 

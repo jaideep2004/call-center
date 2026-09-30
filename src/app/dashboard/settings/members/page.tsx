@@ -27,6 +27,7 @@ function MembersInner() {
 
   const [members, setMembers] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
+  const [agentsMap, setAgentsMap] = useState<Record<string, { name: string; email: string }>>({});
   // Admin is platform-level: this agency-scoped tab redirects to the platform view.
   const [roleChecked, setRoleChecked] = useState(false);
   // Phone Numbers is head-managed infra — hidden here for plain agents.
@@ -68,6 +69,18 @@ function MembersInner() {
       showToast("Network error loading members", "error");
       setLoading(false);
     });
+    // Names for member rows (agents endpoint carries the joined user identity;
+    // heads can read it, unlike the users endpoint).
+    fetch("/api/v1/agents?limit=100").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        const map: Record<string, { name: string; email: string }> = {};
+        for (const a of (body.data ?? []) as any[]) {
+          if (a.membership_id) map[a.membership_id] = { name: a.user_name ?? "", email: a.user_email ?? "" };
+        }
+        setAgentsMap(map);
+      }
+    }).catch(() => {});
   }, [roleChecked]);
 
   useEffect(() => {
@@ -132,16 +145,36 @@ function MembersInner() {
     if (roleFilter) rows = rows.filter((m) => m.role === roleFilter);
     if (debouncedQ) {
       const q = debouncedQ;
-      rows = rows.filter((m) => m.user_id.toLowerCase().includes(q) || m.role.toLowerCase().includes(q) || m.status.toLowerCase().includes(q));
+      rows = rows.filter((m) => {
+        const info = agentsMap[m.id];
+        return (
+          m.user_id.toLowerCase().includes(q) ||
+          m.role.toLowerCase().includes(q) ||
+          m.status.toLowerCase().includes(q) ||
+          (info?.name ?? "").toLowerCase().includes(q) ||
+          (info?.email ?? "").toLowerCase().includes(q)
+        );
+      });
     }
     return rows;
-  }, [members, debouncedQ, roleFilter]);
+  }, [members, debouncedQ, roleFilter, agentsMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
   const columns: Column<Membership>[] = [
-    { key: "user_id", header: "User ID", render: (m) => <span className="text-mono-sm">{m.user_id.slice(0, 12)}</span> },
+    { key: "user_id", header: "Member", render: (m) => {
+      const info = agentsMap[m.id];
+      if (info?.name || info?.email) {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontWeight: 500 }}>{info.name || info.email}</span>
+            {info.name && info.email && <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11 }}>{info.email}</span>}
+          </div>
+        );
+      }
+      return <span className="text-mono-sm" title={m.user_id}>{m.user_id.slice(0, 12)}</span>;
+    } },
     {
       key: "role", header: "Role",
       render: (m) => (

@@ -17,6 +17,11 @@ vi.mock("@/server/repositories", () => ({
   agencies: { create: agenciesCreateMock },
   agents: { findByMembershipId: findAgentMock, findByUserId: findUserAgentMock },
   systemSettings: { getBoolean: getBooleanMock },
+  recruitmentInvites: { create: vi.fn(async () => ({ id: "inv-1" })) },
+}));
+
+vi.mock("@/server/email", () => ({
+  sendEmail: vi.fn(async () => ({})),
 }));
 
 vi.mock("@/server/db", () => ({
@@ -130,5 +135,48 @@ describe("POST /api/v1/agencies leave-and-create (Phase 3, point 6)", () => {
     const sqls = clientQueryMock.mock.calls.map((c) => c[0]);
     expect(sqls.some((s) => s.includes("UPDATE app.agents SET agency_id"))).toBe(true);
     expect(sqls.some((s) => s.includes("INSERT INTO app.agents"))).toBe(false);
+  });
+
+  it("sends invites to teammates while creating (deduped)", async () => {
+    const { recruitmentInvites } = await import("@/server/repositories");
+    const { sendEmail } = await import("@/server/email");
+    const res = await route.POST(
+      req({ name: "New Co", slug: "new-co", leaveAgency: true, invites: [{ email: "a@x.com" }, { email: "A@x.com" }] }),
+      ctx,
+    );
+    expect(res.status).toBe(201);
+    expect(vi.mocked(recruitmentInvites.create)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(recruitmentInvites.create)).toHaveBeenCalledWith(
+      expect.objectContaining({ invitee_email: "a@x.com", agency_id: "agency-2" }),
+    );
+    expect(vi.mocked(sendEmail)).toHaveBeenCalledTimes(1);
+    const body = (await res.json()) as { data?: { invites?: { sent: number } } };
+    expect(body.data?.invites?.sent).toBe(1);
+  });
+
+  it("creation succeeds even when invite email fails", async () => {
+    const { sendEmail } = await import("@/server/email");
+    vi.mocked(sendEmail).mockRejectedValueOnce(new Error("smtp down"));
+    const res = await route.POST(
+      req({ name: "New Co", slug: "new-co", leaveAgency: true, invites: [{ email: "a@x.com" }] }),
+      ctx,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { data?: { invites?: { sent: number; failed: string[] } } };
+    expect(body.data?.invites?.sent).toBe(0);
+    expect(body.data?.invites?.failed).toEqual(["a@x.com"]);
+  });
+
+  it("skips malformed emails without failing creation", async () => {
+    const { recruitmentInvites } = await import("@/server/repositories");
+    const res = await route.POST(
+      req({ name: "New Co", slug: "new-co", leaveAgency: true, invites: [{ email: "not-an-email" }, { email: "ok@x.com" }] }),
+      ctx,
+    );
+    expect(res.status).toBe(201);
+    expect(vi.mocked(recruitmentInvites.create)).toHaveBeenCalledTimes(1);
+    const body = (await res.json()) as { data?: { invites?: { sent: number; failed: string[] } } };
+    expect(body.data?.invites?.sent).toBe(1);
+    expect(body.data?.invites?.failed).toEqual(["not-an-email"]);
   });
 });

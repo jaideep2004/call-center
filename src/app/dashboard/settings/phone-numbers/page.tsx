@@ -210,6 +210,9 @@ function PhoneNumbersInner() {
         <Modal label="Add new number" onClose={() => setShowForm(false)}>
         <form onSubmit={handleAdd} className="card" style={{ padding: "var(--space-5)", width: "min(560px, 100%)" }}>
           <h3 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-3)" }}>Add new number</h3>
+          <p className="text-muted" style={{ fontSize: 11, margin: "0 0 var(--space-3)", lineHeight: 1.5 }}>
+            One number lives on one campaign at a time. To reuse a number, move it from the list below instead of adding it again.
+          </p>
           <div className="split" style={{ gap: "var(--space-3)", alignItems: "end", flexWrap: "wrap" } as React.CSSProperties}>
             <div className="form-group" style={{ flex: 2, minWidth: 160 }}>
               <label className="form-label">Phone number</label>

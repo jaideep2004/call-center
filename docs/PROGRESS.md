@@ -568,3 +568,65 @@ pm run build to avoid re-corrupting dev types.
 - Cause: prod deployed escrow code without migration 0068; every inbound webhook crashed on missing column. Guard added: 42703 retries without escrow (calls flow, numbers stay masked until migrate). Regression test added.
 - Tests: tsc 0, full vitest 126 files 908 passed | 5 skipped, build green.
 
+
+## 2026-09-30 - assistant - REVIEW skew-proofing + SUPABASE security flags
+- Skew review: Dockerfile builds without migrate and CMD starts without it - root process cause of outage. Added /api/v1/health migrations_pending warning + guide deploy checklist (§8). Escrow 42703 guard already shipped.
+- Security probe on live DB: 11 tables w/o RLS (incl. our new payment_reversals + better-auth public tables); only Supabase-managed SECURITY DEFINER fns. Migration 0070 enables RLS on all flagged tables (deny-by-default; app uses owner pool, unaffected).
+- Tests: tsc 0, vitest 126 files 908 passed | 5 skipped, build green, migrations 0001-0070 lint ok (0070 pending).
+
+
+## 2026-09-30 - assistant - candidates=0 + literal-backslash-u display bug
+- Live-data proof: agency match exact, rotation works, findAvailable returns Jai+Zulkar now; 11:37 miss had 0 candidates = transient ineligibility, not router bug. False alarm on probe typo (wrong UUID tail) documented.
+- Fixed pre-existing display bug: JSX text '>\\u2014<' rendered literally in Agent columns (calls/campaigns/leads) -> real em-dash.
+- Tests: tsc 0, vitest full suite green.
+
+
+## 2026-09-30 - assistant - ROOT CAUSE missed calls: lone assignment to suspended agent
+- Live-data proof: campaign 8585b81f has exactly 1 assignment row -> agent e526260d (RICHARD, suspended+offline). hasAssignments=true makes routing assigned-only; Jai/Zulkar/Solar all filtered pre-reasons -> candidates=0 -> instant hangup -> missed. Worked 29th because no assignment row existed (open routing).
+- Fix is config: remove Richard-only assignment (or add live agents) on Assignments tab. Code behaves as designed; offered hold-retry + assigned-ineligible warning banner.
+
+
+## 2026-09-30 - assistant - build SHA in health (deploy traceability)
+- scripts/write-version.cjs runs in npm run build -> src/generated/version.json (gitignored); /api/v1/health reports build.sha/branch/at so 'is prod current?' is one URL check.
+- Verified HEAD contains surviving-leg cancel fix; cancel primitive = Telnyx hangup (works on answered legs).
+- Tests: tsc 0, orchestrator 30/30, build green.
+
+
+## 2026-09-30 - assistant - softphone stuck-connected poll + agency Q verification
+- Softphone connect-poll now also runs while connected: missed socket call:ended can no longer leave UI live forever; terminal states clear to ended view.
+- Verified client claims: no lead purchase flow exists; agency creation has no invite step; single-membership enforced (leave-to-create); personal top-up needs membership (any agency), pool/transfers need head.
+- Tests: tsc 0, build green.
+
+
+## 2026-09-30 - assistant - INVITE-during-creation + LEAD claim pool (client pts 1-2)
+- Invites: POST agencies accepts invites[<=20 emails] (deduped, best-effort mail, summary in response); both creation forms (admin new + settings x2) have teammate textarea.
+- Claim pool: leads list Unassigned-pool filter (API unassigned=IS NULL) + Claim button; POST claim atomic single-statement, own-profile only, 409 on race; paid-per-lead can gate the claim route later.
+- Guide updated (§3.5, agency new). Tests: tsc 0, vitest 127 files 915 passed | 5 skipped (7 new), build green.
+
+
+## 2026-09-30 - assistant - THOROUGH re-verification (invite + claim)
+- Adversarial pass found+fixed 3: export ignored unassigned filter (empty file bug); one bad email 400d whole agency creation (now per-email skip+report); silent invite skip when unattributable (now failed-listed + warning toasts).
+- Verified: schema defaults exist; only 2 POST callers (both updated); matrix grants agents leads:view; publishers blocked; admin claim guided to dropdown; no migration needed (existing tables/columns only).
+- Tests: tsc 0, vitest 127 files 916 passed | 5 skipped, build green, migrations lint ok.
+
+
+## 2026-09-30 - assistant - NAMES everywhere + numbers UX + tutorial roadmap
+- Names replace raw IDs: settings/members, membership (fetch agents map), admin payments (agents+agencies maps), wallet ledger (agent map), agent title (email fallback), fees (users enrichment).
+- Numbers: POST 409 names current campaign (any-status incl. disabled), spare-pool claim-in-place, race-safe retry message, popup hint; repo findByE164AnyStatus.
+- Duplicate scan: zero exact dupes (users/agencies/publisher emails - 0066 safe); 7 test agencies each with a member, 3 holding $250 wallet entries - NOT deleted, needs per-item confirm.
+- Docs: CLIENT_TUTORIAL_ROADMAP.md (6 sessions + compat notes); guide number rule. Compat: all edits additive/widening; needs migrate 0070 only.
+- Tests: tsc 0, vitest 128 files 925 passed | 5 skipped (4 new), build green, migrations 0001-0070 lint ok.
+
+
+## 2026-10-01 - assistant - deletions + agency restore + title flash + stale types
+- Deleted 3 users (Jai 20 calls/131 events/6 recordings/1 sub/1 fee/1 ticket; Temp-DLT sub+wallet; 1ST Agent) with FK-safe ordered script (dry-run first); money rows preserved via nullify; agencies kept (3 now headless).
+- Restored soft-deleted Public Leads agency (live ops agency) -> fixes 00000000 fallback display.
+- Softphone title flash on ringing (browsers block focus; title+ringtone is the mechanism).
+- Recurring stale .next/dev/types validator error (retreaver/ping) fixed by cache clear; tsc clean after.
+- Tests: tsc 0, vitest 925 passed | 5 skipped, build green.
+
+
+## 2026-10-01 - assistant - video tutorial script + agency status check
+- Live settings: allow_agent_agency_creation=true, platform_agency_id UNSET (Option A inactive until admin picks home agency).
+- Wrote docs/CLIENT_VIDEO_TUTORIAL.md (6-part recording script incl. Telnyx numbers rule).
+

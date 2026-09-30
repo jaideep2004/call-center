@@ -24,6 +24,16 @@ export class PhoneNumberRepository extends BaseRepository<PhoneNumberRow> {
     );
   }
 
+  /** Any status (active, disabled, spare): the e164 UNIQUE index spans all
+   * rows, so duplicate checks must use this, not the active-only finder. */
+  async findByE164AnyStatus(e164: string, client?: PoolClient): Promise<PhoneNumberRow | null> {
+    return queryOne<PhoneNumberRow>(
+      "SELECT * FROM app.phone_numbers WHERE e164 = $1",
+      [e164],
+      client,
+    );
+  }
+
   async findByCampaign(campaignId: string, client?: PoolClient): Promise<PhoneNumberRow | null> {
     return queryOne<PhoneNumberRow>(
       "SELECT * FROM app.phone_numbers WHERE campaign_id = $1 AND status = 'active' LIMIT 1",

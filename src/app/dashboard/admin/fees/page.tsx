@@ -49,18 +49,25 @@ function AdminFeesInner() {
 
   // Fetch agent names once (additive, no schema change)
   useEffect(() => {
-    fetch("/api/v1/agents?limit=100")
-      .then(async (res) => {
-        if (!res.ok) return;
-        const body = await res.json();
-        const rows: Array<{ id: string; user_name?: string; user_email?: string; membership_id?: string }> = body.data ?? body ?? [];
-        const map: Record<string, string> = {};
-        for (const a of rows) {
-          if (a.id) map[a.id] = a.user_name || a.user_email || a.membership_id?.slice(0, 8) || a.id.slice(0, 8);
-        }
-        setAgentMap(map);
-      })
-      .catch(() => {});
+    Promise.all([
+      fetch("/api/v1/agents?limit=100").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/v1/users").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]).then(([agentsBody, usersBody]) => {
+      const usersById: Record<string, { name: string; email: string }> = {};
+      for (const u of ((usersBody?.data ?? usersBody ?? []) as any[])) {
+        if (u?.id) usersById[u.id] = { name: u.name ?? "", email: u.email ?? "" };
+      }
+      const rows: Array<{ id: string; user_id?: string | null; user_name?: string; user_email?: string; membership_id?: string }> =
+        agentsBody?.data ?? agentsBody ?? [];
+      const map: Record<string, string> = {};
+      for (const a of rows) {
+        if (!a.id) continue;
+        const linked = a.user_id ? usersById[a.user_id] : null;
+        map[a.id] =
+          a.user_name || a.user_email || linked?.name || linked?.email || a.membership_id?.slice(0, 8) || a.id.slice(0, 8);
+      }
+      setAgentMap(map);
+    }).catch(() => {});
   }, []);
 
   const refresh = useCallback(() => {

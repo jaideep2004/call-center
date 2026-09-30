@@ -243,7 +243,7 @@ export default function AgentDetailPage() {
       <div className="dashboard-page-header">
         <div>
           <p className="eyebrow"><i /> OPERATIONS / AGENT</p>
-          <h1>{agent.user_name || `Agent ${agent.membership_id.slice(0, 8)}`}</h1>
+          <h1>{agent.user_name || agent.user_email || `Agent ${agent.membership_id.slice(0, 8)}`}</h1>
         </div>
         <button className="btn btn-secondary" onClick={() => router.push("/dashboard/agents")}>Back</button>
       </div>

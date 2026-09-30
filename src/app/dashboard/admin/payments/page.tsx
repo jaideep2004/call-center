@@ -41,6 +41,8 @@ export default function AdminPaymentsPage() {
   // Live-money totals for the cards — always completed cs_live_* charges,
   // independent of the history table's live/test/all filter below.
   const [liveSummary, setLiveSummary] = useState<{ completed_count: number; total_net_cents: number; total_fees_cents: number } | null>(null);
+  const [agentMap, setAgentMap] = useState<Record<string, string>>({});
+  const [agencyMap, setAgencyMap] = useState<Record<string, string>>({});
 
   const refresh = useCallback(() => {
     fetch(`/api/v1/payments?limit=200&mode=${mode}`).then(async (res) => {
@@ -50,6 +52,27 @@ export default function AdminPaymentsPage() {
       }
       setLoading(false);
     }).catch(() => setLoading(false));
+    // Display names for agent/agency columns (admin can read all three).
+    fetch("/api/v1/agents?limit=100").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        const m: Record<string, string> = {};
+        for (const a of (body.data ?? []) as any[]) {
+          if (a.id) m[a.id] = a.user_name || a.user_email || a.display_code || a.id.slice(0, 8);
+        }
+        setAgentMap(m);
+      }
+    }).catch(() => {});
+    fetch("/api/v1/agencies").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        const m: Record<string, string> = {};
+        for (const a of (body.data ?? []) as any[]) {
+          if (a.id) m[a.id] = a.name || a.slug || a.id.slice(0, 8);
+        }
+        setAgencyMap(m);
+      }
+    }).catch(() => {});
   }, [mode]);
 
   useEffect(refresh, [refresh]);
@@ -137,8 +160,8 @@ export default function AdminPaymentsPage() {
       key: "agent_id", header: "Agent / Agency",
       render: (p) => (
         <span className="text-mono-sm" style={{ fontSize: 11 }}>
-          {p.agent_id ? p.agent_id.slice(0, 8) : "pool/agency"}
-          <span className="text-muted"> · {p.agency_id.slice(0, 8)}</span>
+          {p.agent_id ? (agentMap[p.agent_id] ?? p.agent_id.slice(0, 8)) : "pool/agency"}
+          <span className="text-muted"> · {agencyMap[p.agency_id] ?? p.agency_id.slice(0, 8)}</span>
         </span>
       ),
     },

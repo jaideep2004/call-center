@@ -8,6 +8,7 @@ export default function NewAgencyPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [inviteEmails, setInviteEmails] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,14 +23,25 @@ export default function NewAgencyPage() {
     setSaving(true);
     setError("");
     try {
+      const invites = [...new Set(
+        inviteEmails.split(/[\n,;]+/).map((s) => s.trim().toLowerCase()).filter((s) => s.includes("@")),
+      )].slice(0, 20).map((email) => ({ email }));
       const res = await fetch("/api/v1/agencies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug }),
+        body: JSON.stringify({ name, slug, ...(invites.length > 0 ? { invites } : {}) }),
       });
       if (res.ok) {
         const body = await res.json();
-        showToast("Agency created", "success");
+        const sent = body.data?.invites?.sent ?? 0;
+        const failed = body.data?.invites?.failed ?? [];
+        if (sent > 0 && failed.length === 0) {
+          showToast("Agency created (invites sent)", "success");
+        } else if (sent > 0 || failed.length > 0) {
+          showToast(`Agency created (${sent} invite${sent === 1 ? "" : "s"} sent, ${failed.length} failed)`, "warning");
+        } else {
+          showToast("Agency created", "success");
+        }
         router.push("/dashboard/admin/agencies");
       } else {
         const body = await res.json();
@@ -67,6 +79,12 @@ export default function NewAgencyPage() {
                 <label className="form-label" htmlFor="slug">Slug</label>
                 <input id="slug" className="input" type="text" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. acme-insurance" required />
                 <span className="text-muted text-mono-sm" style={{ fontSize: 10, marginTop: 4, display: "block" }}>Used in URLs and API routes. Must be unique.</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="invites">Invite teammates (optional)</label>
+                <textarea id="invites" className="input" value={inviteEmails} onChange={(e) => setInviteEmails(e.target.value)} placeholder={"One email per line"} rows={3} style={{ resize: "vertical" }} />
+                <span className="text-muted text-mono-sm" style={{ fontSize: 10, marginTop: 4, display: "block" }}>They receive an invite to join this agency.</span>
               </div>
             </section>
           </div>

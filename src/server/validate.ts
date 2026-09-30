@@ -25,6 +25,11 @@ export const createAgencySchema = z.object({
   // Phase 3 (point 6): active members must explicitly confirm leaving their
   // current agency — the membership is moved to the new agency in-txn.
   leaveAgency: z.boolean().optional(),
+  // Invite teammates while creating: emails get agency-scoped invites once
+  // the agency exists (best-effort — creation never fails over email).
+  // Loose strings here: each address is validated individually in the route
+  // and bad ones are reported (never 400 the whole creation over a typo).
+  invites: z.array(z.object({ email: z.string().max(255) })).max(20).optional(),
 });
 
 export const updateAgencySchema = z.object({

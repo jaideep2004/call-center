@@ -210,6 +210,8 @@ function StripeIntegrationCard() {
 }
 export default function AdminSystemSettingsPage() {
   const [allowCreation, setAllowCreation] = useState(false);
+  const [platformAgencyId, setPlatformAgencyId] = useState<string>("");
+  const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -218,9 +220,16 @@ export default function AdminSystemSettingsPage() {
       if (res.ok) {
         const body = await res.json();
         setAllowCreation(body.data?.allow_agent_agency_creation ?? false);
+        setPlatformAgencyId(body.data?.platform_agency_id ?? "");
       }
       setLoading(false);
     }).catch(() => setLoading(false));
+    fetch("/api/v1/agencies").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setAgencies(((body.data ?? []) as any[]).map((a) => ({ id: a.id, name: a.name ?? a.slug ?? a.id.slice(0, 8) })));
+      }
+    }).catch(() => {});
   }, []);
 
   async function handleSave() {
@@ -229,7 +238,7 @@ export default function AdminSystemSettingsPage() {
       const res = await fetch("/api/v1/settings/system", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allow_agent_agency_creation: allowCreation }),
+        body: JSON.stringify({ allow_agent_agency_creation: allowCreation, platform_agency_id: platformAgencyId || null }),
       });
       if (res.ok) {
         showToast("System settings saved", "success");
@@ -309,6 +318,23 @@ export default function AdminSystemSettingsPage() {
               </button>
             </div>
             <p className="text-muted" style={{ fontSize:11, margin:"10px 0 0", lineHeight:1.5 }}>Heads manage members via Settings → Members. Change takes effect immediately.</p>
+          </section>
+
+          <section className="card card--spacious" style={{ padding:18, marginTop:16 }}>
+            <h2 className="settings-card-title" style={{ fontSize:14 }}>Platform home agency</h2>
+            <p className="settings-card-sub">Solo agents approved with no team auto-join this agency — they can fund, subscribe and take calls without creating one. Teams and invites are unaffected.</p>
+            <div style={{ marginTop:14 }}>
+              <label className="settings-label">Home agency</label>
+              <select className="input" value={platformAgencyId} onChange={(e) => setPlatformAgencyId(e.target.value)} style={{ minHeight:42 }}>
+                <option value="">Not set (approval only, as before)</option>
+                {agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div style={{ marginTop:14, display: "flex", justifyContent: "flex-end" }}>
+              <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving} style={{ minWidth:110, minHeight:36 }}>
+                {saving ? <span className="spinner" /> : "Save setting"}
+              </button>
+            </div>
           </section>
 
           <section className="card" style={{ padding:16, background:"linear-gradient(135deg, rgba(168,85,247,.10), rgba(255,255,255,.02))", borderColor:"rgba(168,85,247,.16)" }}>
