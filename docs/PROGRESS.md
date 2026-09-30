@@ -563,3 +563,8 @@ pm run build to avoid re-corrupting dev types.
 - Note: remote DB has 0066+0067 applied; 0068+0069 pending migrate.
 - Tests: tsc 0, full vitest 126 files 907 passed | 5 skipped (7 new), build green, migrations 0001-0069 lint ok.
 
+
+## 2026-09-26 - assistant - OUTAGE no calls connecting (migration 0068 skew)
+- Cause: prod deployed escrow code without migration 0068; every inbound webhook crashed on missing column. Guard added: 42703 retries without escrow (calls flow, numbers stay masked until migrate). Regression test added.
+- Tests: tsc 0, full vitest 126 files 908 passed | 5 skipped, build green.
+

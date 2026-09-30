@@ -125,7 +125,8 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
         provider: event.provider,
         provider_call_id: event.providerCallId,
       }, client);
-      call = await calls.updateState(call.id, "received", resolvedAgencyId, {
+      const createdCallId = call.id;
+      call = await calls.updateState(createdCallId, "received", resolvedAgencyId, {
         from_hash: fromHash,
         to_number: event.to ?? null,
         caller_state: callerState,
@@ -133,7 +134,21 @@ export async function processProviderEvent(event: NormalizedProviderEvent) {
         // Encrypted escrow: enables post-buffer reveal to entitled viewers.
         // Best-effort — a crypto failure must never fail inbound.
         caller_number_encrypted: escrowCallerNumber(event.from),
-      }, client);
+      }, client).catch(async (e: unknown) => {
+        // Migration-skew guard: if the deploy ran ahead of migration 0068,
+        // the column doesn't exist yet (42703) — retry without the escrow
+        // rather than dropping the caller's call entirely.
+        if ((e as { code?: string })?.code === "42703") {
+          console.warn("[inbound] caller_number_encrypted missing (run npm run migrate) — continuing without escrow");
+          return calls.updateState(createdCallId, "received", resolvedAgencyId, {
+            from_hash: fromHash,
+            to_number: event.to ?? null,
+            caller_state: callerState,
+            started_at: event.occurredAt,
+          }, client);
+        }
+        throw e;
+      });
 
       // Let the answer finish in the background while routing proceeds.
       void answerPromise;

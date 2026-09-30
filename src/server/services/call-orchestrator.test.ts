@@ -339,8 +339,33 @@ describe("processProviderEvent — agent leg handling", () => {
     expect(result).toBeNull();
   });
 
-  it("still creates calls for genuine inbound events (regression)", async () => {
+  it("survives a missing escrow column (deploy ahead of migration 0068)", async () => {
     findByProviderCallIdMock.mockResolvedValue(null);
+    findByE164Mock.mockResolvedValue({
+      id: "n1", agency_id: "agency-1", campaign_id: "campaign-1",
+      provider: "telnyx", e164: "+15559876543", status: "active",
+    });
+    createMock.mockResolvedValue(makeCall({ provider_call_id: "caller-leg-9" }));
+    findByIdMock.mockResolvedValue(makeCall({ provider_call_id: "caller-leg-9", state: "routing" }));
+    const skew = new Error('column "caller_number_encrypted" of relation "calls" does not exist');
+    (skew as { code?: string }).code = "42703";
+    updateStateMock.mockRejectedValueOnce(skew);
+
+    const result = await processProviderEvent({
+      provider: "mock", eventId: "evt-skew", type: "inbound",
+      providerCallId: "caller-leg-9", occurredAt: "2026-01-01T00:00:00Z",
+      from: "+15551234567", to: "+15559876543", raw: {},
+    });
+
+    // Retried without the escrow field instead of dropping the call.
+    const noEscrowCall = updateStateMock.mock.calls.find(
+      (c) => (c[1] as string) === "received" && !("caller_number_encrypted" in ((c[3] ?? {}) as object)),
+    );
+    expect(noEscrowCall).toBeTruthy();
+    expect(result).toBeTruthy();
+  });
+
+  it("still creates calls for genuine inbound events (regression)", async () => {    findByProviderCallIdMock.mockResolvedValue(null);
     findByE164Mock.mockResolvedValue({
       id: "n1", agency_id: "agency-1", campaign_id: "campaign-1",
       provider: "telnyx", e164: "+15559876543", status: "active",
