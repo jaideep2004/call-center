@@ -36,7 +36,7 @@ describe("GET /api/v1/realtime/url", () => {
     const res = await get("https://coveragecalls.com/api/v1/realtime/url", { host: "coveragecalls.com" });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.data).toEqual({ url: "https://coveragecalls.com:3002" });
+    expect(body.data).toEqual({ url: "https://coveragecalls.com:3002", sameOrigin: false });
   });
 
   it("prefers the GATEWAY_URL port when set", async () => {
@@ -44,7 +44,7 @@ describe("GET /api/v1/realtime/url", () => {
     process.env.REALTIME_PORT = "3001";
     const res = await get("https://coveragecalls.com/api/v1/realtime/url", { host: "coveragecalls.com" });
     const body = await res.json();
-    expect(body.data).toEqual({ url: "https://coveragecalls.com:3002" });
+    expect(body.data).toEqual({ url: "https://coveragecalls.com:3002", sameOrigin: false });
     expect(gatewayPort()).toBe(3002);
   });
 
@@ -54,7 +54,22 @@ describe("GET /api/v1/realtime/url", () => {
       "x-forwarded-proto": "https",
     });
     const body = await res.json();
-    expect(body.data).toEqual({ url: "https://coveragecalls.com:3001" });
+    expect(body.data).toEqual({ url: "https://coveragecalls.com:3001", sameOrigin: false });
+  });
+
+  it("returns the bare page origin in REALTIME_SAME_ORIGIN mode (nginx socket proxy)", async () => {
+    process.env.REALTIME_SAME_ORIGIN = "1";
+    process.env.REALTIME_PORT = "3002";
+    try {
+      const res = await get("http://127.0.0.1:30001/api/v1/realtime/url", {
+        "x-forwarded-host": "coveragecalls.com",
+        "x-forwarded-proto": "https",
+      });
+      const body = await res.json();
+      expect(body.data).toEqual({ url: "https://coveragecalls.com", sameOrigin: true });
+    } finally {
+      delete process.env.REALTIME_SAME_ORIGIN;
+    }
   });
 
   it("falls back to port 3001 on garbage env", async () => {

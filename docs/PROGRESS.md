@@ -703,3 +703,8 @@ pm run build to avoid re-corrupting dev types.
 - Hardened routeCall observability: log line + routing_snapshot now carry excludedCount, so single-agent misses read as "the only agent didn't pick up" instead of looking like "nobody assigned".
 - Tests: typecheck 0 - vitest 960 passed | 5 skipped (134 files).
 
+## 2026-10-02 - assistant - FIREWALL KILLS GATEWAY PORT (same-origin socket proxy)
+- Browser test proved it: coveragecalls.com:3002 unreachable (site can't be reached) — VPS firewall exposes web ports only, so no browser could ever reach the gateway; routing/dialing/recording all worked, only gateway->browser popups died.
+- Fix: REALTIME_SAME_ORIGIN=1 mode on /api/v1/realtime/url returns the bare page origin (no port); nginx location /socket.io/ proxies to 127.0.0.1:3002 with websocket upgrade. Zero client rebuild (useSocket already fetches the endpoint at runtime). No firewall change, no mixed-content risk.
+- Tests: typecheck 0 - vitest 961 passed | 5 skipped (134 files, +1 same-origin).
+

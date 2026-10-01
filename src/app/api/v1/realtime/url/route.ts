@@ -18,10 +18,18 @@ export function gatewayPort(): number {
 
 /**
  * GET /api/v1/realtime/url — public, no secrets. Tells the browser where the
- * realtime gateway actually listens RIGHT NOW (same host as this request +
- * the gateway port). This is what makes call popups work after a port/env
- * change with zero client rebuild: NEXT_PUBLIC_REALTIME_URL baked at build
- * time goes stale (the :3001-vs-:3002 outage), this never does.
+ * realtime gateway actually listens RIGHT NOW. Two modes:
+ *
+ * - Default: same host as this request + the gateway port (direct connect).
+ *   Needs the gateway port reachable from the internet.
+ * - `REALTIME_SAME_ORIGIN=1`: the page origin itself (no port). Use with an
+ *   nginx `location /socket.io/` proxy to the gateway. Survives firewalls
+ *   that only allow 80/443, and can never hit mixed-content blocks. This is
+ *   the recommended production setup.
+ *
+ * Either way the browser learns the URL at runtime with zero client rebuild:
+ * NEXT_PUBLIC_REALTIME_URL baked at build time goes stale (the :3001-vs-:3002
+ * outage), this never does.
  */
 export const GET = publicApiHandler(async (req) => {
   const hostHeader = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
@@ -29,5 +37,8 @@ export const GET = publicApiHandler(async (req) => {
   const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim()
     || new URL(req.url).protocol.replace(":", "")
     || "https";
-  return ok({ url: `${proto}://${host}:${gatewayPort()}` });
+  if (process.env.REALTIME_SAME_ORIGIN === "1") {
+    return ok({ url: `${proto}://${host}`, sameOrigin: true });
+  }
+  return ok({ url: `${proto}://${host}:${gatewayPort()}`, sameOrigin: false });
 });
