@@ -540,7 +540,7 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
 
   const result = selectAgent(candidates, routingRequest);
 
-  console.log(`[routeCall] call=${callId.slice(0,8)} agency=${call.agency_id.slice(0,8)} candidates=${candidates.length} eligible=${candidates.length - Object.keys(result.rejected).length} selected=${result.selected?.id?.slice(0,8) ?? "none"} rejected=${JSON.stringify(Object.entries(result.rejected).map(([id, reasons]) => ({id: id.slice(0,8), reasons})))} campaign=${campaign?.id?.slice(0,8) ?? "none"} strategy=${routingRequest.strategy}`);
+  console.log(`[routeCall] call=${callId.slice(0,8)} agency=${call.agency_id.slice(0,8)} candidates=${candidates.length} eligible=${candidates.length - Object.keys(result.rejected).length} selected=${result.selected?.id?.slice(0,8) ?? "none"} excluded=${excludeAgentIds?.length ?? 0} rejected=${JSON.stringify(Object.entries(result.rejected).map(([id, reasons]) => ({id: id.slice(0,8), reasons})))} campaign=${campaign?.id?.slice(0,8) ?? "none"} strategy=${routingRequest.strategy}`);
 
   const snapshot = {
     strategy: routingRequest.strategy,
@@ -548,6 +548,10 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
     rejectedCount: Object.keys(result.rejected).length,
     rejectionReasons: result.rejected,
     candidateCount: candidates.length,
+    // Agents skipped because they already failed this call (failover). When a
+    // single-agent campaign misses, this shows excludedCount=1/candidateCount=0
+    // — i.e. "the only agent didn't pick up", not "nobody is assigned".
+    excludedCount: excludeAgentIds?.length ?? 0,
     triedAgentIds: excludeAgentIds ?? (call.routing_snapshot?.triedAgentIds as string[] | undefined) ?? [],
     timestamp: new Date().toISOString(),
   };

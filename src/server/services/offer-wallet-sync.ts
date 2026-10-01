@@ -67,6 +67,7 @@ export async function syncOfferWalletPauses(agencyId?: string): Promise<OfferWal
     const fundedAgentId = await findRoutableAgentId({
       agencyId: offer.agency_id,
       agencyIds: agencyScope,
+      platformWide: agencyScope === undefined,
       campaignId: offer.id,
       state: null,
       priceCents: bidCents,

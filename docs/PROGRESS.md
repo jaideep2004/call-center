@@ -693,3 +693,13 @@ pm run build to avoid re-corrupting dev types.
 - Note: earlier call cd0238cf shows correct 2-stage failover (72cc4515 -> no-answer -> 01cace0a -> missed); strategy flipped round_robin->priority mid-test = someone editing live.
 - Tests: typecheck 0 - vitest 959 passed | 5 skipped (134 files, +6: assignments scope 4, orchestrator 1, ping 1).
 
+## 2026-10-02 - assistant - OPEN-CAMPAIGN PING PARITY (same bug class, ping path)
+- routeCall searches platform-wide for open campaigns but findRoutableAgentId (ping/eligibility/wallet-sync) searched ONLY the owner agency — ping rejected no_agent_available for calls routeCall would have taken. The agencyIds doc even claimed "omit for open platform-wide", which was false.
+- Fix: NEW platformWide flag (NULL $1 = no agency filter, $N numbering untouched) passed as `platformWide: agencyScope === undefined` from evaluatePing, eligibility (per-offer scope), offer-wallet-sync. Assigned paths unchanged (owner + assigned + agents' agencies).
+- Tests: typecheck 0 - vitest 960 passed | 5 skipped (134 files, +1 ping platform-wide; sync expectation updated).
+
+## 2026-10-02 - assistant - SINGLE-AGENT MISS EXPLAINED + ROUTE LOG HARDENED
+- User's c0d3a54b with one assigned agent: worker found candidates=1, dialed 01cace0a, no pickup in 30s -> failover re-route excluded the only agent -> candidates=0 -> missed. Correct behavior, NOT a bug; snapshot (triedAgentIds=[01cace0a], noEligible) proves it. Popup absence = still-undeployed :3001/:3002 split (old code on VPS).
+- Hardened routeCall observability: log line + routing_snapshot now carry excludedCount, so single-agent misses read as "the only agent didn't pick up" instead of looking like "nobody assigned".
+- Tests: typecheck 0 - vitest 960 passed | 5 skipped (134 files).
+

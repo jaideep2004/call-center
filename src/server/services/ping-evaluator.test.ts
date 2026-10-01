@@ -159,6 +159,18 @@ describe("evaluatePing", () => {
     const [, params] = queryOneMock.mock.calls[1] as [string, unknown[]];
     expect(params[0]).toEqual(expect.arrayContaining(["agency-1", "agency-9"]));
   });
+
+  it("searches platform-wide (NULL agency filter) for open campaigns", async () => {
+    findRoutableAgencyIdsMock.mockResolvedValueOnce(undefined);
+    queryOneMock
+      .mockResolvedValueOnce({ ...activeCampaign, target_states: [] })
+      .mockResolvedValueOnce({ id: "agent-9" });
+    const result = await evaluatePing({ did: "+15550000000", caller: "anonymous" });
+    expect(result).toMatchObject({ decision: "accept", agentId: "agent-9" });
+    const [sql, params] = queryOneMock.mock.calls[1] as [string, unknown[]];
+    expect(sql).toContain("$1::uuid[] IS NULL");
+    expect(params[0]).toBeNull();
+  });
 });
 
 describe("resolveNpaState", () => {

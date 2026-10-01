@@ -58,6 +58,8 @@ describe("syncOfferWalletPauses (P1.4)", () => {
     const result = await syncOfferWalletPauses();
     expect(findRoutableMock).toHaveBeenCalledWith({
       agencyId: "agency-1",
+      agencyIds: undefined,
+      platformWide: true,
       campaignId: "camp-1",
       state: null,
       priceCents: 3500,

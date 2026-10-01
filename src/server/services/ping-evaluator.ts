@@ -116,6 +116,7 @@ export async function evaluatePing(input: {
   const agentId = await findRoutableAgentId({
     agencyId: phone.agency_id,
     agencyIds: agencyScope,
+    platformWide: agencyScope === undefined,
     campaignId: phone.campaign_id,
     state,
     priceCents,
@@ -142,9 +143,17 @@ export async function evaluatePing(input: {
  */
 export async function findRoutableAgentId(input: {
   agencyId: string;
-  /** Extra agencies whose agents may ring (campaign assignments). When
-   * present, the query spans all of them; omit for open platform-wide. */
+  /** Extra agencies whose agents may ring (campaign assignments). Spans the
+   * owner + all of these — but NEVER platform-wide on its own. */
   agencyIds?: string[];
+  /**
+   * Open campaign (no assignments, default visibility): search EVERY agency
+   * platform-wide, exactly like routeCall's findAvailable(undefined). Without
+   * this, ping/eligibility only searched the owner agency while routeCall
+   * searched everywhere — ping rejected calls routeCall would have taken.
+   * Callers pass `platformWide: agencyScope === undefined`.
+   */
+  platformWide?: boolean;
   campaignId: string;
   state: string | null;
   priceCents: number;
@@ -155,7 +164,11 @@ export async function findRoutableAgentId(input: {
    */
   ignoreBusy?: boolean;
 }): Promise<string | null> {
-  const scopeIds = [...new Set([input.agencyId, ...(input.agencyIds ?? [])].filter(Boolean))];
+  // NULL $1 = no agency filter (platform-wide). Kept as a param (rather than
+  // string-interpolating the clause away) so every $N below keeps its number.
+  const scopeIds = input.platformWide
+    ? null
+    : [...new Set([input.agencyId, ...(input.agencyIds ?? [])].filter(Boolean))];
   const params: unknown[] = [scopeIds];
   const clauses: string[] = [];
   if (input.state) {
@@ -193,7 +206,7 @@ export async function findRoutableAgentId(input: {
   const agent = await queryOne<{ id: string }>(
     `SELECT a.id
      FROM app.agents a
-     WHERE a.agency_id = ANY($1::uuid[])
+     WHERE ($1::uuid[] IS NULL OR a.agency_id = ANY($1::uuid[]))
        AND a.approval_status = 'approved'
        AND a.availability = 'available'
        AND a.deleted_at IS NULL

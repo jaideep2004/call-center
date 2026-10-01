@@ -5,6 +5,7 @@ import {
   findRoutableAgentId,
   resolveNpaState,
 } from "@/server/services/ping-evaluator";
+import { findRoutableAgencyIds } from "@/server/repositories/campaign-assignments";
 
 export interface EligibleOffer {
   campaign_id: string;
@@ -135,8 +136,14 @@ export async function getEligibleOffers(input: {
   // after range/margin/state filtering — accuracy first per client).
   await Promise.all(
     survivors.map(async ({ row, bid, payout }) => {
+      // Same scope rule as routeCall/ping: assigned offers search owner +
+      // assigned agencies (+ assigned agents' agencies); open offers search
+      // platform-wide. Never owner-only by default.
+      const agencyScope = await findRoutableAgencyIds(row.campaign_id, row.agency_id).catch(() => undefined);
       const agentId = await findRoutableAgentId({
         agencyId: row.agency_id,
+        agencyIds: agencyScope,
+        platformWide: agencyScope === undefined,
         campaignId: row.campaign_id,
         state: callerState,
         priceCents: bid,
