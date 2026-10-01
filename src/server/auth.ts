@@ -60,6 +60,11 @@ export const auth = betterAuth({
         defaultValue: "agent",
         input: false,
       },
+      phone_number: {
+        type: "string",
+        required: false,
+        input: true,
+      },
     },
   },
   advanced: {

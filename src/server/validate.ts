@@ -128,6 +128,8 @@ export const US_STATE_CODES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA"
 export const updateOwnAgentSchema = z.object({
   availability: z.enum(["offline", "available", "busy", "away"]).optional(),
   states: z.array(z.string()).max(60).optional(),
+  // First-login skills pick (settings page): self-served verticals.
+  skills: z.array(z.string()).max(30).optional(),
 });
 
 export const createCampaignSchema = z.object({

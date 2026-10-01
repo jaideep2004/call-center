@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, FormEvent, Suspense, useId } from "react";
+import { useState, FormEvent, Suspense, useId, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { showToast } from "@/lib/use-toast";
+
+const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
 function RegisterForm() {
   const router = useRouter();
@@ -13,11 +15,45 @@ function RegisterForm() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const errorId = useId();
+  const captchaRef = useRef<HTMLDivElement | null>(null);
+  const captchaWidget = useRef<number | null>(null);
+
+  // reCAPTCHA v2 checkbox (only when a site key is configured).
+  useEffect(() => {
+    if (!RECAPTCHA_SITE_KEY || !captchaRef.current) return;
+    let cancelled = false;
+    const render = () => {
+      const grecaptcha = (window as unknown as { grecaptcha?: { render: (el: HTMLDivElement, opts: object) => number; reset: (id?: number) => void } }).grecaptcha;
+      if (!grecaptcha || cancelled || !captchaRef.current) return;
+      if (captchaWidget.current == null) {
+        captchaWidget.current = grecaptcha.render(captchaRef.current, { sitekey: RECAPTCHA_SITE_KEY });
+      }
+    };
+    if (!(window as unknown as { grecaptcha?: unknown }).grecaptcha) {
+      const script = document.createElement("script");
+      script.src = "https://www.google.com/recaptcha/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      script.onload = render;
+      document.head.appendChild(script);
+    } else {
+      render();
+    }
+    return () => { cancelled = true; };
+  }, []);
+
+  function resetCaptcha() {
+    try {
+      const grecaptcha = (window as unknown as { grecaptcha?: { reset: (id?: number) => void } }).grecaptcha;
+      grecaptcha?.reset(captchaWidget.current ?? undefined);
+    } catch { /* best-effort */ }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -28,18 +64,54 @@ function RegisterForm() {
       showToast(msg, "error");
       return;
     }
+    const cleanPhone = phone.trim();
+    if (cleanPhone && !/^[+\d][\d\s\-().]{5,24}$/.test(cleanPhone)) {
+      const msg = "Enter a valid phone number or leave it blank";
+      setError(msg);
+      showToast(msg, "error");
+      return;
+    }
     setLoading(true);
     try {
+      // Human check first: Google consumes the token on verify, so it proves
+      // this signup and cannot be replayed for another account.
+      if (RECAPTCHA_SITE_KEY) {
+        const grecaptcha = (window as unknown as { grecaptcha?: { getResponse: (id?: number) => string } }).grecaptcha;
+        const token = grecaptcha?.getResponse(captchaWidget.current ?? undefined) ?? "";
+        if (!token) {
+          const msg = "Please complete the captcha";
+          setError(msg);
+          showToast(msg, "error");
+          setLoading(false);
+          return;
+        }
+        const verifyRes = await fetch("/api/v1/auth/verify-captcha", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        if (!verifyRes.ok) {
+          const body = await verifyRes.json().catch(() => ({} as { message?: string }));
+          const msg = body.message ?? "Captcha check failed";
+          setError(msg);
+          showToast(msg, "error");
+          resetCaptcha();
+          setLoading(false);
+          return;
+        }
+      }
       const { error: signUpError } = await authClient.signUp.email({
         name: name.trim(),
         email: email.trim(),
         password,
         callbackURL: "/dashboard",
-      });
+        ...(cleanPhone ? { phone_number: cleanPhone } : {}),
+      } as Parameters<typeof authClient.signUp.email>[0]);
       if (signUpError) {
         const msg = signUpError.message ?? signUpError.statusText ?? "Registration failed";
         setError(msg);
         showToast(msg, "error");
+        resetCaptcha();
         setLoading(false);
         return;
       }
@@ -131,6 +203,26 @@ function RegisterForm() {
         </div>
 
         <div className="form-group">
+          <label className="form-label" htmlFor="phone">
+            Phone number <span className="text-muted">(optional)</span>
+          </label>
+          <input
+            id="phone"
+            name="phone"
+            className="input"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="+1 555 123 4567…"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            aria-required="false"
+          />
+        </div>
+
+        <div className="form-group">
           <label className="form-label" htmlFor="password">
             Password
           </label>
@@ -160,6 +252,12 @@ function RegisterForm() {
           </div>
           <p className="auth-hint">At least 8 characters · Paste allowed</p>
         </div>
+
+        {RECAPTCHA_SITE_KEY ? (
+          <div className="form-group">
+            <div ref={captchaRef} />
+          </div>
+        ) : null}
 
         <button className="btn btn-primary" type="submit" disabled={loading} aria-busy={loading}>
           {loading ? (

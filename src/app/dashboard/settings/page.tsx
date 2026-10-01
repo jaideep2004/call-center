@@ -69,6 +69,123 @@ function AgentStatesSection() {
   return <AgentStatesCard agentId={agentId} />;
 }
 
+function AgentSkillsSection() {
+  const [agentId, setAgentId] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setRole(body.data?.user?.role ?? null);
+        setAgentId(body.data?.agentId ?? null);
+      }
+    }).catch(() => {});
+  }, []);
+  if (role !== "agent") return null;
+  return <AgentSkillsCard agentId={agentId} />;
+}
+
+function AgentSkillsCard({ agentId }: { agentId: string | null }) {
+  const [mine, setMine] = useState<string[]>([]);
+  const [draft, setDraft] = useState<string[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [options, setOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/v1/skills?active=true").then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setOptions(((body.data ?? []) as { name: string }[]).map((s) => s.name));
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!agentId) return;
+    setLoading(true);
+    fetch(`/api/v1/agents/${agentId}`).then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setMine(body.data.skills ?? []);
+        setDraft(body.data.skills ?? []);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [agentId]);
+
+  function toggle(name: string) {
+    setDraft((prev) => prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]);
+  }
+
+  async function save() {
+    if (!agentId) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/v1/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skills: draft }),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setMine(body.data.skills ?? draft);
+        setEditing(false);
+        showToast("Skills updated — campaigns matching your verticals can now route to you", "success");
+      } else {
+        const body = await res.json();
+        showToast(body.message ?? "Failed to update skills", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!agentId) return null;
+  if (loading) return <div className="card card--spacious" style={{ padding:18 }}><div className="skeleton skeleton-text" /></div>;
+
+  return (
+    <section className="card card--spacious" style={{ padding:18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap:12 }}>
+        <div>
+          <h2 className="settings-card-title" style={{ fontSize:14 }}>My Skills / Verticals</h2>
+          <p className="settings-card-sub" style={{ marginTop:4 }}>Pick what you sell — campaigns requiring these route to you.</p>
+        </div>
+        {!editing && mine.length === 0 && <span className="badge badge-warning">Pick yours</span>}
+        {!editing && mine.length > 0 && <button className="btn btn-sm btn-secondary" onClick={() => { setDraft([...mine]); setEditing(true); }}>Edit</button>}
+        {editing === false && mine.length === 0 && <button className="btn btn-sm btn-primary" onClick={() => setEditing(true)}>Pick skills</button>}
+      </div>
+      {editing ? (
+        <div style={{ display:"flex", flexDirection:"column", gap:12, marginTop:14 }}>
+          {options.length === 0 ? (
+            <p className="text-muted" style={{ fontSize:12 }}>No skills yet — ask your agency head or admin to add verticals first.</p>
+          ) : (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 220, overflowY: "auto", padding: 10, border: "1px solid var(--line)", borderRadius: 10, background:"rgba(255,255,255,.02)" }}>
+              {options.map((name) => (
+                <button key={name} type="button" className={draft.includes(name) ? "badge badge-success" : "badge"} onClick={() => toggle(name)} style={{ cursor: "pointer", border: 0, fontSize: 11 }}>{name}</button>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, flexWrap:"wrap" }}>
+            <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+            {draft.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setDraft([])}>Clear all</button>}
+          </div>
+        </div>
+      ) : (
+        mine.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop:14 }}>
+            {mine.map((s) => <span key={s} className="badge badge-info" style={{ fontSize:11 }}>{s}</span>)}
+          </div>
+        )
+      )}
+    </section>
+  );
+}
+
 function AgentStatesCard({ agentId }: { agentId: string | null }) {
   const [states, setStates] = useState<string[]>([]);
   const [draft, setDraft] = useState<string[]>([]);
@@ -473,6 +590,7 @@ export default function SettingsPage() {
         <aside className="settings-rail">
           <RoleShortcuts />
           <AgentStatesSection />
+          <AgentSkillsSection />
 
           <section className="card card--spacious" style={{ padding:18 }}>
             <h2 className="settings-card-title" style={{ fontSize:14 }}>Creation Control</h2>

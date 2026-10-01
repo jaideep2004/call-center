@@ -34,6 +34,27 @@ export default function AgencyDetailPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
   const [error, setError] = useState("");
+  const [members, setMembers] = useState<{ id: string; user_id: string; role: string; status: string }[]>([]);
+  const [userMap, setUserMap] = useState<Record<string, { name: string; email: string }>>({});
+
+  useEffect(() => {
+    fetch(`/api/v1/memberships`).then(async (res) => {
+      if (res.ok) {
+        const b = await res.json();
+        setMembers(((b.data ?? []) as { id: string; user_id: string; agency_id: string; role: string; status: string }[]).filter((m) => m.agency_id === id));
+      }
+    }).catch(() => {});
+    fetch(`/api/v1/users`).then(async (res) => {
+      if (res.ok) {
+        const b = await res.json();
+        const map: Record<string, { name: string; email: string }> = {};
+        for (const u of (b.data ?? []) as any[]) {
+          if (u?.id) map[u.id] = { name: u.name ?? "", email: u.email ?? "" };
+        }
+        setUserMap(map);
+      }
+    }).catch(() => {});
+  }, [id]);
 
   useEffect(() => {
     fetch(`/api/v1/agencies/${id}`).then(async (res) => {
@@ -224,6 +245,37 @@ export default function AgencyDetailPage() {
           </div>
         </div>
       </form>
+
+      <section className="card" style={{padding:"var(--space-6)", marginTop:"var(--space-5)"}}>
+        <h2 style={{font:"500 18px var(--serif)", margin:"0 0 4px", letterSpacing:"-0.03em"}}>Members <span className="text-mono-sm" style={{color:"var(--muted)"}}>({members.length})</span></h2>
+        <p className="text-muted" style={{fontSize:11, margin:"0 0 12px"}}>Everyone in this agency. Manage roles in Admin → Users.</p>
+        {members.length === 0 ? (
+          <div className="empty-state"><p>No members yet — invite them with the box above.</p></div>
+        ) : (
+          <div style={{overflowX:"auto"}}>
+            <table className="data-table">
+              <thead><tr><th>Member</th><th>Role</th><th>Status</th></tr></thead>
+              <tbody>
+                {members.map((m) => {
+                  const u = userMap[m.user_id];
+                  return (
+                    <tr key={m.id}>
+                      <td>
+                        <div style={{display:"flex", flexDirection:"column", gap:2}}>
+                          <span style={{fontWeight:500}}>{u?.name || u?.email || m.user_id.slice(0, 8)}</span>
+                          {u?.name && u?.email && <span className="text-mono-sm" style={{color:"var(--muted)", fontSize:11}}>{u.email}</span>}
+                        </div>
+                      </td>
+                      <td><span className="badge">{m.role}</span></td>
+                      <td><span className={`badge${m.status === "active" ? " badge-success" : m.status === "suspended" ? " badge-danger" : ""}`}>{m.status}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

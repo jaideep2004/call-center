@@ -20,6 +20,7 @@ interface UserRow {
   email: string;
   role: string | null;
   createdAt?: string;
+  phone_number?: string | null;
 }
 
 interface AgencyRow {
@@ -200,6 +201,7 @@ export default function AdminUsersPage() {
       out = out.filter((u) =>
         (u.name ?? "").toLowerCase().includes(q) ||
         (u.email ?? "").toLowerCase().includes(q) ||
+        (u.phone_number ?? "").toLowerCase().includes(q) ||
         (u.role ?? "").toLowerCase().includes(q) ||
         u.id.toLowerCase().includes(q),
       );
@@ -331,6 +333,7 @@ export default function AdminUsersPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <span style={{ fontWeight: 500 }}>{u.name || u.email || u.id.slice(0, 8)}</span>
           {u.name && <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11 }}>{u.email}</span>}
+          {u.phone_number && <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11 }}>{u.phone_number}</span>}
           <span className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 10 }} title={u.id}>{u.id.slice(0, 8)}…</span>
         </div>
       ),

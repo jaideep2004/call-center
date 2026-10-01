@@ -356,9 +356,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { toasts, dismiss } = useToast();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => typeof window !== "undefined" && window.localStorage.getItem("cc-sidebar-collapsed") === "1",
-  );
+  // SSR-safe: server renders expanded, the stored preference applies once
+  // mounted. Reading localStorage in the initializer mismatches the server
+  // HTML and throws a hydration error for stored-collapsed users.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("cc-sidebar-collapsed") === "1") setSidebarCollapsed(true);
+    } catch {
+      /* storage unavailable (private mode) — expanded is fine */
+    }
+  }, []);
   function toggleSidebar() {
     setSidebarCollapsed((prev) => {
       const next = !prev;

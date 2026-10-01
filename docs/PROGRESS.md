@@ -654,3 +654,10 @@ pm run build to avoid re-corrupting dev types.
 ## 2026-10-01 - assistant - HOME agency active (Coverage Calls Public Leads)
 - Restored+renamed ...a1, set platform_agency_id. All 3 onboarding paths verified: self-signup approve auto-joins (PATCH hook), admin/member invites place via accept flow, own-agency creation unchanged. Zero existing agents need placement.
 
+
+## 2026-10-01 - assistant - routing PROVEN working via logs; remaining misses are no-answers
+- Log proof: candidates=4/3 with cross-agency selection + failover re-routes (cff05e81 72cc4515->7a5ca7f9; 2451312e 52efd8e2->72cc4515 incl. user's own agent selected once). Misses happen when the selected agent never answers (timeout->exhaust->missed).
+- Auto-pause flap explained: sync pauses when zero fundable agents at that 30s tick (testers toggling online/offline); Retreaver shows line-busy while paused. Not a bug.
+- Note: campaign strategy flips priority<->round_robin between calls = someone editing mid-test. Build error user saw = mid-edit snapshot; current tree builds green.
+- Tests: tsc 0, vitest 934 passed | 5 skipped, build green.
+

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
+import { showToast } from "@/lib/use-toast";
 
 interface Campaign {
   id: string;
@@ -37,6 +38,8 @@ function CampaignsInner() {
   const [sortBy, setSortBy] = useState("created_at");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(null);
   const hasMounted = useRef(false);
 
   const fetchCampaigns = useCallback(async () => {
@@ -80,6 +83,30 @@ function CampaignsInner() {
     else { setSortBy(field); setOrder("desc"); }
   }
 
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/v1/retreaver/campaigns/sync", { method: "POST" });
+      const body = await res.json().catch(() => ({} as { data?: { created?: number; updated?: number; archived?: number }; message?: string }));
+      if (res.ok) {
+        const { created = 0, updated = 0, archived = 0 } = body.data ?? {};
+        const parts = ["Retreaver campaigns synced"];
+        if (created > 0) parts.push(`${created} created`);
+        if (updated > 0) parts.push(`${updated} updated`);
+        if (archived > 0) parts.push(`${archived} archived (deleted in Retreaver)`);
+        showToast(parts.join(" — "), "success");
+        setLastSync(new Date().toLocaleTimeString());
+        fetchCampaigns();
+      } else {
+        showToast(body.message ?? "Campaign sync failed", "error");
+      }
+    } catch {
+      showToast("Network error syncing campaigns", "error");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const columns: Column<Campaign>[] = [
     { key: "name", header: "Name", sortable: true, render: (c) => <span><Link href={`/dashboard/campaigns/${c.id}`} className="clickable" style={{ fontWeight: 500 }}>{c.name}</Link>{c.display_code && <span className="text-mono-sm" style={{ marginLeft: 8, color: "var(--muted)", fontSize: 11 }}>{c.display_code}</span>}</span> },
     { key: "status", header: "Status", sortable: true, render: (c) => <span className={`badge${c.status === "active" ? " badge-success" : c.status === "paused" ? " badge-warning" : c.status === "archived" ? " badge-danger" : ""}`}>{c.status}</span> },
@@ -99,9 +126,13 @@ function CampaignsInner() {
         </div>
         <div className="search-bar">
           <input className="input" type="search" placeholder="Search campaigns..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ minWidth: 220 }} />
+          <button className="btn btn-secondary btn-sm" onClick={handleSync} disabled={syncing} title="Pull latest campaigns, pause states and deletions from Retreaver (also auto-syncs every 10 minutes)">
+            {syncing ? "Syncing…" : "Sync Retreaver"}
+          </button>
           <Link href="/dashboard/campaigns/new" className="btn btn-primary">+ Create</Link>
         </div>
       </div>
+      {lastSync && <p className="text-mono-sm" style={{ color: "var(--muted)", fontSize: 11, margin: "0 0 8px" }}>Last Retreaver sync: {lastSync} · auto-syncs every 10 min</p>}
       <div className="filter-bar">
         <select className="select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 160 }}>
           <option value="">All current</option>

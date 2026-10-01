@@ -31,6 +31,9 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
       return fail("You can only update your own agent profile", 403);
     }
     const body = validate(updateOwnAgentSchema, await req.json());
+    if (body.skills) {
+      body.skills = await assertValidSkills(body.skills);
+    }
     if (body.availability === "available") {
       // Full server checklist (approval + funding + live campaigns +
       // endpoint). Mic+speaker stays client-side (per-browser localStorage,

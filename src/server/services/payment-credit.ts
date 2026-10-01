@@ -157,12 +157,8 @@ export async function creditTopupPayment(
     await payments.markCompleted(payment.id, paymentIntentId, client);
   });
   if (duplicate) return { credited: false };
-  if (kind === "agency-pool") {
-    const { syncOfferWalletPauses } = await import("@/server/services/offer-wallet-sync");
-    void syncOfferWalletPauses(payment.agency_id).catch((e) =>
-      console.warn(`[payment-credit] post-credit sync failed: ${String(e).slice(0, 160)}`),
-    );
-  }
+  // NOTE (client decision): no automatic Retreaver pause/unpause runs after
+  // pool top-ups anymore. Campaigns stay exactly as a human left them.
   // Receipt to the agent + copy to the head. Best-effort, never blocks.
   const { sendWalletTopup } = await import("@/server/services/action-emails");
   void sendWalletTopup({

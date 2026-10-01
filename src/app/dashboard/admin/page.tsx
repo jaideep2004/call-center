@@ -273,14 +273,14 @@ export default function AdminPage() {
           {callActivity && callActivity.length ? (
             <>
             <div className="cc-bars" role="img" aria-label="Call activity grouped bars">
-              {callActivity.map(g=>{
+              {callActivity.map((g, idx)=>{
                 // Pixel heights (not %) — % heights of empty inline elements
                 // collapse to invisible in some browser/style combinations;
                 // px with a 6px floor always paints. Scale to ~110px.
                 const max=Math.max(...callActivity.map(x=>x.total), 1);
                 const px=(v:number)=>Math.max(6, Math.round(v/max*110));
                 return (
-                  <div key={g.label} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:6}}>
+                  <div key={`${g.label}-${idx}`} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:6}}>
                     <div className="cc-bars__group">
                       <i style={{height:px(g.total)}} title={`Total ${g.total}`}/>
                       <i style={{height:px(g.connected)}} title={`Connected ${g.connected}`}/>

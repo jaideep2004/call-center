@@ -34,13 +34,15 @@ Read this top to bottom while screen-recording. Each scene: **SHOW** (where to c
 **SHOW:** Agents → Pending tab → open → Approve.
 
 **SAY:**
-> "Approving does three things now: approves, and if you've set a Platform home agency in System Settings, the agent auto-joins it — funded, subscribable, callable, zero extra steps. Set that home agency once and solo agents never get stuck."
+> "Approving places team-less agents straight into our home agency — Coverage Calls Public Leads — automatically. Funded, subscribable, callable, zero extra steps. Creating your own agency is purely optional, for team-builders only."
+
+**SHOW:** Agency detail page → new Members list at the bottom (everyone inside, with roles/statuses).
 
 **CHECK:** Approve a test agent → Users shows their agency immediately.
 
 ## PART 3 — Admin: campaigns, publishers, calls (7 min)
 
-**SHOW:** Campaigns → New (2 steps) → detail tabs. Emphasize Assignments tab: assigning exactly one suspended agent silences the whole campaign — show the candidate logic using a live call's routing info.
+**SHOW:** Campaigns → New (2 steps) → detail tabs. Note the **Sync Retreaver** button (manual pull; auto-syncs every 10 min anyway). Emphasize Assignments tab: leave it empty = open to every eligible agent platform-wide; mention names = only those. Show the candidate logic using a live call's routing info.
 
 **SAY:**
 > "If calls ever miss with no popup anywhere, open the call and read its routing info — it names the exact gate: busy, wallet, states, assignment. And never assign a campaign to one person who's offline."
@@ -55,12 +57,13 @@ Read this top to bottom while screen-recording. Each scene: **SHOW** (where to c
 ## PART 4 — Agent journey, first click to first call (8 min)
 
 As a fresh test agent, live:
-1. Register → verify → dashboard (profile auto-created).
-2. Subscriptions: plans visible immediately (shared catalog); free Subscribe works with no team; paid unlocks after joining an agency (message says so).
+1. Register (note the new phone field + captcha) → verify → dashboard (profile auto-created).
+2. Settings → **My Skills**: pick your verticals on first login so matching campaigns can route to you.
+3. Subscriptions: plans visible immediately (shared catalog); free Subscribe works with no team; paid unlocks after joining an agency (message says so).
 3. Wallet top-up by card; Pool Wallet for heads (top up → allocate → effective balances).
 4. Leads → Unassigned pool → **Claim** → work it.
 5. Take Calls: checklist → live-campaign toggle → headset → Go Online → incoming tab **flashes + rings** → answer → disposition → notes persist after hangup.
-6. If approved with no team and home agency set: show auto-placement (no agency creation needed). If they want a team: Settings → Create Agency **with invites**.
+6. If approved with no team: show auto-placement into the home agency (no agency creation needed). If they want a team: Settings → Create Agency **with invites**.
 
 **CHECK:** full loop ends with earnings + a revealed caller number on the call.
 

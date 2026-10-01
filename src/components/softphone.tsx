@@ -50,7 +50,7 @@ function formatPhone(raw: string): string {
 }
 
 export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
-  const { socket } = useSocket(membershipId);
+  const { socket, connected: socketConnected } = useSocket(membershipId);
   const [callState, setCallState] = useState<CallState>("idle");
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const timerRunning = callState === "connected";
@@ -498,6 +498,10 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     <div style={{ position: "fixed", bottom: 12, right: 12, zIndex: 99999, display: "flex", alignItems: "center", gap: 6, background: "var(--bg-card)", border: "1px solid var(--line)", borderRadius: 20, padding: "4px 12px", fontSize: 10, fontFamily: "var(--mono)", opacity: 0.8 }}>
       <span style={{ width: 8, height: 8, borderRadius: "50%", background: webrtc.isReady ? "var(--green)" : webrtc.error ? "var(--red)" : "#ff9800" }} />
       {webrtc.isReady ? "WebRTC Connected" : webrtc.error ? "Error: " + webrtc.error : "WebRTC Connecting..."}
+      <span title={socketConnected ? "Live updates connected — call popups will arrive" : "Live updates OFFLINE — call popups may not arrive. Check connection, then refresh."} style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 6, paddingLeft: 6, borderLeft: "1px solid var(--line)" }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: socketConnected ? "var(--green)" : "var(--red)" }} />
+        {socketConnected ? "Live" : "No signal"}
+      </span>
       {webrtc.error && (
         <button
           type="button"
