@@ -1082,19 +1082,29 @@ export async function acceptCall(callId: string) {
     await calls.updateState(call.id, "failed", call.agency_id, { ended_at: new Date().toISOString() });
     return null;
   }
-  // Claim accepted->connected: if the call moved on mid-bridge (caller hung
-  // up, failover claimed), do NOT resurrect it back to connected.
+  // Claim connecting->connected: if the call moved on mid-bridge (caller hung
+  // up, failover claimed), do NOT resurrect it back to connected. EXCEPTION:
+  // the agent-leg `answered` webhook often wins this exact race (it flips the
+  // state the moment the device picks up, before our bridge POST returns) —
+  // the call IS connected and the agent's softphone still needs its
+  // call:connected event, or the popup spins on "connecting" forever while
+  // both sides talk. So: connected-anyhow still publishes + records.
   const connected = await calls.claimState(call.id, "connecting", "connected", call.agency_id, {
     connected_at: new Date().toISOString(),
   }).catch(() => null);
   if (!connected) {
     const current = await calls.findById(callId).catch(() => null);
-    console.warn(`[acceptCall] bridge won but call=${callId.slice(0, 8)} already moved to ${current?.state ?? "gone"} — not resurrecting`);
-    return current;
+    if (current?.state !== "connected") {
+      console.warn(`[acceptCall] bridge won but call=${callId.slice(0, 8)} already moved to ${current?.state ?? "gone"} — not resurrecting`);
+      return current;
+    }
+    console.log(`[acceptCall] bridge won, call=${callId.slice(0, 8)} already connected via agent-leg webhook — publishing connected`);
+    call = current;
+  } else {
+    call = connected;
   }
-  call = connected;
   if (call.agent_id) {
-    const agent = await agents.findById(call.agent_id);
+    const agent = await agents.findById(call.agent_id).catch(() => null);
     if (agent?.membership_id) {
       publishCallEvent(agent.membership_id, "call:connected", { callId: call.id });
     }

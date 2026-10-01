@@ -27,7 +27,7 @@ export const POST = apiHandler(async (req, context) => {
   const stamped = await query<{ id: string }>(
     `UPDATE app.calls
         SET routing_snapshot = COALESCE(routing_snapshot, '{}'::jsonb) || $2::jsonb
-      WHERE agent_id = $1 AND state = 'ringing'
+      WHERE agent_id = $1 AND state IN ('ringing', 'connecting', 'accepted')
       RETURNING id`,
     [agent.id, JSON.stringify({ invite_seen_at: new Date().toISOString(), sdk_leg: sdkCallId.slice(0, 32) })],
   ).catch(() => [] as { id: string }[]);

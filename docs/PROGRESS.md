@@ -739,3 +739,8 @@ pm run build to avoid re-corrupting dev types.
 - Executed after 2 explicit confirmations: backup JSON of every touched row, one transaction, FK-guard (caught payments.agent_id + a wrong table name in dry runs before commit). Deleted: 2 agents, 2 memberships, 2 wallet entries ($500 ledger), 2 subs, 1 fee, 1 ticket, 1 invite, 1 assignment, 4 selections. Kept: 11 calls + 6 Stripe payments (agent unlinked), 2 agencies (head nulled). Login row kept (no membership = no access). Verified 0/0 left. Backups in opencode temp dir.
 - Note: jaisidhu2004@gmail.com currently cannot log in anywhere (no membership). To re-onboard: fresh invite/register, or restore from backup JSON.
 
+## 2026-10-02 - assistant - FIRST LIVE WEBRTC BRIDGE (52s, sip 200 both sides)
+- Call 78dee9d0: late-answer worked — agent leg answered at bridge attempt 4, `bridge result ok`, `call.bridged` on BOTH legs, 52s connected, hangup sip 200 both sides, recording stored, finalized $0 (52s < 60s min — correct). Late-answer was the fix; delivery was fine all along.
+- One UI-only bug inside that success: the agent-leg answered-webhook won the final connecting->connected claim, so acceptCall hit "already moved to connected — not resurrecting" and returned WITHOUT publishing call:connected — softphone spun on connecting while both sides talked. Fixed: connected-anyhow still publishes + records; other states still never resurrect. Beacon now also stamps connecting/accepted calls.
+- Tests: typecheck 0 - vitest 965 passed | 5 skipped (135 files, +1 race test).
+

@@ -8,7 +8,7 @@ const updateStateMock = vi.hoisted(() => vi.fn(async (_id: string, state: string
 const findCallMock = vi.hoisted(() => vi.fn());
 const findAgentMock = vi.hoisted(() => vi.fn(async () => ({ id: "agent-1", membership_id: "m-1" })));
 const publishMock = vi.hoisted(() => vi.fn());
-const claimStateMock = vi.hoisted(() => vi.fn(async (id: string, _from: string, to: string) => ({ ...RINGING_CALL, id, state: to })));
+const claimStateMock = vi.hoisted(() => vi.fn(async (id: string, _from: string, to: string): Promise<Record<string, unknown> | null> => ({ ...RINGING_CALL, id, state: to })));
 
 vi.mock("@/server/telephony-registry", () => ({
   getTelephonyProvider: vi.fn(() => ({ bridge: bridgeMock, stopAudio: stopAudioMock, startRecording: startRecordingMock })),
@@ -133,6 +133,24 @@ describe("acceptCall bridge wait loop", () => {
     expect(bridgeMock).toHaveBeenCalledTimes(1);
     expect(updateStateMock).toHaveBeenCalledWith("call-1", "missed", "agency-1", expect.anything());
     expect(result).toBeNull();
+  });
+
+  it("publishes connected when the agent-leg webhook wins the final claim (race)", async () => {
+    // The answered-webhook flips connecting->connected before our bridge POST
+    // returns; the claim loses but the call IS connected — the softphone must
+    // still get call:connected or the popup spins forever while both talk.
+    bridgeMock.mockResolvedValue(undefined);
+    claimStateMock
+      .mockResolvedValueOnce({ ...RINGING_CALL, id: "call-1", state: "accepted" })
+      .mockResolvedValueOnce({ ...RINGING_CALL, id: "call-1", state: "connecting" })
+      .mockResolvedValueOnce(null);
+    findCallMock
+      .mockResolvedValueOnce({ ...RINGING_CALL })
+      .mockResolvedValue({ ...RINGING_CALL, state: "connected" });
+    const result = await runAccept();
+    expect(bridgeMock).toHaveBeenCalledTimes(1);
+    expect(publishMock).toHaveBeenCalledWith("m-1", "call:connected", { callId: "call-1" });
+    expect(result).toMatchObject({ state: "connected" });
   });
 
   it("stops retrying when the call ends underneath (caller hung up)", async () => {
