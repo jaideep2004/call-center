@@ -12,6 +12,14 @@ vi.mock("@/server/db", () => ({
   query: (sql: string, params?: unknown[]) => queryMock(sql, params),
 }));
 
+const findRoutableAgencyIdsMock = vi.hoisted(
+  () => vi.fn(async (..._args: unknown[]): Promise<string[] | undefined> => undefined),
+);
+
+vi.mock("@/server/repositories/campaign-assignments", () => ({
+  findRoutableAgencyIds: (...args: unknown[]) => findRoutableAgencyIdsMock(...args),
+}));
+
 const { evaluatePing, callerStateFromNumber, resolveNpaState } = await import("./ping-evaluator");
 
 const activeCampaign = {
@@ -139,6 +147,17 @@ describe("evaluatePing", () => {
     await evaluatePing({ did: "+15550000000", caller: "+13125551234" });
     const [sql] = queryOneMock.mock.calls[1] as [string, unknown[]];
     expect(sql).toContain("postpaid_bypass");
+  });
+
+  it("widens the agent search to assigned agencies (agent-only assignments ping)", async () => {
+    findRoutableAgencyIdsMock.mockResolvedValueOnce(["agency-1", "agency-9"]);
+    queryOneMock
+      .mockResolvedValueOnce({ ...activeCampaign, target_states: [] })
+      .mockResolvedValueOnce({ id: "agent-9" });
+    const result = await evaluatePing({ did: "+15550000000", caller: "anonymous" });
+    expect(result).toMatchObject({ decision: "accept", agentId: "agent-9" });
+    const [, params] = queryOneMock.mock.calls[1] as [string, unknown[]];
+    expect(params[0]).toEqual(expect.arrayContaining(["agency-1", "agency-9"]));
   });
 });
 

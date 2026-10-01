@@ -74,6 +74,7 @@ vi.mock("@/server/repositories", () => ({
     hasAssignments: vi.fn().mockResolvedValue(false),
     findAgencyIds: vi.fn().mockResolvedValue([]),
     findAgentIds: vi.fn().mockResolvedValue([]),
+    findAgentAgencyIds: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -567,6 +568,25 @@ describe("routeCall — live-for-campaign gate (P1.2)", () => {
 
     await routeCall("call-1");
 
+    expect(findAvailableMock).toHaveBeenCalledWith(["agency-1", "agency-9"]);
+  });
+
+  it("widens the scope to assigned agents' agencies for agent-only assignments", async () => {
+    // Regression: an agent-only assignment scoped findAvailable to the bare
+    // owner agency (platform holds zero agents) → candidates=0 → instant miss.
+    const { campaignAssignments } = await import("@/server/repositories");
+    vi.mocked(campaignAssignments.hasAssignments).mockResolvedValueOnce(true);
+    vi.mocked(campaignAssignments.findAgencyIds).mockResolvedValueOnce([]);
+    vi.mocked(campaignAssignments.findAgentIds).mockResolvedValueOnce(["agent-9"]);
+    vi.mocked(campaignAssignments.findAgentAgencyIds).mockResolvedValueOnce(["agency-9"]);
+    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
+    campaignFindByIdMock.mockResolvedValue(liveCampaign());
+    findAvailableMock.mockResolvedValue([liveAgent("agent-9")]);
+    findLiveAgentIdsMock.mockResolvedValue(null);
+
+    await routeCall("call-1");
+
+    expect(campaignAssignments.findAgentAgencyIds).toHaveBeenCalledWith("campaign-1", undefined);
     expect(findAvailableMock).toHaveBeenCalledWith(["agency-1", "agency-9"]);
   });
 

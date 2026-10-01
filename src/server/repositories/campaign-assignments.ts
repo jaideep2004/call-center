@@ -37,6 +37,24 @@ export async function findAgentIds(campaignId: string, client?: PoolClient): Pro
   return rows.map((r) => r.agent_id);
 }
 
+/**
+ * Agencies of agent-level assignments. An agent-only assignment must widen the
+ * routing scope to the assigned agents' own agencies — without this,
+ * findAvailable runs against the bare owner agency (often the platform
+ * agency, which holds zero agents) and every call misses with candidates=0.
+ */
+export async function findAgentAgencyIds(campaignId: string, client?: PoolClient): Promise<string[]> {
+  const rows = await query<{ agency_id: string }>(
+    `SELECT DISTINCT a.agency_id
+       FROM app.campaign_assignments ca
+       JOIN app.agents a ON a.id = ca.agent_id
+      WHERE ca.campaign_id = $1 AND ca.agent_id IS NOT NULL AND a.agency_id IS NOT NULL`,
+    [campaignId],
+    client,
+  );
+  return rows.map((r) => r.agency_id).filter((id): id is string => Boolean(id));
+}
+
 export async function findForAgency(agencyId: string, client?: PoolClient): Promise<CampaignAssignmentRow[]> {
   return query<CampaignAssignmentRow>(
     `SELECT * FROM app.campaign_assignments WHERE agency_id = $1 ORDER BY created_at ASC`,
@@ -90,12 +108,13 @@ export async function findRoutableAgencyIds(
   fallbackAgencyId: string,
   client?: PoolClient,
 ): Promise<string[] | undefined> {
-  const [assigned, campaign] = await Promise.all([
+  const [assigned, agentAgencies, campaign] = await Promise.all([
     query<{ agency_id: string | null }>(
       `SELECT DISTINCT agency_id FROM app.campaign_assignments WHERE campaign_id = $1 AND agency_id IS NOT NULL`,
       [campaignId],
       client,
     ),
+    findAgentAgencyIds(campaignId, client),
     query<{ is_exclusive: boolean | null; visibility: string | null }>(
       `SELECT is_exclusive, visibility FROM app.campaigns WHERE id = $1`,
       [campaignId],
@@ -104,8 +123,8 @@ export async function findRoutableAgencyIds(
   ]);
   const exclusive =
     campaign[0]?.is_exclusive === true || campaign[0]?.visibility === "exclusive";
-  if (!exclusive && assigned.length === 0) return undefined;
-  return [...new Set([fallbackAgencyId, ...assigned.map((r) => r.agency_id).filter(Boolean) as string[]])];
+  if (!exclusive && assigned.length === 0 && agentAgencies.length === 0) return undefined;
+  return [...new Set([fallbackAgencyId, ...assigned.map((r) => r.agency_id).filter(Boolean) as string[], ...agentAgencies])];
 }
 
 export async function findAllAssignedCampaignIds(): Promise<string[]> {
@@ -176,6 +195,7 @@ export const campaignAssignments = {
   findForCampaign,
   findAgencyIds,
   findAgentIds,
+  findAgentAgencyIds,
   findForAgency,
   findForAgent,
   findCampaignIdsForAgencyOrAgent,

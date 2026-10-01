@@ -1,6 +1,7 @@
 import { query, queryOne } from "@/server/db";
 import { normalizeE164 } from "@/domain/phone";
 import { effectiveBalanceSql } from "@/server/repositories/agency-wallets";
+import { findRoutableAgencyIds } from "@/server/repositories/campaign-assignments";
 
 export type PingRejectReason =
   | "unknown_campaign"
@@ -108,8 +109,13 @@ export async function evaluatePing(input: {
   }
 
   const priceCents = phone.effective_price_cents ?? 10;
+  // Assigned campaigns ring agents outside the owner agency (incl. agent-only
+  // assignments) — the scope must widen the same way routeCall does, or ping
+  // rejects with no_agent_available while routeCall would have found someone.
+  const agencyScope = await findRoutableAgencyIds(phone.campaign_id, phone.agency_id).catch(() => undefined);
   const agentId = await findRoutableAgentId({
     agencyId: phone.agency_id,
+    agencyIds: agencyScope,
     campaignId: phone.campaign_id,
     state,
     priceCents,

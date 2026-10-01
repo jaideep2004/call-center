@@ -431,8 +431,18 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
       ]);
     }
   }
+  // Agent-level assignments widen the scope to the assigned agents' own
+  // agencies. Without this an agent-only assignment scopes findAvailable to
+  // the bare owner agency (often the platform agency with zero agents), so
+  // every call misses with candidates=0.
+  let assignedAgentAgencyIds: string[] = [];
+  if (requireAssignment && assignedAgentIds.length > 0) {
+    try {
+      assignedAgentAgencyIds = await campaignAssignments.findAgentAgencyIds(call.campaign_id, client);
+    } catch { assignedAgentAgencyIds = []; }
+  }
   const scopeAgencies = requireAssignment
-    ? [...new Set([call.agency_id, ...assignedAgencyIds])]
+    ? [...new Set([call.agency_id, ...assignedAgencyIds, ...assignedAgentAgencyIds])]
     : undefined;
   if (client) {
     availableAgents = await agents.findAvailable(scopeAgencies, client);

@@ -687,3 +687,9 @@ pm run build to avoid re-corrupting dev types.
 - Note: VPS still runs pre-0072 code (price_cents_check 500s in web-error.log) — pull + migrate + rebuild + restart required. Worker pg-boss DB-connect timeout also seen; restart covered it, watch for recurrence (Supabase pool limits).
 - Tests: typecheck 0 - vitest 953 passed | 5 skipped (133 files, +4 realtime-url).
 
+## 2026-10-02 - assistant - AGENT-ONLY ASSIGNMENT = INSTANT MISS (real bug, fixed)
+- User assigned only an agent -> next call `candidates=0 eligible=0 selected=none`, instant miss. Root cause: routing scope was [owner agency + assigned AGENCY ids]; agent-level rows contributed nothing, so scope collapsed to the bare owner (platform 00000000, zero agents) and findAvailable returned nobody. The candidate filter itself was correct — the agent was never even fetched.
+- Fix: NEW campaignAssignments.findAgentAgencyIds (agencies of agent-level rows) wired into routeCall scope + findRoutableAgencyIds (ping/wallet-sync) + evaluatePing now passes the widened scope to findRoutableAgentId. Good news in the same logs: drift guard works (retreaver_status_drift kept_local, updated:0) and async worker routing works (call_routed from worker).
+- Note: earlier call cd0238cf shows correct 2-stage failover (72cc4515 -> no-answer -> 01cace0a -> missed); strategy flipped round_robin->priority mid-test = someone editing live.
+- Tests: typecheck 0 - vitest 959 passed | 5 skipped (134 files, +6: assignments scope 4, orchestrator 1, ping 1).
+
