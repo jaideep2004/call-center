@@ -69,11 +69,20 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     );
   }
 
-  async findAvailable(agencyId: string, client?: PoolClient): Promise<AgentRow[]> {
+  async findAvailable(agencyId?: string | string[], client?: PoolClient): Promise<AgentRow[]> {
     // Busy is derived from live calls, not a mutable flag: an agent with any
     // ringing/connecting/connected call is busy, even if the manual availability
     // toggle still says "available". Self-healing when calls end.
     // Soft-deleted and suspended agents never route.
+    // Agency scope: a specific agency (or agencies) when the campaign is
+    // assigned/exclusive — otherwise undefined = open platform-wide routing.
+    const ids = agencyId == null ? [] : Array.isArray(agencyId) ? agencyId.filter(Boolean) : [agencyId];
+    const queryParams: unknown[] = [];
+    let agencyClause = "";
+    if (ids.length > 0) {
+      queryParams.push(ids);
+      agencyClause = `AND a.agency_id = ANY($${queryParams.length}::uuid[])`;
+    }
     return query<AgentRow>(
       `SELECT a.*, EXISTS (
          SELECT 1 FROM app.calls c
@@ -81,12 +90,13 @@ export class AgentRepository extends BaseRepository<AgentRow> {
            AND c.state IN ('ringing','connecting','connected')
        ) AS is_busy
         FROM app.agents a
-        WHERE a.agency_id = $1
+        WHERE a.agency_id IS NOT NULL
+          ${agencyClause}
           AND a.approval_status = 'approved'
           AND a.availability = 'available'
           AND a.deleted_at IS NULL
-       ORDER BY a.priority ASC, a.last_assigned_at ASC NULLS FIRST`,
-      [agencyId],
+        ORDER BY a.priority ASC, a.last_assigned_at ASC NULLS FIRST`,
+      queryParams,
       client,
     );
   }

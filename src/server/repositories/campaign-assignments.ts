@@ -78,6 +78,36 @@ export async function hasAssignments(campaignId: string, client?: PoolClient): P
   return parseInt(rows[0]?.count ?? "0", 10) > 0;
 }
 
+/**
+ * Routing scope for a campaign (client rule): no assignments mentioned and
+ * not exclusive → undefined = open to every eligible agent platform-wide.
+ * Otherwise the owner agency plus every assigned agency. Callers pass the
+ * result straight into agent queries — never fall back to owner-only, or
+ * cross-agency assignments silently stop ringing.
+ */
+export async function findRoutableAgencyIds(
+  campaignId: string,
+  fallbackAgencyId: string,
+  client?: PoolClient,
+): Promise<string[] | undefined> {
+  const [assigned, campaign] = await Promise.all([
+    query<{ agency_id: string | null }>(
+      `SELECT DISTINCT agency_id FROM app.campaign_assignments WHERE campaign_id = $1 AND agency_id IS NOT NULL`,
+      [campaignId],
+      client,
+    ),
+    query<{ is_exclusive: boolean | null; visibility: string | null }>(
+      `SELECT is_exclusive, visibility FROM app.campaigns WHERE id = $1`,
+      [campaignId],
+      client,
+    ).catch(() => [] as { is_exclusive: boolean | null; visibility: string | null }[]),
+  ]);
+  const exclusive =
+    campaign[0]?.is_exclusive === true || campaign[0]?.visibility === "exclusive";
+  if (!exclusive && assigned.length === 0) return undefined;
+  return [...new Set([fallbackAgencyId, ...assigned.map((r) => r.agency_id).filter(Boolean) as string[]])];
+}
+
 export async function findAllAssignedCampaignIds(): Promise<string[]> {
   const rows = await query<{ campaign_id: string }>(
     `SELECT DISTINCT campaign_id FROM app.campaign_assignments`,
@@ -150,6 +180,7 @@ export const campaignAssignments = {
   findForAgent,
   findCampaignIdsForAgencyOrAgent,
   hasAssignments,
+  findRoutableAgencyIds,
   findAllAssignedCampaignIds,
   replaceForCampaign,
   addAgent,

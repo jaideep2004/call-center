@@ -1,12 +1,12 @@
 # Graph Report - call-center  (2026-10-01)
 
 ## Corpus Check
-- 626 files · ~1,099,288 words
+- 626 files · ~1,100,120 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1546 nodes · 1567 edges · 50 communities detected
-- Extraction: 77% EXTRACTED · 23% INFERRED · 0% AMBIGUOUS · INFERRED: 366 edges (avg confidence: 0.8)
+- 1547 nodes · 1570 edges · 50 communities detected
+- Extraction: 77% EXTRACTED · 23% INFERRED · 0% AMBIGUOUS · INFERRED: 368 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -63,7 +63,7 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `showToast()` - 113 edges
-2. `query()` - 69 edges
+2. `query()` - 70 edges
 3. `queryOne()` - 39 edges
 4. `refresh()` - 19 edges
 5. `emailLayout()` - 17 edges
@@ -93,7 +93,7 @@ Nodes (95): handleCreate(), handleDelete(), handleContactAdmin(), handleJoin(), 
 
 ### Community 1 - "Community 1"
 Cohesion: 0.02
-Nodes (31): AgentSubscriptionRepository, CallEventRepository, listNotes(), findForAgency(), findForAgent(), findForCampaign(), replaceForCampaign(), createCreative() (+23 more)
+Nodes (33): allocationForAgent(), AgentSubscriptionRepository, CallEventRepository, listNotes(), findForAgency(), findForAgent(), findForCampaign(), replaceForCampaign() (+25 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.03
@@ -101,7 +101,7 @@ Nodes (17): AffiliateRepository, AgentFeeRepository, BidOverrideRepository, Blog
 
 ### Community 3 - "Community 3"
 Cohesion: 0.04
-Nodes (50): assertTransition(), canTransition(), isTerminal(), hashPhone(), normalizeE164(), selectAgent(), decodeClientState(), publishCallEvent() (+42 more)
+Nodes (39): assertTransition(), canTransition(), isTerminal(), selectAgent(), decodeClientState(), publishCallEvent(), main(), getRealDid() (+31 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.05
@@ -116,8 +116,8 @@ Cohesion: 0.06
 Nodes (17): generateMetadata(), requireCallAccess(), scopeFor(), apiHandler(), clearAuthCache(), fail(), publicApiHandler(), requireHeadOr() (+9 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.09
-Nodes (26): uploadRequest(), main(), decryptSecret(), encryptSecret(), key(), getStripe(), getStripeMode(), getStripeStatus() (+18 more)
+Cohesion: 0.08
+Nodes (27): uploadRequest(), findRoutableAgencyIds(), main(), decryptSecret(), encryptSecret(), key(), getStripe(), getStripeMode() (+19 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.12
@@ -125,7 +125,7 @@ Nodes (17): configured(), hashPhone(), request(), requireEnv(), RetreaverError, 
 
 ### Community 9 - "Community 9"
 Cohesion: 0.12
-Nodes (9): allocationForAgent(), creditPool(), debitPool(), getOrCreatePool(), getPool(), listAllocations(), setPoolEnabled(), spendAllocation() (+1 more)
+Nodes (18): hashPhone(), normalizeE164(), GET(), POST(), creditPool(), debitPool(), effectiveBalanceSql(), getOrCreatePool() (+10 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.13
@@ -343,13 +343,13 @@ Nodes (1): LeadNoteRepository
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `showToast()` connect `Community 0` to `Community 33`, `Community 4`, `Community 11`, `Community 12`, `Community 23`, `Community 25`?**
-  _High betweenness centrality (0.135) - this node is a cross-community bridge._
-- **Why does `query()` connect `Community 1` to `Community 2`, `Community 5`, `Community 6`, `Community 39`, `Community 9`, `Community 10`, `Community 14`?**
-  _High betweenness centrality (0.115) - this node is a cross-community bridge._
+  _High betweenness centrality (0.140) - this node is a cross-community bridge._
+- **Why does `query()` connect `Community 1` to `Community 2`, `Community 5`, `Community 6`, `Community 7`, `Community 39`, `Community 9`, `Community 10`, `Community 14`?**
+  _High betweenness centrality (0.124) - this node is a cross-community bridge._
 - **Are the 112 inferred relationships involving `showToast()` (e.g. with `handleSubmit()` and `handleSubmit()`) actually correct?**
   _`showToast()` has 112 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 67 inferred relationships involving `query()` (e.g. with `main()` and `resolveAuth()`) actually correct?**
-  _`query()` has 67 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 68 inferred relationships involving `query()` (e.g. with `main()` and `resolveAuth()`) actually correct?**
+  _`query()` has 68 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 38 inferred relationships involving `queryOne()` (e.g. with `main()` and `.findByAgentId()`) actually correct?**
   _`queryOne()` has 38 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 18 inferred relationships involving `refresh()` (e.g. with `save()` and `remove()`) actually correct?**

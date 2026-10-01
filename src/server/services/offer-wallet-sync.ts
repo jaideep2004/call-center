@@ -1,6 +1,7 @@
 import { query } from "@/server/db";
 import { retreaver } from "@/domain/providers/retreaver";
 import { findRoutableAgentId } from "@/server/services/ping-evaluator";
+import { findRoutableAgencyIds } from "@/server/repositories/campaign-assignments";
 import { bidOverrides } from "@/server/repositories";
 
 interface SyncOfferRow {
@@ -62,8 +63,10 @@ export async function syncOfferWalletPauses(agencyId?: string): Promise<OfferWal
     }
     const override = await bidOverrides.findLatest(offer.id).catch(() => null);
     const bidCents = override?.price_cents ?? offer.price_cents ?? 0;
+    const agencyScope = await findRoutableAgencyIds(offer.id, offer.agency_id).catch(() => undefined);
     const fundedAgentId = await findRoutableAgentId({
       agencyId: offer.agency_id,
+      agencyIds: agencyScope,
       campaignId: offer.id,
       state: null,
       priceCents: bidCents,

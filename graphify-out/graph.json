@@ -3654,7 +3654,7 @@
       "source_file": "src\\app\\api\\webhooks\\retreaver\\ping\\route.ts",
       "source_location": "L1",
       "id": "src_app_api_webhooks_retreaver_ping_route_ts",
-      "community": 3,
+      "community": 9,
       "norm_label": "route.ts"
     },
     {
@@ -3663,7 +3663,7 @@
       "source_file": "src\\app\\api\\webhooks\\retreaver\\ping\\route.ts",
       "source_location": "L11",
       "id": "ping_route_get",
-      "community": 3,
+      "community": 9,
       "norm_label": "get()"
     },
     {
@@ -3672,7 +3672,7 @@
       "source_file": "src\\app\\api\\webhooks\\retreaver\\ping\\route.ts",
       "source_location": "L50",
       "id": "ping_route_post",
-      "community": 3,
+      "community": 9,
       "norm_label": "post()"
     },
     {
@@ -7164,7 +7164,7 @@
       "source_file": "src\\domain\\phone.ts",
       "source_location": "L1",
       "id": "src_domain_phone_ts",
-      "community": 3,
+      "community": 9,
       "norm_label": "phone.ts"
     },
     {
@@ -7173,7 +7173,7 @@
       "source_file": "src\\domain\\phone.ts",
       "source_location": "L8",
       "id": "domain_phone_normalizee164",
-      "community": 3,
+      "community": 9,
       "norm_label": "normalizee164()"
     },
     {
@@ -7182,7 +7182,7 @@
       "source_file": "src\\domain\\phone.ts",
       "source_location": "L21",
       "id": "domain_phone_hashphone",
-      "community": 3,
+      "community": 9,
       "norm_label": "hashphone()"
     },
     {
@@ -9261,7 +9261,7 @@
       "source_file": "src\\server\\repositories\\agency-wallets.ts",
       "source_location": "L26",
       "id": "repositories_agency_wallets_effectivebalancesql",
-      "community": 3,
+      "community": 9,
       "norm_label": "effectivebalancesql()"
     },
     {
@@ -9333,7 +9333,7 @@
       "source_file": "src\\server\\repositories\\agency-wallets.ts",
       "source_location": "L136",
       "id": "repositories_agency_wallets_allocationforagent",
-      "community": 9,
+      "community": 1,
       "norm_label": "allocationforagent()"
     },
     {
@@ -9646,7 +9646,7 @@
       "label": ".findMany()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L94",
+      "source_location": "L104",
       "id": "repositories_agents_agentrepository_findmany",
       "community": 14,
       "norm_label": ".findmany()"
@@ -9655,7 +9655,7 @@
       "label": ".create()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L156",
+      "source_location": "L166",
       "id": "repositories_agents_agentrepository_create",
       "community": 14,
       "norm_label": ".create()"
@@ -9664,7 +9664,7 @@
       "label": ".adoptOrCreate()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L189",
+      "source_location": "L199",
       "id": "repositories_agents_agentrepository_adoptorcreate",
       "community": 14,
       "norm_label": ".adoptorcreate()"
@@ -9673,7 +9673,7 @@
       "label": ".updateAvailability()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L216",
+      "source_location": "L226",
       "id": "repositories_agents_agentrepository_updateavailability",
       "community": 14,
       "norm_label": ".updateavailability()"
@@ -9682,7 +9682,7 @@
       "label": ".updateApproval()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L220",
+      "source_location": "L230",
       "id": "repositories_agents_agentrepository_updateapproval",
       "community": 14,
       "norm_label": ".updateapproval()"
@@ -9691,7 +9691,7 @@
       "label": ".update()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L230",
+      "source_location": "L240",
       "id": "repositories_agents_agentrepository_update",
       "community": 14,
       "norm_label": ".update()"
@@ -10111,10 +10111,19 @@
       "norm_label": "hasassignments()"
     },
     {
+      "label": "findRoutableAgencyIds()",
+      "file_type": "code",
+      "source_file": "src\\server\\repositories\\campaign-assignments.ts",
+      "source_location": "L88",
+      "id": "repositories_campaign_assignments_findroutableagencyids",
+      "community": 7,
+      "norm_label": "findroutableagencyids()"
+    },
+    {
       "label": "findAllAssignedCampaignIds()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\campaign-assignments.ts",
-      "source_location": "L81",
+      "source_location": "L111",
       "id": "repositories_campaign_assignments_findallassignedcampaignids",
       "community": 1,
       "norm_label": "findallassignedcampaignids()"
@@ -10123,7 +10132,7 @@
       "label": "replaceForCampaign()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\campaign-assignments.ts",
-      "source_location": "L88",
+      "source_location": "L118",
       "id": "repositories_campaign_assignments_replaceforcampaign",
       "community": 1,
       "norm_label": "replaceforcampaign()"
@@ -10132,7 +10141,7 @@
       "label": "addAgent()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\campaign-assignments.ts",
-      "source_location": "L111",
+      "source_location": "L141",
       "id": "repositories_campaign_assignments_addagent",
       "community": 1,
       "norm_label": "addagent()"
@@ -10141,7 +10150,7 @@
       "label": "addAgency()",
       "file_type": "code",
       "source_file": "src\\server\\repositories\\campaign-assignments.ts",
-      "source_location": "L128",
+      "source_location": "L158",
       "id": "repositories_campaign_assignments_addagency",
       "community": 1,
       "norm_label": "addagency()"
@@ -12006,7 +12015,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L1",
       "id": "src_server_repositories_wallet_entries_ts",
-      "community": 9,
+      "community": 1,
       "norm_label": "wallet-entries.ts"
     },
     {
@@ -12015,7 +12024,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L19",
       "id": "repositories_wallet_entries_walletentryrepository",
-      "community": 9,
+      "community": 1,
       "norm_label": "walletentryrepository"
     },
     {
@@ -12024,7 +12033,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L23",
       "id": "repositories_wallet_entries_walletentryrepository_findbyagency",
-      "community": 9,
+      "community": 1,
       "norm_label": ".findbyagency()"
     },
     {
@@ -12033,7 +12042,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L30",
       "id": "repositories_wallet_entries_walletentryrepository_findbyagent",
-      "community": 9,
+      "community": 1,
       "norm_label": ".findbyagent()"
     },
     {
@@ -12042,7 +12051,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L37",
       "id": "repositories_wallet_entries_walletentryrepository_findbyid",
-      "community": 9,
+      "community": 1,
       "norm_label": ".findbyid()"
     },
     {
@@ -12051,7 +12060,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L41",
       "id": "repositories_wallet_entries_walletentryrepository_create",
-      "community": 9,
+      "community": 1,
       "norm_label": ".create()"
     },
     {
@@ -12060,7 +12069,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L54",
       "id": "repositories_wallet_entries_walletentryrepository_sumbyagency",
-      "community": 9,
+      "community": 1,
       "norm_label": ".sumbyagency()"
     },
     {
@@ -12069,7 +12078,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L63",
       "id": "repositories_wallet_entries_walletentryrepository_sumbyagent",
-      "community": 9,
+      "community": 1,
       "norm_label": ".sumbyagent()"
     },
     {
@@ -12078,7 +12087,7 @@
       "source_file": "src\\server\\repositories\\wallet-entries.ts",
       "source_location": "L76",
       "id": "repositories_wallet_entries_walletentryrepository_sumeffectivebyagent",
-      "community": 9,
+      "community": 1,
       "norm_label": ".sumeffectivebyagent()"
     },
     {
@@ -12670,7 +12679,7 @@
       "label": "handleNoAnswer()",
       "file_type": "code",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L674",
+      "source_location": "L692",
       "id": "services_call_orchestrator_handlenoanswer",
       "community": 3,
       "norm_label": "handlenoanswer()"
@@ -12679,7 +12688,7 @@
       "label": "finalizeCall()",
       "file_type": "code",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L749",
+      "source_location": "L767",
       "id": "services_call_orchestrator_finalizecall",
       "community": 3,
       "norm_label": "finalizecall()"
@@ -12688,7 +12697,7 @@
       "label": "deductAgentForCall()",
       "file_type": "code",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L891",
+      "source_location": "L909",
       "id": "services_call_orchestrator_deductagentforcall",
       "community": 3,
       "norm_label": "deductagentforcall()"
@@ -12697,7 +12706,7 @@
       "label": "acceptCall()",
       "file_type": "code",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L932",
+      "source_location": "L953",
       "id": "services_call_orchestrator_acceptcall",
       "community": 3,
       "norm_label": "acceptcall()"
@@ -12706,7 +12715,7 @@
       "label": "rejectCall()",
       "file_type": "code",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L1078",
+      "source_location": "L1099",
       "id": "services_call_orchestrator_rejectcall",
       "community": 3,
       "norm_label": "rejectcall()"
@@ -12715,7 +12724,7 @@
       "label": "hangupCall()",
       "file_type": "code",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L1086",
+      "source_location": "L1107",
       "id": "services_call_orchestrator_hangupcall",
       "community": 3,
       "norm_label": "hangupcall()"
@@ -12816,7 +12825,7 @@
       "source_file": "src\\server\\services\\eligibility.ts",
       "source_location": "L1",
       "id": "src_server_services_eligibility_ts",
-      "community": 3,
+      "community": 9,
       "norm_label": "eligibility.ts"
     },
     {
@@ -12825,7 +12834,7 @@
       "source_file": "src\\server\\services\\eligibility.ts",
       "source_location": "L63",
       "id": "services_eligibility_geteligibleoffers",
-      "community": 3,
+      "community": 9,
       "norm_label": "geteligibleoffers()"
     },
     {
@@ -12841,7 +12850,7 @@
       "label": "mockInvoiceInsert()",
       "file_type": "code",
       "source_file": "src\\server\\services\\finalize-call.test.ts",
-      "source_location": "L81",
+      "source_location": "L84",
       "id": "services_finalize_call_test_mockinvoiceinsert",
       "community": 79,
       "norm_label": "mockinvoiceinsert()"
@@ -12850,7 +12859,7 @@
       "label": "snapshotMerges()",
       "file_type": "code",
       "source_file": "src\\server\\services\\finalize-call.test.ts",
-      "source_location": "L189",
+      "source_location": "L202",
       "id": "services_finalize_call_test_snapshotmerges",
       "community": 79,
       "norm_label": "snapshotmerges()"
@@ -12976,7 +12985,7 @@
       "label": "syncOfferWalletPauses()",
       "file_type": "code",
       "source_file": "src\\server\\services\\offer-wallet-sync.ts",
-      "source_location": "L38",
+      "source_location": "L39",
       "id": "services_offer_wallet_sync_syncofferwalletpauses",
       "community": 7,
       "norm_label": "syncofferwalletpauses()"
@@ -13167,7 +13176,7 @@
       "source_file": "src\\server\\services\\ping-evaluator.ts",
       "source_location": "L1",
       "id": "src_server_services_ping_evaluator_ts",
-      "community": 3,
+      "community": 9,
       "norm_label": "ping-evaluator.ts"
     },
     {
@@ -13176,7 +13185,7 @@
       "source_file": "src\\server\\services\\ping-evaluator.ts",
       "source_location": "L30",
       "id": "services_ping_evaluator_callerstatefromnumber",
-      "community": 3,
+      "community": 9,
       "norm_label": "callerstatefromnumber()"
     },
     {
@@ -13185,7 +13194,7 @@
       "source_file": "src\\server\\services\\ping-evaluator.ts",
       "source_location": "L43",
       "id": "services_ping_evaluator_loadnpacache",
-      "community": 3,
+      "community": 9,
       "norm_label": "loadnpacache()"
     },
     {
@@ -13194,7 +13203,7 @@
       "source_file": "src\\server\\services\\ping-evaluator.ts",
       "source_location": "L53",
       "id": "services_ping_evaluator_resolvenpastate",
-      "community": 3,
+      "community": 9,
       "norm_label": "resolvenpastate()"
     },
     {
@@ -13203,7 +13212,7 @@
       "source_file": "src\\server\\services\\ping-evaluator.ts",
       "source_location": "L81",
       "id": "services_ping_evaluator_evaluateping",
-      "community": 3,
+      "community": 9,
       "norm_label": "evaluateping()"
     },
     {
@@ -13212,7 +13221,7 @@
       "source_file": "src\\server\\services\\ping-evaluator.ts",
       "source_location": "L137",
       "id": "services_ping_evaluator_findroutableagentid",
-      "community": 3,
+      "community": 9,
       "norm_label": "findroutableagentid()"
     },
     {
@@ -23991,6 +24000,18 @@
       "relation": "calls",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
+      "source_file": "src\\server\\repositories\\campaign-assignments.ts",
+      "source_location": "L94",
+      "weight": 1.0,
+      "_src": "server_db_query",
+      "_tgt": "repositories_campaign_assignments_findroutableagencyids",
+      "source": "server_db_query",
+      "target": "repositories_campaign_assignments_findroutableagencyids"
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "src\\server\\repositories\\campaign-creatives.ts",
       "source_location": "L123",
       "weight": 1.0,
@@ -27171,7 +27192,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L94",
+      "source_location": "L104",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository",
       "_tgt": "repositories_agents_agentrepository_findmany",
@@ -27183,7 +27204,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L156",
+      "source_location": "L166",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository",
       "_tgt": "repositories_agents_agentrepository_create",
@@ -27195,7 +27216,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L189",
+      "source_location": "L199",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository",
       "_tgt": "repositories_agents_agentrepository_adoptorcreate",
@@ -27207,7 +27228,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L216",
+      "source_location": "L226",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository",
       "_tgt": "repositories_agents_agentrepository_updateavailability",
@@ -27219,7 +27240,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L220",
+      "source_location": "L230",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository",
       "_tgt": "repositories_agents_agentrepository_updateapproval",
@@ -27231,7 +27252,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L230",
+      "source_location": "L240",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository",
       "_tgt": "repositories_agents_agentrepository_update",
@@ -27243,7 +27264,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L195",
+      "source_location": "L205",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository_adoptorcreate",
       "_tgt": "repositories_agents_agentrepository_findbymembershipid",
@@ -27255,7 +27276,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L197",
+      "source_location": "L207",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository_adoptorcreate",
       "_tgt": "repositories_agents_agentrepository_findbyuserid",
@@ -27267,7 +27288,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L207",
+      "source_location": "L217",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository_adoptorcreate",
       "_tgt": "repositories_agents_agentrepository_create",
@@ -27279,7 +27300,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L199",
+      "source_location": "L209",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository_adoptorcreate",
       "_tgt": "repositories_agents_agentrepository_update",
@@ -27291,7 +27312,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L217",
+      "source_location": "L227",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository_updateavailability",
       "_tgt": "repositories_agents_agentrepository_update",
@@ -27303,7 +27324,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\agents.ts",
-      "source_location": "L221",
+      "source_location": "L231",
       "weight": 1.0,
       "_src": "repositories_agents_agentrepository_updateapproval",
       "_tgt": "repositories_agents_agentrepository_update",
@@ -27831,7 +27852,19 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\campaign-assignments.ts",
-      "source_location": "L81",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_src": "src_server_repositories_campaign_assignments_ts",
+      "_tgt": "repositories_campaign_assignments_findroutableagencyids",
+      "source": "src_server_repositories_campaign_assignments_ts",
+      "target": "repositories_campaign_assignments_findroutableagencyids",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src\\server\\repositories\\campaign-assignments.ts",
+      "source_location": "L111",
       "weight": 1.0,
       "_src": "src_server_repositories_campaign_assignments_ts",
       "_tgt": "repositories_campaign_assignments_findallassignedcampaignids",
@@ -27843,7 +27876,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\campaign-assignments.ts",
-      "source_location": "L88",
+      "source_location": "L118",
       "weight": 1.0,
       "_src": "src_server_repositories_campaign_assignments_ts",
       "_tgt": "repositories_campaign_assignments_replaceforcampaign",
@@ -27855,7 +27888,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\campaign-assignments.ts",
-      "source_location": "L111",
+      "source_location": "L141",
       "weight": 1.0,
       "_src": "src_server_repositories_campaign_assignments_ts",
       "_tgt": "repositories_campaign_assignments_addagent",
@@ -27867,13 +27900,25 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\repositories\\campaign-assignments.ts",
-      "source_location": "L128",
+      "source_location": "L158",
       "weight": 1.0,
       "_src": "src_server_repositories_campaign_assignments_ts",
       "_tgt": "repositories_campaign_assignments_addagency",
       "source": "src_server_repositories_campaign_assignments_ts",
       "target": "repositories_campaign_assignments_addagency",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "src\\server\\services\\offer-wallet-sync.ts",
+      "source_location": "L66",
+      "weight": 1.0,
+      "_src": "repositories_campaign_assignments_findroutableagencyids",
+      "_tgt": "services_offer_wallet_sync_syncofferwalletpauses",
+      "source": "repositories_campaign_assignments_findroutableagencyids",
+      "target": "services_offer_wallet_sync_syncofferwalletpauses"
     },
     {
       "relation": "contains",
@@ -31179,7 +31224,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L674",
+      "source_location": "L692",
       "weight": 1.0,
       "_src": "src_server_services_call_orchestrator_ts",
       "_tgt": "services_call_orchestrator_handlenoanswer",
@@ -31191,7 +31236,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L749",
+      "source_location": "L767",
       "weight": 1.0,
       "_src": "src_server_services_call_orchestrator_ts",
       "_tgt": "services_call_orchestrator_finalizecall",
@@ -31203,7 +31248,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L891",
+      "source_location": "L909",
       "weight": 1.0,
       "_src": "src_server_services_call_orchestrator_ts",
       "_tgt": "services_call_orchestrator_deductagentforcall",
@@ -31215,7 +31260,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L932",
+      "source_location": "L953",
       "weight": 1.0,
       "_src": "src_server_services_call_orchestrator_ts",
       "_tgt": "services_call_orchestrator_acceptcall",
@@ -31227,7 +31272,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L1078",
+      "source_location": "L1099",
       "weight": 1.0,
       "_src": "src_server_services_call_orchestrator_ts",
       "_tgt": "services_call_orchestrator_rejectcall",
@@ -31239,7 +31284,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L1086",
+      "source_location": "L1107",
       "weight": 1.0,
       "_src": "src_server_services_call_orchestrator_ts",
       "_tgt": "services_call_orchestrator_hangupcall",
@@ -31251,7 +31296,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L737",
+      "source_location": "L755",
       "weight": 1.0,
       "_src": "services_call_orchestrator_handlenoanswer",
       "_tgt": "services_call_orchestrator_routecall",
@@ -31263,7 +31308,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L1083",
+      "source_location": "L1104",
       "weight": 1.0,
       "_src": "services_call_orchestrator_rejectcall",
       "_tgt": "services_call_orchestrator_handlenoanswer",
@@ -31275,7 +31320,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\call-orchestrator.ts",
-      "source_location": "L1106",
+      "source_location": "L1127",
       "weight": 1.0,
       "_src": "services_call_orchestrator_hangupcall",
       "_tgt": "services_call_orchestrator_finalizecall",
@@ -31395,7 +31440,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\finalize-call.test.ts",
-      "source_location": "L81",
+      "source_location": "L84",
       "weight": 1.0,
       "_src": "src_server_services_finalize_call_test_ts",
       "_tgt": "services_finalize_call_test_mockinvoiceinsert",
@@ -31407,7 +31452,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\finalize-call.test.ts",
-      "source_location": "L189",
+      "source_location": "L202",
       "weight": 1.0,
       "_src": "src_server_services_finalize_call_test_ts",
       "_tgt": "services_finalize_call_test_snapshotmerges",
@@ -31527,7 +31572,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src\\server\\services\\offer-wallet-sync.ts",
-      "source_location": "L38",
+      "source_location": "L39",
       "weight": 1.0,
       "_src": "src_server_services_offer_wallet_sync_ts",
       "_tgt": "services_offer_wallet_sync_syncofferwalletpauses",

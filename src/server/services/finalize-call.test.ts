@@ -11,6 +11,7 @@ const {
   dispositionFindMock,
   payoutFindMock,
   spendAllocationMock,
+  agentFindMock,
 } = vi.hoisted(() => ({
   incrementCallsUsedMock: vi.fn(),
   walletCreateMock: vi.fn(),
@@ -22,6 +23,7 @@ const {
   dispositionFindMock: vi.fn().mockResolvedValue(null),
   payoutFindMock: vi.fn().mockResolvedValue([]),
   spendAllocationMock: vi.fn(async () => 50),
+  agentFindMock: vi.fn(async () => ({ id: "agent-1", agency_id: "agency-1" })),
 }));
 
 const invoiceInsertMock = vi.fn();
@@ -42,6 +44,7 @@ vi.mock("@/server/repositories", () => ({
   bidOverrides: { findLatest: bidOverrideMock },
   dispositions: { findByCallId: dispositionFindMock },
   dispositionPayouts: { findByAgency: payoutFindMock },
+  agents: { findById: agentFindMock },
   agentSubscriptions: {
     findActiveByAgent: findActiveByAgentMock,
     incrementCallsUsed: incrementCallsUsedMock,
@@ -152,6 +155,16 @@ describe("finalizeCall idempotency & balance handling", () => {
       .map((args: any[]) => args[0]?.amount_cents)
       .filter((n: unknown) => n === -50);
     expect(amounts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("spends the agent's own pool on cross-agency rings, never the buyer's", async () => {
+    mockInvoiceInsert([{ id: "inv-1", status: "paid" }]);
+    sumByAgentMock.mockResolvedValue(0);
+    spendAllocationMock.mockResolvedValue(100);
+    const { agents } = await import("@/server/repositories");
+    vi.mocked(agents.findById).mockResolvedValueOnce({ id: "agent-1", agency_id: "agency-9" } as never);
+    await finalizeCall("call-1");
+    expect(spendAllocationMock).toHaveBeenCalledWith("agency-9", "agent-1", 100, expect.anything());
   });
 
   it("creates a charge entry for the agency wallet on successful billing", async () => {

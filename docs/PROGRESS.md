@@ -630,3 +630,27 @@ pm run build to avoid re-corrupting dev types.
 - Live settings: allow_agent_agency_creation=true, platform_agency_id UNSET (Option A inactive until admin picks home agency).
 - Wrote docs/CLIENT_VIDEO_TUTORIAL.md (6-part recording script incl. Telnyx numbers rule).
 
+
+## 2026-10-01 - assistant - auto-pause + candidates=0 explained (live data)
+- Retreaver paused first-2 campaigns = OUR offer_wallet_synced job (no fundable agent -> pause RTB offer). Live probe: 8585b81f active/rtb/\, 0 assignments (fixed), but ALL ...a1 agents offline; only online agent is other-agency. candidates=0 correct; auto-unpauses when fundable agent appears.
+
+
+## 2026-10-01 - assistant - candidates=0 root cause: cross-agency blind spot
+- Verified 3 ways (code line 400/406 single-agency fetch; live rows; eligibility count 0): agent 52efd8e2 is approved/available/live/funded but in agency 90f69fd9 while call is ...a1. Routing is single-agency by construction; agency allow-lists in assignments are dead code (candidates pre-filtered).
+- Fix now: test with a ...a1 agent (Solar/Zulkar online+live) or move tester membership. Fork: marketplace cross-agency routing (money implications) if client wants it.
+
+
+## 2026-10-01 - assistant - OPEN routing (client rule): no assignments = platform-wide
+- routeCall scope-first: open campaigns fetch candidates across ALL agencies; assigned/exclusive scope to owner+assigned. findAvailable + findRoutableAgentId accept agency sets; ping/sync/eligibility paths pass assigned scope.
+- Money kept tenant-correct: last_assigned_at + personal charges + pool spend now use the AGENT's agency; buyer invoice/gate stay on call agency.
+- Tests: tsc 0, full vitest 930 passed | 5 skipped (7 new), build green.
+
+
+## 2026-10-01 - assistant - Public Leads deleted per client (agent-agencies only)
+- Soft-deleted ...a1 (history preserved). Verified live: 13 active campaigns still listed, 4 memberships preserved, 7 agencies visible.
+- Hot-path audit: no query filters agency.deleted_at in routing/billing/auth/funding (only agencies list hides it). 930 tests pass, build green.
+
+
+## 2026-10-01 - assistant - HOME agency active (Coverage Calls Public Leads)
+- Restored+renamed ...a1, set platform_agency_id. All 3 onboarding paths verified: self-signup approve auto-joins (PATCH hook), admin/member invites place via accept flow, own-agency creation unchanged. Zero existing agents need placement.
+

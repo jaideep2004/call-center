@@ -544,8 +544,33 @@ describe("routeCall — live-for-campaign gate (P1.2)", () => {
     expect(cancelMock).toHaveBeenCalledWith({ providerAttemptId: "caller-leg-1" });
   });
 
-  it("funds routing eligibility from the effective balance (P1.4)", async () => {    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
+  it("fetches candidates platform-wide when nothing is assigned (open routing)", async () => {
+    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
     campaignFindByIdMock.mockResolvedValue(liveCampaign());
+    findAvailableMock.mockResolvedValue([liveAgent("agent-1")]);
+    findLiveAgentIdsMock.mockResolvedValue(null);
+
+    await routeCall("call-1");
+
+    expect(findAvailableMock).toHaveBeenCalledWith(undefined);
+  });
+
+  it("scopes candidates to assigned agencies when assignments exist", async () => {
+    const { campaignAssignments } = await import("@/server/repositories");
+    vi.mocked(campaignAssignments.hasAssignments).mockResolvedValueOnce(true);
+    vi.mocked(campaignAssignments.findAgencyIds).mockResolvedValueOnce(["agency-9"]);
+    vi.mocked(campaignAssignments.findAgentIds).mockResolvedValueOnce([]);
+    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));
+    campaignFindByIdMock.mockResolvedValue(liveCampaign());
+    findAvailableMock.mockResolvedValue([liveAgent("agent-1")]);
+    findLiveAgentIdsMock.mockResolvedValue(null);
+
+    await routeCall("call-1");
+
+    expect(findAvailableMock).toHaveBeenCalledWith(["agency-1", "agency-9"]);
+  });
+
+  it("funds routing eligibility from the effective balance (P1.4)", async () => {    findByIdMock.mockResolvedValue(makeCall({ state: "routing" }));    campaignFindByIdMock.mockResolvedValue(liveCampaign());
     findAvailableMock.mockResolvedValue([liveAgent("agent-1")]);
     findLiveAgentIdsMock.mockResolvedValue(null);
 

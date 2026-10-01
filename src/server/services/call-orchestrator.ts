@@ -391,19 +391,20 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
   // Lookups. When running inside a transaction (client provided) the queries
   // MUST be sequential — node-postgres queues concurrent queries on one client
   // and pg@9 removes that behavior. On the pool (worker path) they parallelize.
+  // Order matters: the routing scope (open platform-wide vs assigned agencies)
+  // must be known BEFORE fetching candidates — otherwise assigned agencies
+  // outside the call's own agency can never ring.
   let campaign: Awaited<ReturnType<typeof campaigns.findById>> | null;
   let availableAgents: Awaited<ReturnType<typeof agents.findAvailable>>;
   let hasAssignments: boolean;
   let bidOverride: Awaited<ReturnType<typeof bidOverrides.findLatest>> | null;
   if (client) {
     campaign = await campaigns.findById(call.campaign_id, call.agency_id, client).catch(() => null);
-    availableAgents = await agents.findAvailable(call.agency_id, client);
     hasAssignments = await campaignAssignments.hasAssignments(call.campaign_id, client);
     bidOverride = await bidOverrides.findLatest(call.campaign_id, client).catch(() => null);
   } else {
-    [campaign, availableAgents, hasAssignments, bidOverride] = await Promise.all([
+    [campaign, hasAssignments, bidOverride] = await Promise.all([
       campaigns.findById(call.campaign_id, call.agency_id).catch(() => null),
-      agents.findAvailable(call.agency_id),
       campaignAssignments.hasAssignments(call.campaign_id),
       bidOverrides.findLatest(call.campaign_id).catch(() => null),
     ]);
@@ -412,6 +413,8 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
   // Exclusive campaigns ("Only For Agents/Agencies") are NEVER open: they
   // require an assignment match even when no assignment rows exist yet (which
   // restricts them to nobody until the head assigns someone in the UI).
+  // Client rule: no assignments mentioned = open to every eligible agent
+  // platform-wide; assignments mentioned = those agencies/agents only.
   const requireAssignment = hasAssignments
     || campaign?.is_exclusive === true
     || campaign?.visibility === "exclusive";
@@ -427,6 +430,14 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
         campaignAssignments.findAgentIds(call.campaign_id),
       ]);
     }
+  }
+  const scopeAgencies = requireAssignment
+    ? [...new Set([call.agency_id, ...assignedAgencyIds])]
+    : undefined;
+  if (client) {
+    availableAgents = await agents.findAvailable(scopeAgencies, client);
+  } else {
+    availableAgents = await agents.findAvailable(scopeAgencies);
   }
 
   // Candidates came from findAvailable — reuse those rows for the selected
@@ -635,9 +646,16 @@ export async function routeCall(callId: string, options: { client?: PoolClient; 
       });
     }
 
-    // Update last_assigned_at for round-robin ordering
+    // Update last_assigned_at for round-robin ordering. Scoped to the
+    // SELECTED agent's own agency: cross-agency rings would otherwise
+    // silently no-op (agency mismatch) and freeze rotation for them.
     try {
-      await agents.update(result.selected.id, { last_assigned_at: new Date().toISOString() }, call.agency_id, client);
+      await agents.update(
+        result.selected.id,
+        { last_assigned_at: new Date().toISOString() },
+        selectedAgent?.agency_id ?? call.agency_id,
+        client,
+      );
     } catch { /* non-critical */ }
 
     return { selected: result.selected.id, ringResult, snapshot: { ...snapshot, ringError } };
@@ -898,13 +916,16 @@ async function deductAgentForCall(agentId: string, agencyId: string, callId: str
     // allocation and the pool balance — otherwise pool money would route
     // unlimited calls (credit without debit). Runs inside finalize's
     // transaction via client.
+    // Funding agency = the AGENT's own agency (not the call's): cross-agency
+    // rings must move the agent's money, never the buyer's pool.
+    const ownerAgency = (await agents.findById(agentId).catch(() => null))?.agency_id ?? agencyId;
     const amount = 100;
     const personal = await walletEntries.sumByAgent(agentId, client);
     const fromPersonal = personal > 0 ? Math.min(personal, amount) : 0;
     const fromPool = amount - fromPersonal;
     if (fromPersonal > 0) {
       await walletEntries.create({
-        agency_id: agencyId,
+        agency_id: ownerAgency,
         agent_id: agentId,
         type: "charge",
         amount_cents: -fromPersonal,
@@ -914,10 +935,10 @@ async function deductAgentForCall(agentId: string, agencyId: string, callId: str
     }
     if (fromPool > 0) {
       const { agencyWallets } = await import("@/server/repositories/agency-wallets");
-      const spent = await agencyWallets.spendAllocation(agencyId, agentId, fromPool, client);
+      const spent = await agencyWallets.spendAllocation(ownerAgency, agentId, fromPool, client);
       if (spent > 0) {
         await walletEntries.create({
-          agency_id: agencyId,
+          agency_id: ownerAgency,
           agent_id: agentId,
           type: "charge",
           amount_cents: -spent,

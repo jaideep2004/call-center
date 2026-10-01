@@ -136,6 +136,9 @@ export async function evaluatePing(input: {
  */
 export async function findRoutableAgentId(input: {
   agencyId: string;
+  /** Extra agencies whose agents may ring (campaign assignments). When
+   * present, the query spans all of them; omit for open platform-wide. */
+  agencyIds?: string[];
   campaignId: string;
   state: string | null;
   priceCents: number;
@@ -146,7 +149,8 @@ export async function findRoutableAgentId(input: {
    */
   ignoreBusy?: boolean;
 }): Promise<string | null> {
-  const params: unknown[] = [input.agencyId];
+  const scopeIds = [...new Set([input.agencyId, ...(input.agencyIds ?? [])].filter(Boolean))];
+  const params: unknown[] = [scopeIds];
   const clauses: string[] = [];
   if (input.state) {
     params.push(input.state);
@@ -183,9 +187,10 @@ export async function findRoutableAgentId(input: {
   const agent = await queryOne<{ id: string }>(
     `SELECT a.id
      FROM app.agents a
-     WHERE a.agency_id = $1
+     WHERE a.agency_id = ANY($1::uuid[])
        AND a.approval_status = 'approved'
        AND a.availability = 'available'
+       AND a.deleted_at IS NULL
        ${clauses.join("\n       ")}
        AND (
          NOT EXISTS (SELECT 1 FROM app.agent_campaign_selections WHERE campaign_id = $${params.length + 1})
