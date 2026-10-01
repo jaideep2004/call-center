@@ -964,7 +964,7 @@ async function deductAgentForCall(agentId: string, agencyId: string, callId: str
   }
 }
 
-export async function acceptCall(callId: string) {
+export async function acceptCall(callId: string, opts?: { browserAnswered?: boolean }) {
   const startedAt = Date.now();
   let call = await calls.findById(callId);
   if (!call) return null;
@@ -993,6 +993,31 @@ export async function acceptCall(callId: string) {
     return current;
   }
   call = connecting;
+  // The browser told us it holds NO sip call for this ringing popup
+  // (softphone ans.reason = no-sdk-call: the Telnyx INVITE went elsewhere —
+  // shared SIP credential race, second tab, or Telnyx misroute). For a
+  // WebRTC-only agent no dial can ever complete, so the 8s 422 retry loop
+  // below would burn caller time and end missed anyway — fail fast with the
+  // true reason. PSTN-capable agents keep the loop: their real phone may
+  // still answer with no browser involvement.
+  if (agentCallId && opts?.browserAnswered === false) {
+    const acceptAgent = call.agent_id ? await agents.findById(call.agent_id).catch(() => null) : null;
+    const acceptEpTypes = (((acceptAgent?.endpoint_types ?? []) as string[]).map((t) => (t === "phone" ? "pstn" : t)));
+    if (!acceptEpTypes.includes("pstn")) {
+      console.warn(`[acceptCall] browser never received INVITE for call=${callId.slice(0, 8)} (webrtc-only, no SDK call) — failing fast to missed`);
+      try { await provider.cancel({ providerAttemptId: call.provider_call_id }); } catch {}
+      try { await provider.cancel({ providerAttemptId: agentCallId }); } catch {}
+      await query(
+        `UPDATE app.calls SET routing_snapshot = COALESCE(routing_snapshot, '{}'::jsonb) || '{"noAnswerReason":"browser_no_invite"}'::jsonb WHERE id = $1`,
+        [call.id],
+      ).catch(() => undefined);
+      await calls.updateState(call.id, "missed", call.agency_id, { ended_at: new Date().toISOString() });
+      if (acceptAgent?.membership_id) {
+        publishCallEvent(acceptAgent.membership_id, "call:ended", { callId: call.id, reason: "browser_no_invite" });
+      }
+      return null;
+    }
+  }
   if (agentCallId) {
     // The agent leg is OUTBOUND from Telnyx's view (we dialed the agent), so
     // only the agent's device can answer it — a server-side answer() always

@@ -6,7 +6,7 @@ const startRecordingMock = vi.hoisted(() => vi.fn(async () => undefined));
 const campaignFindMock = vi.hoisted(() => vi.fn(async () => ({ record_calls: true })));
 const updateStateMock = vi.hoisted(() => vi.fn(async (_id: string, state: string) => ({ ...RINGING_CALL, id: "call-1", state })));
 const findCallMock = vi.hoisted(() => vi.fn());
-const findAgentMock = vi.hoisted(() => vi.fn(async () => ({ id: "agent-1", membership_id: "m-1" })));
+const findAgentMock = vi.hoisted(() => vi.fn(async (): Promise<{ id: string; membership_id: string; endpoint_types?: string[] }> => ({ id: "agent-1", membership_id: "m-1" })));
 const publishMock = vi.hoisted(() => vi.fn());
 const claimStateMock = vi.hoisted(() => vi.fn(async (id: string, _from: string, to: string) => ({ ...RINGING_CALL, id, state: to })));
 
@@ -22,6 +22,14 @@ vi.mock("@/server/repositories", () => ({
 
 vi.mock("@/lib/event-bridge", () => ({
   publishCallEvent: publishMock,
+}));
+
+const dbQueryMock = vi.hoisted(() => vi.fn(async () => [] as unknown[]));
+
+vi.mock("@/server/db", () => ({
+  query: dbQueryMock,
+  queryOne: vi.fn(async () => null),
+  transaction: vi.fn(async (fn: (client: never) => Promise<unknown>) => fn({} as never)),
 }));
 
 import { acceptCall } from "./call-orchestrator";
@@ -144,6 +152,27 @@ describe("acceptCall bridge wait loop", () => {
     expect(bridgeMock).toHaveBeenCalledTimes(1);
     expect(updateStateMock).toHaveBeenCalledWith("call-1", "missed", "agency-1", expect.anything());
     expect(result).toBeNull();
+  });
+
+  it("fails fast when a webrtc-only browser never got the INVITE (no 422 loop)", async () => {
+    findAgentMock.mockResolvedValueOnce({ id: "agent-1", membership_id: "m-1", endpoint_types: ["webrtc"] });
+    const p = acceptCall("call-1", { browserAnswered: false });
+    await vi.advanceTimersByTimeAsync(20000);
+    const result = await p;
+    expect(bridgeMock).not.toHaveBeenCalled();
+    expect(dbQueryMock).toHaveBeenCalledWith(expect.stringContaining("browser_no_invite"), ["call-1"]);
+    expect(updateStateMock).toHaveBeenCalledWith("call-1", "missed", "agency-1", expect.anything());
+    expect(publishMock).toHaveBeenCalledWith("m-1", "call:ended", expect.objectContaining({ reason: "browser_no_invite" }));
+    expect(result).toBeNull();
+  });
+
+  it("still runs the wait loop for PSTN agents whose phone may answer without a browser", async () => {
+    findAgentMock.mockResolvedValueOnce({ id: "agent-1", membership_id: "m-1", endpoint_types: ["webrtc", "pstn"] });
+    bridgeMock.mockRejectedValue(new Error("90034 Call not answered yet"));
+    const p = acceptCall("call-1", { browserAnswered: false });
+    await vi.advanceTimersByTimeAsync(20000);
+    await p;
+    expect(bridgeMock).toHaveBeenCalledTimes(8);
   });
 });
 

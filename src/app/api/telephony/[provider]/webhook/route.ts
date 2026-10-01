@@ -57,8 +57,24 @@ export async function POST(request: Request, context: { params: Promise<{ provid
     }
     const result = await processProviderEvent(normalized);
     const correlationId = createHash("sha256").update(`${normalized.provider}:${normalized.eventId}`).digest("hex").slice(0, 16);
+    // Pinpoint logging: raw Telnyx event (call.ringing vs call.cost vs
+    // call.hangup collapse into one normalized type), which leg it belongs
+    // to (agent legs carry our client_state; caller legs never do), and SIP
+    // hangup diagnostics. This is what separates "INVITE went nowhere"
+    // (agent leg: initiated → hangup 487, never ringing) from "contact
+    // rejected" (486/603) or "caller abandoned" at a glance.
+    const rawEventType = (parsed as { data?: { event_type?: unknown }; event_type?: unknown })?.data?.event_type
+      ?? (parsed as { event_type?: unknown })?.event_type ?? null;
+    const payloadNode = (parsed as { data?: { payload?: Record<string, unknown> } })?.data?.payload ?? {};
     console.info(JSON.stringify({
       event: "webhook_done", provider: normalized.provider, type: normalized.type,
+      raw: rawEventType,
+      leg: clientState ? "agent" : "caller",
+      ...(normalized.type === "ended" ? {
+        cause: payloadNode.hangup_cause ?? null,
+        sip: payloadNode.sip_hangup_cause ?? null,
+        src: payloadNode.hangup_source ?? null,
+      } : {}),
       elapsedMs: Date.now() - startedAt, correlationId,
     }));
     return NextResponse.json({ accepted: true, correlationId, result }, { status: 202 });

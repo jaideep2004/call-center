@@ -346,7 +346,14 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     // negotiation (~seconds) in front of the bridge. Both race now; the
     // server retry loop bridges the moment the leg answers.
     const ans = webrtc.answer("remoteMedia");
-    const acceptReq = fetch(`/api/v1/calls/${incoming.callId}/accept`, { method: "POST" });
+    // Tell the server whether this tab actually holds the SIP call. Without
+    // it, a WebRTC-only agent whose INVITE went elsewhere 422-loops for 8s;
+    // with it, the server fails fast with the true reason.
+    const acceptReq = fetch(`/api/v1/calls/${incoming.callId}/accept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sdk: ans.ok ? "answering" : "no-call" }),
+    });
     if (ans.ok) {
       addDebug(`SDK answer → leg ${(ans.callId ?? "?").slice(0, 8)}… + bridge POST fired together`);
     } else {

@@ -91,4 +91,22 @@ describe("telephony webhook route — client_state handling", () => {
     expect(event.callId).toBeUndefined();
     expect(event.agentId).toBeUndefined();
   });
+
+  it("logs raw event type + leg so agent-leg delivery is pinpointable", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    try {
+      const clientState = Buffer.from(JSON.stringify({ callId: "call-1", agentId: "agent-1" })).toString("base64");
+      await post(telnyxPayload(clientState));
+      const line = info.mock.calls.map((c) => String(c[0])).find((s) => s.includes("webhook_done"));
+      expect(line).toBeDefined();
+      expect(JSON.parse(line as string)).toMatchObject({ raw: "call.initiated", leg: "agent" });
+
+      info.mockClear();
+      await post(telnyxPayload());
+      const callerLine = info.mock.calls.map((c) => String(c[0])).find((s) => s.includes("webhook_done"));
+      expect(JSON.parse(callerLine as string)).toMatchObject({ raw: "call.initiated", leg: "caller" });
+    } finally {
+      info.mockRestore();
+    }
+  });
 });

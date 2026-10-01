@@ -190,7 +190,14 @@ export const telnyxProvider: TelephonyProvider = {
       timeout_secs: 30,
       client_state: Buffer.from(JSON.stringify({ callId, agentId }), "utf-8").toString("base64"),
     });
-    return { providerAttemptId: String((result as any).data?.call_control_id ?? "") };
+    const leg = String((result as any).data?.call_control_id ?? "");
+    // Dial success is otherwise invisible in logs — without it, a ringing leg
+    // that no browser ever answers is indistinguishable from a failed dial.
+    // WebRTC `to` is our own sip: URI (safe); PSTN `to` is the agent's
+    // personal forwarding number (masked).
+    const loggedTo = endpoint === "webrtc" ? to : `${to.slice(0, 4)}…${to.slice(-2)}`;
+    console.log(`[telnyx dial] endpoint=${endpoint} to=${loggedTo} leg=${leg.slice(0, 12)} conn=${connectionId.slice(0, 8)}`);
+    return { providerAttemptId: leg };
   },
 
   async answer({ callId }) {

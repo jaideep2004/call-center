@@ -708,3 +708,24 @@ pm run build to avoid re-corrupting dev types.
 - Fix: REALTIME_SAME_ORIGIN=1 mode on /api/v1/realtime/url returns the bare page origin (no port); nginx location /socket.io/ proxies to 127.0.0.1:3002 with websocket upgrade. Zero client rebuild (useSocket already fetches the endpoint at runtime). No firewall change, no mixed-content risk.
 - Tests: typecheck 0 - vitest 961 passed | 5 skipped (134 files, +1 same-origin).
 
+## 2026-10-02 - assistant - BROWSER-NO-INVITE FAST-FAIL (bridge 422 loop was correct)
+- Popup arrived, accept fired, but bridge 422x8 `90034 Call not answered yet` -> missed. Logs + softphone ("no-sdk-call") prove the browser never held the SIP leg: Telnyx INVITE never reached the tab (shared single SIP credential across agents/tabs is prime suspect; Telnyx connection/credential config second). Bridge loop behaved correctly — nothing to fix there.
+- Shipped: accept POST now carries {sdk: answering|no-call}; acceptCall fast-fails webrtc-only agents with browser_no_invite (no 8s 422 burn, legs cancelled, call:ended published) while PSTN-capable agents keep the full wait loop (their phone may still answer). Needs commit/push + VPS redeploy like the rest.
+- Tests: typecheck 0 - vitest 963 passed | 5 skipped (134 files, +2 fast-fail).
+
+## 2026-10-02 - assistant - SINGLE-AGENT STILL NO INVITE (race ruled out, dial logging added)
+- Solo-agent test: popup + auto-accept arrived, tab held no SIP call, bridge 422x8, missed. Multi-registration race ruled out as sole cause; registration proven (WebRTC Gateway, fresh); From-anyone changed nothing. Remains: which contact Telnyx offers the dial INVITE to (ghost contact?) — needs debugger leg + F12 webrtc lines, both requested, neither received yet.
+- Shipped dial-visibility logging: [telnyx dial] endpoint/to/leg/conn on every successful dial (PSTN number masked) — next test shows exactly what Telnyx accepted. Needs commit/push + redeploy with the rest.
+- Tests: typecheck 0 - vitest 963 passed | 5 skipped (134 files).
+
+## 2026-10-02 - assistant - SIP 487 ON EVERY AGENT LEG (DB forensics) + leg logging
+- Queried live call_events: EVERY dialed agent leg in history ends hangup normal_clearing / sip 487 (our cancel after 30s timeout or 8s bridge-fail), never answered, never rejected. flow=telnyx_sip_uri_cred_connection on all. INVITE is offered to a contact that can never answer; registration itself proven healthy.
+- No record found of ANY successful WebRTC bridge ever — feature never worked end-to-end in prod (bridge loop dates to Sept, tested only against the 422 path).
+- Shipped: webhook_done now logs raw Telnyx event + leg (caller/agent via client_state) + hangup cause/src/sip on ended — next test reads agent-leg delivery in one glance. Needs commit/push + redeploy with the rest.
+- Tests: typecheck 0 - vitest 964 passed | 5 skipped (134 files, +1 webhook leg log).
+
+## 2026-10-02 - assistant - HARD DELETE both jai rows (user-confirmed x3)
+- Inventory first: "jai 28 sept" was TWO rows — live AG-0014 (10 calls, Online) + suspended leftover AG-0011 (switch-flow duplicate). Both owned money rows, both memberships headed agencies (test 1 oct + test 28 sept).
+- Executed after 2 explicit confirmations: backup JSON of every touched row, one transaction, FK-guard (caught payments.agent_id + a wrong table name in dry runs before commit). Deleted: 2 agents, 2 memberships, 2 wallet entries ($500 ledger), 2 subs, 1 fee, 1 ticket, 1 invite, 1 assignment, 4 selections. Kept: 11 calls + 6 Stripe payments (agent unlinked), 2 agencies (head nulled). Login row kept (no membership = no access). Verified 0/0 left. Backups in opencode temp dir.
+- Note: jaisidhu2004@gmail.com currently cannot log in anywhere (no membership). To re-onboard: fresh invite/register, or restore from backup JSON.
+
