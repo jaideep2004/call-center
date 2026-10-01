@@ -98,6 +98,11 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     try { return localStorage.getItem("cc-auto-answer") !== "off"; } catch { return true; }
   });
   const autoAcceptedRef = useRef<string | null>(null);
+  // Accept POST fired for this popup (auto or manual tap) — consent for the
+  // late-answer effect to pick up a SIP INVITE that lands afterwards.
+  const acceptPostedRef = useRef<string | null>(null);
+  // SDK leg already answered for this popup (late-answer must fire once).
+  const sdkAnsweredRef = useRef<string | null>(null);
   useEffect(() => {
     try { localStorage.setItem("cc-auto-answer", autoAnswer ? "on" : "off"); } catch {}
   }, [autoAnswer]);
@@ -171,6 +176,8 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
       setIsRecording(true);
       setSdkError(null);
       autoAcceptedRef.current = null;
+      acceptPostedRef.current = null;
+      sdkAnsweredRef.current = null;
     }
   }, [callState]);
 
@@ -345,10 +352,13 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     // Previously answer() was awaited before the POST, serializing media
     // negotiation (~seconds) in front of the bridge. Both race now; the
     // server retry loop bridges the moment the leg answers.
+    // Consent recorded: the late-answer effect below may answer a SIP INVITE
+    // that lands after this instant (the normal case — the popup routinely
+    // beats the INVITE by hundreds of ms).
+    acceptPostedRef.current = incoming.callId;
     const ans = webrtc.answer("remoteMedia");
-    // Tell the server whether this tab actually holds the SIP call. Without
-    // it, a WebRTC-only agent whose INVITE went elsewhere 422-loops for 8s;
-    // with it, the server fails fast with the true reason.
+    // Report whether this tab holds the SIP call yet. Informational: a
+    // "no-call" here is normal (INVITE still in flight), never a verdict.
     const acceptReq = fetch(`/api/v1/calls/${incoming.callId}/accept`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -409,6 +419,34 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     setIncoming(null);
     setActiveCallId(null);
   }, [incoming, webrtc]);
+
+  // Late INVITE answer: the server popup (socket/poll) routinely beats the
+  // SIP INVITE to this tab by hundreds of ms, so accept() fires with no SDK
+  // call — then the INVITE lands and nobody answers it (proven by the invite
+  // beacon arriving after the accept POST). Consent was already given by the
+  // accept above (auto or manual tap), so answer the moment the SDK tracks an
+  // inbound leg for this popup. The server bridge loop picks it up within a
+  // second. Fires once per popup; never answers without a posted accept.
+  const sdkCallId = webrtc.sdkCallId;
+  useEffect(() => {
+    if (!incoming || (callState !== "ringing" && callState !== "connecting")) return;
+    if (acceptPostedRef.current !== incoming.callId) return;
+    if (!sdkCallId || sdkAnsweredRef.current === `${incoming.callId}:${sdkCallId}`) return;
+    sdkAnsweredRef.current = `${incoming.callId}:${sdkCallId}`;
+    addDebug(`Late INVITE arrived (leg ${sdkCallId.slice(0, 12)}) — answering now`);
+    try {
+      const el = document.getElementById("remoteMedia") as HTMLAudioElement | null;
+      (el?.play?.() as unknown as Promise<void> | undefined)?.catch?.(() => {});
+    } catch { /* audio unlock is best-effort */ }
+    const res = webrtc.answer("remoteMedia");
+    if (res.ok) {
+      setSdkError(null);
+      addDebug(`Late answer accepted leg ${(res.callId ?? "?").slice(0, 12)} — bridge loop will take it`);
+    } else {
+      sdkAnsweredRef.current = null;
+      addDebug(`Late answer SKIPPED (${res.reason})`);
+    }
+  }, [incoming, callState, sdkCallId, webrtc, addDebug]);
 
   // Auto-pickup: fire accept() once per ringing call while enabled. The ref
   // guard makes it idempotent across re-renders and StrictMode double-effects.

@@ -18,15 +18,13 @@ export const POST = apiHandler(async (req, context: any) => {
   const agent = call.agent_id ? await agents.findById(call.agent_id).catch(() => null) : null;
   if (!membership || !agent || agent.membership_id !== membership.id) throw new ForbiddenError("Not your call to accept");
   if (call.state !== "ringing") return fail(`Call is no longer ringing (state: ${call.state})`, 409);
-  // The softphone reports whether its Telnyx client actually holds this call.
-  // "no-call" + a WebRTC-only agent can never bridge — acceptCall fails fast
-  // with the true reason instead of 422-looping for 8s. Absent = legacy
-  // behavior (full wait loop).
-  const body = await req.json().catch(() => ({}));
-  const browserAnswered = (body as { sdk?: unknown }).sdk !== "no-call";
+  // The softphone reports whether its Telnyx client holds this call (sdk:
+  // answering|no-call). Informational only — a "no-call" at accept instant is
+  // normal (the SIP INVITE typically lands just after the popup), and the
+  // tab answers it late via the late-answer effect while the bridge loop runs.
   if (!bridgingInFlight.has(id)) {
     bridgingInFlight.add(id);
-    void acceptCall(id, { browserAnswered })
+    void acceptCall(id)
       .catch((e: unknown) => console.error(`[accept] background bridge failed for ${id.slice(0, 8)}:`, String(e).slice(0, 200)))
       .finally(() => bridgingInFlight.delete(id));
   }

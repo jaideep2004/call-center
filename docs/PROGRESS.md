@@ -729,6 +729,11 @@ pm run build to avoid re-corrupting dev types.
 - If beacon absent: the robust cure is inverting the leg — browser ORIGINATES a SIP-URI dial back into our Voice app on accept (no inbound INVITE routing needed at all). Needs a Telnyx SIP subdomain + inbound wiring; proposed as next step after beacon verdict.
 - Tests: typecheck 0 - vitest 966 passed | 5 skipped (135 files, +2 beacon).
 
+## 2026-10-02 - assistant - BEACON PROVES INVITE ARRIVES; RACE, NOT DELIVERY (late-answer)
+- The [invite] beacon fired (state=new -> ringing) AFTER the accept POST: the SIP INVITE reaches the tab ~instantly, but the popup always wins the race, so accept() fires with no SDK call. Delivery was never broken — timing was. Parked the half-built dialback (hook + credentials reverted clean); it solved the wrong problem.
+- Reverted same-day fast-fail (it killed viable in-flight INVITEs). Real fix: late-answer effect — with accept consent recorded (auto or manual), the tab answers the moment the SDK tracks the inbound leg; the 8s bridge loop picks it up within ~a second. Refs reset per call; consent-gated (no posted accept = no answer).
+- Net diff this round is negative lines (53+/66-). Tests: typecheck 0 - vitest 964 passed | 5 skipped (135 files, fast-fail tests removed with the branch).
+
 ## 2026-10-02 - assistant - HARD DELETE both jai rows (user-confirmed x3)
 - Inventory first: "jai 28 sept" was TWO rows — live AG-0014 (10 calls, Online) + suspended leftover AG-0011 (switch-flow duplicate). Both owned money rows, both memberships headed agencies (test 1 oct + test 28 sept).
 - Executed after 2 explicit confirmations: backup JSON of every touched row, one transaction, FK-guard (caught payments.agent_id + a wrong table name in dry runs before commit). Deleted: 2 agents, 2 memberships, 2 wallet entries ($500 ledger), 2 subs, 1 fee, 1 ticket, 1 invite, 1 assignment, 4 selections. Kept: 11 calls + 6 Stripe payments (agent unlinked), 2 agencies (head nulled). Login row kept (no membership = no access). Verified 0/0 left. Backups in opencode temp dir.
