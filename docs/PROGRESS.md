@@ -661,3 +661,11 @@ pm run build to avoid re-corrupting dev types.
 - Note: campaign strategy flips priority<->round_robin between calls = someone editing mid-test. Build error user saw = mid-edit snapshot; current tree builds green.
 - Tests: tsc 0, vitest 934 passed | 5 skipped, build green.
 
+
+## 2026-10-02 - assistant - auto-pause REMOVED + popup root cause + UI errors + audit cleanup
+- Removed offer-wallet auto-pause: schedule, worker handler, both fire-and-forget triggers. Retreaver campaigns now stay as humans leave them. Service module kept (manual use).
+- Popup root cause: NEXT_PUBLIC_REALTIME_URL baked as localhost at build -> prod browsers socket to themselves; fix = runtime host-swap + visible Live/No-signal dot in softphone. Publish bridge (server->gateway) verified reachable.
+- UI: sidebar hydration (localStorage in effect), chart dup key (index-suffixed).
+- Audit: routing proven working via logs (cross-agency select + failover; misses = no-answer). Cleaned 1 orphan membership + rejected agent row; test agencies with members/money left for owner call.
+- Tests: tsc 0, vitest 934 passed | 5 skipped, build green.
+

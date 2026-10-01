@@ -162,7 +162,8 @@ describe("agency pool wallet API (P1.4)", () => {
     const res = await allocationsRoute.PUT(req("PUT", { agent_id: "agent-1", allocated_cents: 2000 }), ctx);
     expect(res.status).toBe(200);
     expect(setAllocationMock).toHaveBeenCalledWith("agency-1", "agent-1", 2000, expect.anything());
-    expect(syncMock).toHaveBeenCalledWith("agency-1");
+    // Client decision: allocation writes no longer trigger Retreaver syncs.
+    expect(syncMock).not.toHaveBeenCalled();
   });
 
   it("PUT rejects allocations above the pool balance (no minting via allocation)", async () => {

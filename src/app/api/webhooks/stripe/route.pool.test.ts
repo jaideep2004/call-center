@@ -92,7 +92,9 @@ describe("stripe webhook — agency pool top-up (P1.4)", () => {
     expect(markCompletedMock).toHaveBeenCalledWith("pay-1", "pi_pool_9", expect.anything());
     expect(walletCreateMock).not.toHaveBeenCalled();
     expect(creditPoolMock).toHaveBeenCalledWith("agency-1", 500000, expect.anything());
-    expect(syncMock).toHaveBeenCalledWith("agency-1");
+    // Client decision: no automatic Retreaver pause/unpause runs after
+    // top-ups — campaigns stay exactly as a human left them.
+    expect(syncMock).not.toHaveBeenCalled();
   });
 
   it("ignores redelivery of a completed payment (no double credit)", async () => {

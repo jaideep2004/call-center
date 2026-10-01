@@ -1,7 +1,7 @@
-# Graph Report - call-center  (2026-10-01)
+# Graph Report - call-center  (2026-10-02)
 
 ## Corpus Check
-- 629 files · ~1,102,260 words
+- 629 files · ~1,102,535 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
