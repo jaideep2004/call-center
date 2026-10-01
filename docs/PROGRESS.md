@@ -681,3 +681,9 @@ pm run build to avoid re-corrupting dev types.
 - WebRTC pill: dot turns yellow + blinking (softphone-inbound-blink, reduced-motion safe) with "Incoming call..." text while a routed call waits for pickup (ringing/connecting); normal green/amber/red otherwise. Live/No-signal half untouched.
 - Tests: typecheck 0 - vitest 949 passed | 5 skipped (132 files).
 
+## 2026-10-02 - assistant - POPUP OUTAGE ROOT CAUSE (gateway :3002 vs client :3001)
+- CL-0086 missed with agent selected: routeCall picked 01cace0a but no popup arrived. pm2 shows gateway listening on 3002 (REALTIME_PORT=3002) while browser bundle + server publish default to :3001 — socket never connects AND /publish POSTs to a dead port (silently warned). Double kill: gateway CORS allowlisted only baked NEXT_PUBLIC_APP_URL.
+- Fix: NEW public GET /api/v1/realtime/url (same-host + live gateway port, proxy-aware) — useSocket fetches it at runtime, baked URL is fallback-only. Gateway CORS allowlist from BOTH NEXT_PUBLIC_APP_URL + APP_BASE_URL (+prod warn when empty). publishCallEvent failures now console.error with URL+status instead of a quiet warn.
+- Note: VPS still runs pre-0072 code (price_cents_check 500s in web-error.log) — pull + migrate + rebuild + restart required. Worker pg-boss DB-connect timeout also seen; restart covered it, watch for recurrence (Supabase pool limits).
+- Tests: typecheck 0 - vitest 953 passed | 5 skipped (133 files, +4 realtime-url).
+

@@ -15,29 +15,45 @@ export function useSocket(membershipId: string | null): { socket: Socket | null;
 
   useEffect(() => {
     if (!membershipId) return;
-    // NEXT_PUBLIC_REALTIME_URL is baked at BUILD time — a bundle built for
-    // localhost silently points production browsers at their own machine and
-    // no popup ever arrives. Heal it at runtime: on a public host, a
-    // localhost URL is rewritten to this host (same gateway port).
+    let cancelled = false;
+    let socket: Socket | null = null;
+    // NEXT_PUBLIC_REALTIME_URL is baked at BUILD time and goes stale on any
+    // port/env change (the :3001-vs-:3002 outage: gateway moved, browsers kept
+    // dialing the old port, zero popups). The server tells us the live URL at
+    // runtime via a relative fetch (always the right host); the baked value is
+    // only a fallback, healed to this host when it points at localhost.
     const configured = process.env.NEXT_PUBLIC_REALTIME_URL ?? "http://localhost:3001";
-    let resolved = configured;
-    try {
-      const host = window.location.hostname;
-      const u = new URL(configured);
-      if ((host === "localhost" || host === "127.0.0.1") !== (u.hostname === "localhost" || u.hostname === "127.0.0.1")) {
-        u.hostname = host;
-        resolved = u.toString().replace(/\/$/, "");
-      }
-    } catch { /* keep configured */ }
-    setUrl(resolved);
-    const socket = io(resolved, {
-      query: { membershipId },
-      withCredentials: true,
-    });
-    socketRef.current = socket;
-    socket.on("connect", () => setState({ connected: true, membershipId }));
-    socket.on("disconnect", () => setState({ connected: false, membershipId }));
-    return () => { socket.close(); socketRef.current = null; };
+    const heal = (raw: string): string => {
+      try {
+        const host = window.location.hostname;
+        const u = new URL(raw);
+        if ((host === "localhost" || host === "127.0.0.1") !== (u.hostname === "localhost" || u.hostname === "127.0.0.1")) {
+          u.hostname = host;
+          return u.toString().replace(/\/$/, "");
+        }
+        return raw;
+      } catch { return raw; }
+    };
+    (async () => {
+      let resolved = heal(configured);
+      try {
+        const res = await fetch("/api/v1/realtime/url");
+        if (res.ok) {
+          const body = await res.json();
+          if (typeof body.data?.url === "string" && body.data.url) resolved = body.data.url;
+        }
+      } catch { /* keep fallback */ }
+      if (cancelled) return;
+      setUrl(resolved);
+      socket = io(resolved, {
+        query: { membershipId },
+        withCredentials: true,
+      });
+      socketRef.current = socket;
+      socket.on("connect", () => setState({ connected: true, membershipId }));
+      socket.on("disconnect", () => setState({ connected: false, membershipId }));
+    })();
+    return () => { cancelled = true; socket?.close(); if (socketRef.current === socket) socketRef.current = null; };
   }, [membershipId]);
 
   return { socket: socketRef.current, connected: state.connected, url };

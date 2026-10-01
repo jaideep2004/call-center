@@ -8,8 +8,11 @@ if (process.env.NODE_ENV === "production" && !process.env.GATEWAY_URL) {
 }
 
 export async function publishCallEvent(membershipId: string, event: string, data: unknown) {
+  // Publish failures are LOUD (not a quiet warn): a dead bridge means zero
+  // call popups for every agent, and the :3001-vs-:3002 outage hid behind the
+  // old message. The call still rings via Telnyx; only the realtime popup is lost.
   try {
-    await fetch(`${GATEWAY_URL}/publish`, {
+    const res = await fetch(`${GATEWAY_URL}/publish`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -17,7 +20,10 @@ export async function publishCallEvent(membershipId: string, event: string, data
       },
       body: JSON.stringify({ membershipId, event, data }),
     });
-  } catch {
-    console.warn("Gateway event bridge not available");
+    if (!res.ok) {
+      console.error(`[event-bridge] publish ${event} -> ${GATEWAY_URL} HTTP ${res.status} — agent popup NOT delivered`);
+    }
+  } catch (e: unknown) {
+    console.error(`[event-bridge] publish ${event} -> ${GATEWAY_URL} failed (${e instanceof Error ? e.message : String(e)}) — agent popup NOT delivered; check GATEWAY_URL/REALTIME_PORT vs the gateway's actual port`);
   }
 }

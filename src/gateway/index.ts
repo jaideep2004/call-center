@@ -42,7 +42,22 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     res.end();
   }
 });
-const io = new Server(server, { cors: { origin: process.env.NEXT_PUBLIC_APP_URL, credentials: true } });
+// Browsers connect from the public origin, which must be allowlisted for
+// credentialed socket.io. Read BOTH envs: builds often bake only one, and a
+// single missing/wrong value used to CORS-reject every popup connection.
+function gatewayCorsOrigins(): string[] | true {
+  const list = [process.env.NEXT_PUBLIC_APP_URL, process.env.APP_BASE_URL]
+    .filter((o): o is string => Boolean(o && o.trim()))
+    .map((o) => o.replace(/\/+$/, ""));
+  if (list.length > 0) return [...new Set(list)];
+  if (process.env.NODE_ENV === "production") {
+    console.warn("[gateway] no NEXT_PUBLIC_APP_URL/APP_BASE_URL set in production — socket CORS denies browsers; set one to the public origin");
+    return [];
+  }
+  return true;
+}
+
+const io = new Server(server, { cors: { origin: gatewayCorsOrigins(), credentials: true } });
 
 // Authenticate every socket against the better-auth session and derive the
 // room from the DB — the client's membershipId query is never trusted.
