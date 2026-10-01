@@ -208,6 +208,149 @@ function StripeIntegrationCard() {
     </section>
   );
 }
+interface ProviderDetails {
+  configured: boolean;
+  webhook_url?: string | null;
+  [key: string]: unknown;
+}
+
+/**
+ * Shared live-connection card (Telnyx + Retreaver). Same contract as Stripe:
+ * the badge is green ONLY after a live API ping succeeds — env presence
+ * alone is shown as "present — not verified", never as connected.
+ */
+function ProviderConnectionCard({ title, sub, endpoint, rows }: {
+  title: string;
+  sub: string;
+  endpoint: "/api/v1/settings/telnyx" | "/api/v1/settings/retreaver";
+  rows: { key: string; label: string; hint: string }[];
+}) {
+  const [status, setStatus] = useState<ProviderDetails | null>(null);
+  const [testing, setTesting] = useState(false);
+  // Null = never verified this session. Green only after a live ping.
+  const [verified, setVerified] = useState<boolean | null>(null);
+  const [latency, setLatency] = useState<number | null>(null);
+  const [message, setMessage] = useState("");
+
+  const refresh = () => {
+    fetch(endpoint).then(async (res) => {
+      if (res.ok) {
+        const body = await res.json();
+        setStatus(body.data ?? null);
+      }
+    }).catch(() => {});
+  };
+
+  useEffect(refresh, [endpoint]);
+
+  async function testConnection() {
+    setTesting(true);
+    try {
+      const res = await fetch(endpoint, { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.data?.ok) {
+        setVerified(true);
+        setLatency(typeof body.data?.latency_ms === "number" ? body.data.latency_ms : null);
+        setMessage(body.message ?? "Verified");
+        showToast(body.message ?? "Verified", "success");
+        refresh();
+      } else {
+        setVerified(false);
+        setLatency(null);
+        setMessage(body.message ?? "Verification failed");
+        showToast(body.message ?? "Verification failed — check env vars on the server", "error");
+      }
+    } catch {
+      setVerified(false);
+      setLatency(null);
+      setMessage("Network error verifying connection");
+      showToast("Network error verifying connection", "error");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  const badge = verified === true
+    ? { cls: "badge-success", text: `Connected — verified${latency != null ? ` (${latency}ms)` : ""}` }
+    : status?.configured
+      ? { cls: "badge-danger", text: "Keys present — not verified" }
+      : { cls: "badge-danger", text: "Not connected" };
+
+  return (
+    <section className="card card--spacious" style={{ padding: 22 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <h2 className="settings-card-title">{title}</h2>
+          <p className="settings-card-sub">{sub}</p>
+        </div>
+        <span className={`badge ${badge.cls}`} style={{ whiteSpace: "nowrap" }} title={verified === true ? "Live API ping succeeded" : "Not verified against the live API"}>
+          {badge.text}
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+        {rows.map((r) => {
+          const present = status?.[r.key] === true;
+          return (
+            <div key={r.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1px solid var(--line)", borderRadius: 10, background: "rgba(255,255,255,.02)" }}>
+              <div>
+                <strong style={{ fontSize: 13, color: "var(--ink)" }}>{r.label}</strong>
+                <p className="text-muted" style={{ fontSize: 11, margin: "2px 0 0" }}>{r.hint}</p>
+              </div>
+              <span className={`badge ${present ? "badge-success" : "badge-danger"}`}>{present ? "Set" : "Missing"}</span>
+            </div>
+          );
+        })}
+        {status?.webhook_url ? (
+          <p className="text-muted" style={{ fontSize: 11, margin: "2px 0 0", border: "1px solid var(--line)", borderRadius: 9, padding: "8px 10px", background: "rgba(255,255,255,.02)", fontFamily: "var(--mono)", overflowWrap: "anywhere" }}>
+            Webhook endpoint: <code style={{ color: "var(--ink)" }}>{String(status.webhook_url).replace(/token=[^&]+/, "token=••••")}</code>
+          </p>
+        ) : null}
+        {message ? (
+          <p className="text-muted" style={{ fontSize: 12, margin: "2px 0 0" }}>{message}</p>
+        ) : null}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
+        <button className="btn btn-sm" onClick={testConnection} disabled={testing} title={`Ping the live ${title} API with the configured key`} style={{ minHeight: 36 }}>
+          {testing ? "Testing…" : "Test Connection"}
+        </button>
+      </div>
+      <p className="text-muted" style={{ fontSize: 11, margin: "10px 0 0", lineHeight: 1.5 }}>Keys live in server env vars (never displayed here). Set them on the VPS, restart, then Test Connection.</p>
+    </section>
+  );
+}
+
+function TelnyxIntegrationCard() {
+  return (
+    <ProviderConnectionCard
+      title="Telnyx Integration"
+      sub="Voice + SMS provider. Point Telnyx call-control webhooks at the URL below; the badge turns green only after Telnyx answers a live key check."
+      endpoint="/api/v1/settings/telnyx"
+      rows={[
+        { key: "api_key", label: "API key", hint: "TELNYX_API_KEY — voice calls, SMS, recordings" },
+        { key: "connection_id", label: "Connection ID", hint: "TELNYX_CONNECTION_ID — outbound dialing identity" },
+        { key: "public_key", label: "Public key", hint: "TELNYX_PUBLIC_KEY — webhook signature verification" },
+        { key: "webrtc_sip_user", label: "WebRTC SIP user", hint: "TELNYX_WEBRTC_SIP_USER — browser softphone dial" },
+      ]}
+    />
+  );
+}
+
+function RetreaverIntegrationCard() {
+  return (
+    <ProviderConnectionCard
+      title="Retreaver Integration"
+      sub="Publisher marketplace + pay-per-call tracking. Paste the webhook URL into the Retreaver campaign timers; the badge turns green only after Retreaver answers a live key check."
+      endpoint="/api/v1/settings/retreaver"
+      rows={[
+        { key: "api_key", label: "API key", hint: "RETREAVER_API_KEY — campaigns, calls, affiliates" },
+        { key: "company_id", label: "Company ID", hint: "RETREAVER_COMPANY_ID — scopes every API call" },
+        { key: "webhook_secret", label: "Webhook secret", hint: "RETREAVER_WEBHOOK_SECRET — signs the timer webhook URL" },
+      ]}
+    />
+  );
+}
 export default function AdminSystemSettingsPage() {
   const [allowCreation, setAllowCreation] = useState(false);
   const [platformAgencyId, setPlatformAgencyId] = useState<string>("");
@@ -265,12 +408,14 @@ export default function AdminSystemSettingsPage() {
         <div>
           <p className="eyebrow"><i /> ADMIN / SYSTEM</p>
           <h1 style={{ margin:"8px 0 0" }}>System Settings</h1>
-          <p className="text-muted" style={{ fontSize:13, margin:"6px 0 0", maxWidth:560 }}>Stripe, agency creation and platform toggles — grouped for one-glance control.</p>
+          <p className="text-muted" style={{ fontSize:13, margin:"6px 0 0", maxWidth:560 }}>Telnyx, Retreaver and Stripe live-connection checks, plus agency creation and platform toggles — grouped for one-glance control.</p>
         </div>
       </div>
 
       <div className="settings-layout">
         <div style={{ display:"flex", flexDirection:"column", gap:"var(--space-6)" }}>
+          <TelnyxIntegrationCard />
+          <RetreaverIntegrationCard />
           <StripeIntegrationCard />
           <section className="card card--spacious" style={{ padding:22 }}>
             <h2 className="settings-card-title">Security & Data</h2>

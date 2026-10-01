@@ -48,6 +48,59 @@ const TABS = [
 	{ key: "rtb", label: "RTB & Numbers" },
 	{ key: "assignments", label: "Assignments" },
 ] as const;
+
+/**
+ * Price editor that commits on blur/Enter instead of every keystroke.
+ * Empty = null (unset, billed via effective-bid fallback). Zero/negative is
+ * refused client-side: the DB CHECK (price_cents IS NULL OR price_cents > 0)
+ * rejects 0, and a 0-price row breaks EVERY later edit to the campaign (0072).
+ */
+function PriceDollarsInput({ cents, onCommit }: {
+	cents: number | null;
+	onCommit: (cents: number | null) => void;
+}) {
+	const [draft, setDraft] = useState(cents != null ? String(cents / 100) : "");
+	const [lastCents, setLastCents] = useState<number | null>(cents);
+	if (cents !== lastCents) {
+		setLastCents(cents);
+		setDraft(cents != null ? String(cents / 100) : "");
+	}
+	function commit() {
+		const raw = draft.trim();
+		if (raw === "") {
+			if (cents !== null) onCommit(null);
+			return;
+		}
+		const parsed = Number(raw);
+		if (!Number.isFinite(parsed) || parsed <= 0) {
+			showToast("Price must be above $0.00 — reverting", "warning");
+			setDraft(cents != null ? String(cents / 100) : "");
+			return;
+		}
+		const next = Math.round(parsed * 100);
+		if (next !== cents) onCommit(next);
+		else setDraft(cents != null ? String(cents / 100) : "");
+	}
+	return (
+		<>
+			<span className='text-mono-sm' style={{ marginRight: 4 }}>$</span>
+			<input
+				className='input'
+				type='number'
+				min='0.01'
+				step='0.01'
+				placeholder={cents == null ? "unset" : undefined}
+				value={draft}
+				onChange={(e) => setDraft(e.target.value)}
+				onBlur={commit}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+				}}
+				style={{ maxWidth: 110 }}
+			/>
+		</>
+	);
+}
 type TabKey = (typeof TABS)[number]["key"];
 const TAB_KEYS = new Set(TABS.map((t) => t.key));
 
@@ -686,27 +739,14 @@ function CampaignDetailInner() {
 									</dd>
 									<dt>Price</dt>
 									<dd style={{ margin: "10px 0px" }}>
-										<span className='text-mono-sm' style={{ marginRight: 4 }}>
-											$
-										</span>
-										<input
-											className='input'
-											type='number'
-											min='0'
-											step='0.01'
-											value={(campaign.price_cents ?? 0) / 100}
-											onChange={(e) =>
-												update(
-													"price_cents",
-													Math.round((parseFloat(e.target.value) || 0) * 100),
-												)
-											}
-											style={{ maxWidth: 110 }}
+										<PriceDollarsInput
+											cents={campaign.price_cents}
+											onCommit={(cents) => update("price_cents", cents)}
 										/>
 										<span
 											className='text-muted text-mono-sm'
 											style={{ marginLeft: 6, fontSize: 10 }}>
-											/ qualified call
+											/ qualified call{campaign.price_cents == null ? " (unset — effective bid applies)" : ""}
 										</span>
 									</dd>
 									<dt>Retreaver CID</dt>

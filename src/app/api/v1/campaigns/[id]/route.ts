@@ -1,4 +1,4 @@
-import { apiHandler, ok, noContent } from "@/server/api-utils";
+import { apiHandler, ok, noContent, fail } from "@/server/api-utils";
 import { campaigns } from "@/server/repositories";
 import { ForbiddenError } from "@/server/errors";
 import { validate, updateCampaignSchema } from "@/server/validate";
@@ -36,29 +36,40 @@ export const PATCH = apiHandler(async (req, { params, agencyId, user }) => {
     data.retreaver_cid = body.retreaver_cid || null;
   }
   // Multi-publisher: if publisher_ids supplied, use join table (keep legacy column in sync)
-  if (body.publisher_ids !== undefined) {
-    const ids = (body.publisher_ids ?? []) as string[];
-    await campaigns.setPublisherIds(id, ids);
-    delete data.publisher_ids;
-    delete data.publisher_id;
-  } else if (body.publisher_id !== undefined) {
-    // Single publisher update -> also sync join table for consistency
-    const single = body.publisher_id as string | null;
-    await campaigns.setPublisherIds(id, single ? [single] : []);
-    delete data.publisher_id;
-  }
-  // If no campaign fields remain after publisher handling, just return with updated publishers
-  const hasOtherFields = Object.keys(data).some((k) => k !== "publisher_ids" && k !== "publisher_id");
-  if (!hasOtherFields && (body.publisher_ids !== undefined || body.publisher_id !== undefined)) {
-    const campaign = await campaigns.findById(id, scopeFor({ agencyId, user }));
-    return ok(campaign, "Campaign publishers updated");
-  }
-  if (Object.keys(data).length === 0) {
-    const campaign = await campaigns.findById(id, scopeFor({ agencyId, user }));
+  try {
+    if (body.publisher_ids !== undefined) {
+      const ids = (body.publisher_ids ?? []) as string[];
+      await campaigns.setPublisherIds(id, ids);
+      delete data.publisher_ids;
+      delete data.publisher_id;
+    } else if (body.publisher_id !== undefined) {
+      // Single publisher update -> also sync join table for consistency
+      const single = body.publisher_id as string | null;
+      await campaigns.setPublisherIds(id, single ? [single] : []);
+      delete data.publisher_id;
+    }
+    // If no campaign fields remain after publisher handling, just return with updated publishers
+    const hasOtherFields = Object.keys(data).some((k) => k !== "publisher_ids" && k !== "publisher_id");
+    if (!hasOtherFields && (body.publisher_ids !== undefined || body.publisher_id !== undefined)) {
+      const campaign = await campaigns.findById(id, scopeFor({ agencyId, user }));
+      return ok(campaign, "Campaign publishers updated");
+    }
+    if (Object.keys(data).length === 0) {
+      const campaign = await campaigns.findById(id, scopeFor({ agencyId, user }));
+      return ok(campaign, "Campaign updated");
+    }
+    const campaign = await campaigns.update(id, data, scopeFor({ agencyId, user }));
     return ok(campaign, "Campaign updated");
+  } catch (e: unknown) {
+    // Legacy rows holding price_cents = 0 fail the DB CHECK on ANY write
+    // (Postgres validates constraints on every UPDATE, not just price edits).
+    // Migration 0072 normalizes those rows to NULL — this maps the raw 23514
+    // to an actionable 422 until it is applied.
+    if ((e as { code?: string })?.code === "23514") {
+      return fail("Campaign price violates the price rule (must be empty or above $0.00) — apply migration 0072 then retry", 422);
+    }
+    throw e;
   }
-  const campaign = await campaigns.update(id, data, scopeFor({ agencyId, user }));
-  return ok(campaign, "Campaign updated");
 }, { resource: "settings", action: "update" });
 
 export const DELETE = apiHandler(async (req, { params, agencyId, user }) => {

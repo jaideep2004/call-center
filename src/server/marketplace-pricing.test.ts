@@ -34,6 +34,30 @@ describe("P1.1 marketplace pricing schemas", () => {
     ).toThrow();
   });
 
+  // 0072: price 0 reaches the DB CHECK and 500s (and poisons every later
+  // edit to the row) — it must be rejected at validation with a 422.
+  it("rejects price_cents 0 on create and update (DB CHECK parity)", () => {
+    // validate() throws ValidationError("Validation failed", details) — the
+    // $0.01 rule text lives in the details array; assert via errors.
+    for (const schema of [createCampaignSchema, updateCampaignSchema]) {
+      try {
+        validate(schema, { agency_id: "a1", name: "x", price_cents: 0 });
+        expect.unreachable("price 0 must be rejected");
+      } catch (e: unknown) {
+        const err = e as { message?: string; errors?: string[] };
+        expect(err.message).toMatch(/Validation failed/);
+        expect((err.errors ?? []).join(" ")).toMatch(/at least \$0\.01/);
+      }
+    }
+  });
+
+  it("accepts null/unset price (Retreaver-synced campaigns price later)", () => {
+    const created = validate(createCampaignSchema, { agency_id: "a1", name: "x" });
+    expect(created.price_cents).toBeUndefined();
+    expect(validate(updateCampaignSchema, { price_cents: null }).price_cents).toBeNull();
+    expect(validate(updateCampaignSchema, { price_cents: 1600 }).price_cents).toBe(1600);
+  });
+
   it("margin guard: buyer bid must cover payout (pure check)", () => {
     const offers = [
       { bid: 1600, payout: 1000 },

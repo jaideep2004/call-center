@@ -61,12 +61,11 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   // the Telnyx INVITE). Distinct from server `error` so the agent knows the
   // bridge ran without a browser pickup.
   const [sdkError, setSdkError] = useState<string | null>(null);
-  const [debug, setDebug] = useState<string[]>([]);
-  const debugRef = useRef(debug);
-  debugRef.current = debug;
+  // Debug goes to the browser console only ([softphone] filter) — the
+  // on-screen debug panel was removed: it covered the workspace and leaked
+  // polling internals onto the agent dashboard.
   const addDebug = useCallback((msg: string) => {
     console.log("[softphone]", msg);
-    setDebug((d) => [...d.slice(-19), `${new Date().toLocaleTimeString()} ${msg}`]);
   }, []);
 
   const webrtc = useTelnyxWebRTC(agentId);
@@ -492,12 +491,15 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     setSavingNote(false);
   }, [activeCallId, incoming, noteBody, addDebug]);
 
-  const [showDebug, setShowDebug] = useState(false);
+  // A call routed to this agent and waiting for pickup (ringing, or the
+  // bridge handshake after accept) turns the pill dot yellow + blinking so a
+  // minimized/background tab still signals "pick up now".
+  const inboundWaiting = callState === "ringing" || callState === "connecting";
 
   const webrtcIndicator = membershipId ? (
     <div style={{ position: "fixed", bottom: 12, right: 12, zIndex: 99999, display: "flex", alignItems: "center", gap: 6, background: "var(--bg-card)", border: "1px solid var(--line)", borderRadius: 20, padding: "4px 12px", fontSize: 10, fontFamily: "var(--mono)", opacity: 0.8 }}>
-      <span style={{ width: 8, height: 8, borderRadius: "50%", background: webrtc.isReady ? "var(--green)" : webrtc.error ? "var(--red)" : "#ff9800" }} />
-      {webrtc.isReady ? "WebRTC Connected" : webrtc.error ? "Error: " + webrtc.error : "WebRTC Connecting..."}
+      <span className={inboundWaiting ? "softphone-inbound-dot" : undefined} style={{ width: 8, height: 8, borderRadius: "50%", background: inboundWaiting ? "#ff9800" : webrtc.isReady ? "var(--green)" : webrtc.error ? "var(--red)" : "#ff9800" }} />
+      {inboundWaiting ? "Incoming call…" : webrtc.isReady ? "WebRTC Connected" : webrtc.error ? "Error: " + webrtc.error : "WebRTC Connecting..."}
       <span title={socketConnected ? "Live updates connected — call popups will arrive" : "Live updates OFFLINE — call popups may not arrive. Check connection, then refresh."} style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 6, paddingLeft: 6, borderLeft: "1px solid var(--line)" }}>
         <span style={{ width: 8, height: 8, borderRadius: "50%", background: socketConnected ? "var(--green)" : "var(--red)" }} />
         {socketConnected ? "Live" : "No signal"}
@@ -516,33 +518,6 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
   ) : null;
 
   if (!membershipId || callState === "idle") {
-    if (debug.length > 0 && showDebug) {
-      return (
-        <>
-          {webrtcIndicator}
-          <div style={{ position: "fixed", bottom: 80, right: 16, zIndex: 9999, maxWidth: 480 }}>
-            <div className="card" style={{ padding: 12, fontSize: 10, fontFamily: "var(--mono)", maxHeight: 300, overflow: "auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <strong style={{ color: "var(--acid)" }}>Softphone Debug</strong>
-                <button className="btn btn-sm" onClick={() => setShowDebug(false)} style={{ padding: "2px 8px", fontSize: 9 }}>Hide</button>
-              </div>
-              {debug.map((d, i) => <div key={i} style={{ color: "var(--muted)", borderTop: "1px solid var(--line)", padding: "2px 0" }}>{d}</div>)}
-            </div>
-          </div>
-    </>
-  );
-}
-    if (debug.length > 0 && !showDebug) {
-      return (
-        <>
-          {webrtcIndicator}
-          <button className="btn btn-sm" onClick={() => setShowDebug(true)}
-            style={{ position: "fixed", bottom: 80, right: 16, zIndex: 9999, padding: "4px 10px", fontSize: 9, opacity: 0.6 }}>
-            Debug ({debug.length})
-          </button>
-        </>
-      );
-    }
     return webrtcIndicator ? <>{webrtcIndicator}</> : null;
   }
 

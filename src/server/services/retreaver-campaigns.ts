@@ -90,14 +90,32 @@ export async function syncRetreaverCampaigns(options: { agencyId?: string | null
         await campaigns.update(existing.id, { name: remoteCampaign.name });
         changed = true;
       }
-      // Mirror the Retreaver pause state for synced (linked) campaigns. Terminal local
-      // statuses (completed/archived) and drafts with a real price are left untouched.
+      // Pause state is human-controlled on BOTH sides — the sync NEVER flips
+      // a local active<->paused status. (Client decision: the wallet auto-pause
+      // sweep is OFF, and this mirroring was the remaining vector that kept
+      // re-pausing campaigns minutes after a human unpaused them — the local
+      // row was overwritten from the still-paused Retreaver side every 10min.)
+      // A drift is logged so the mismatch is visible instead of silent; the
+      // human resolves it in whichever dashboard should win.
       const desired = remotePaused ? "paused" : "active";
-      const mirrorable = existing.status === "active" || existing.status === "paused";
       const placeholder = existing.status === "draft" && (existing.price_cents ?? 0) <= 1;
-      if ((mirrorable || placeholder) && existing.status !== desired) {
+      if (placeholder && existing.status !== desired) {
+        // One-time adoption: a price-less local draft takes the remote state
+        // on first sync. Real (priced) drafts and every active/paused row are
+        // never touched.
         await campaigns.update(existing.id, { status: desired });
         changed = true;
+      } else if (
+        (existing.status === "active" || existing.status === "paused") &&
+        existing.status !== desired
+      ) {
+        console.info(JSON.stringify({
+          event: "retreaver_status_drift",
+          campaignId: existing.id,
+          local: existing.status,
+          retreaver: desired,
+          action: "kept_local",
+        }));
       }
       if (changed) updated++;
       continue;

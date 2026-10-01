@@ -136,7 +136,10 @@ export const createCampaignSchema = z.object({
   agency_id: z.string().min(1),
   name: z.string().min(1).max(255),
   routing_strategy: z.enum(["round_robin", "priority"]).default("round_robin"),
-  price_cents: z.number().int().min(0).default(0),
+  // NULL = unset (Retreaver-synced campaigns get priced later); 0 is rejected
+  // — the DB CHECK (price_cents IS NULL OR price_cents > 0) 500d on it, and
+  // every later edit to a 0-price row failed the same way (0072).
+  price_cents: z.number().int().min(1, "Price must be at least $0.01 (or omitted)").nullable().optional(),
   max_publisher_payout_cents: z.number().int().min(0).nullable().optional(),
   min_publisher_payout_cents: z.number().int().min(0).nullable().optional(),
   visibility: z.enum(["default", "exclusive"]).default("default"),
@@ -155,7 +158,7 @@ export const updateCampaignSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   status: z.enum(["draft", "active", "paused", "completed", "archived"]).optional(),
   routing_strategy: z.enum(["round_robin", "priority"]).optional(),
-  price_cents: z.number().int().min(0).nullable().optional(),
+  price_cents: z.number().int().min(1, "Price must be at least $0.01 (or null to unset)").nullable().optional(),
   max_publisher_payout_cents: z.number().int().min(0).nullable().optional(),
   min_publisher_payout_cents: z.number().int().min(0).nullable().optional(),
   visibility: z.enum(["default", "exclusive"]).optional(),

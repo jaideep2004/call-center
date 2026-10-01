@@ -220,6 +220,15 @@ export default function CallDetailPage() {
                 <span className="call-detail-label">Agent</span>
                 <span className="call-detail-value text-mono-sm">{call.agent_id ? (agentMeta ? `${agentMeta.code} — ${agentMeta.name}` : `${call.agent_id.slice(0, 8)}…`) : "Unassigned"}</span>
               </div>
+              {Array.isArray((call.routing_snapshot as Record<string, unknown>)?.triedAgentIds) && ((call.routing_snapshot as Record<string, unknown>).triedAgentIds as string[]).length > 0 && (
+                <div className="call-detail-field">
+                  <span className="call-detail-label">Agents tried</span>
+                  <span className="call-detail-value text-mono-sm" title="Ring-timeout failover: each agent that didn't pick up in time was skipped and the call re-routed to the next eligible agent">
+                    {((call.routing_snapshot as Record<string, unknown>).triedAgentIds as string[]).map((a) => a.slice(0, 8)).join(" → ")}
+                    {(call.routing_snapshot as Record<string, unknown>).noAnswerReason ? ` (${String((call.routing_snapshot as Record<string, unknown>).noAnswerReason)})` : ""}
+                  </span>
+                </div>
+              )}
               <div className="call-detail-field">
                 <span className="call-detail-label">Duration</span>
                 <span className="call-detail-value text-mono-sm">{connectedSeconds > 0 ? formatDuration(connectedSeconds) : "—"}</span>

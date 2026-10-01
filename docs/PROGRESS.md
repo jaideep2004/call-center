@@ -570,7 +570,7 @@ pm run build to avoid re-corrupting dev types.
 
 
 ## 2026-09-30 - assistant - REVIEW skew-proofing + SUPABASE security flags
-- Skew review: Dockerfile builds without migrate and CMD starts without it - root process cause of outage. Added /api/v1/health migrations_pending warning + guide deploy checklist (§8). Escrow 42703 guard already shipped.
+- Skew review: Dockerfile builds without migrate and CMD starts without it - root process cause of outage. Added /api/v1/health migrations_pending warning + guide deploy checklist (ï¿½8). Escrow 42703 guard already shipped.
 - Security probe on live DB: 11 tables w/o RLS (incl. our new payment_reversals + better-auth public tables); only Supabase-managed SECURITY DEFINER fns. Migration 0070 enables RLS on all flagged tables (deny-by-default; app uses owner pool, unaffected).
 - Tests: tsc 0, vitest 126 files 908 passed | 5 skipped, build green, migrations 0001-0070 lint ok (0070 pending).
 
@@ -601,7 +601,7 @@ pm run build to avoid re-corrupting dev types.
 ## 2026-09-30 - assistant - INVITE-during-creation + LEAD claim pool (client pts 1-2)
 - Invites: POST agencies accepts invites[<=20 emails] (deduped, best-effort mail, summary in response); both creation forms (admin new + settings x2) have teammate textarea.
 - Claim pool: leads list Unassigned-pool filter (API unassigned=IS NULL) + Claim button; POST claim atomic single-statement, own-profile only, 409 on race; paid-per-lead can gate the claim route later.
-- Guide updated (§3.5, agency new). Tests: tsc 0, vitest 127 files 915 passed | 5 skipped (7 new), build green.
+- Guide updated (ï¿½3.5, agency new). Tests: tsc 0, vitest 127 files 915 passed | 5 skipped (7 new), build green.
 
 
 ## 2026-09-30 - assistant - THOROUGH re-verification (invite + claim)
@@ -668,4 +668,16 @@ pm run build to avoid re-corrupting dev types.
 - UI: sidebar hydration (localStorage in effect), chart dup key (index-suffixed).
 - Audit: routing proven working via logs (cross-agency select + failover; misses = no-answer). Cleaned 1 orphan membership + rejected agent row; test agencies with members/money left for owner call.
 - Tests: tsc 0, vitest 934 passed | 5 skipped, build green.
+
+## 2026-10-02 - assistant - PRICE-0 FIX + PROVIDER CHECKS + LOCALHOST HARDEN + SYNC UNPAUSE
+- Price 500 root cause: DB CHECK price_cents>0 rejected 0 while API allowed min(0) + UI sent 0 for empty; any edit to a 0-row 500d. Fix: migration 0072 (0->NULL, CHECK IS NULL OR >0) + zod min(1) nullable + PriceDollarsInput commit-on-blur + PATCH maps 23514->422. NOTE: apply 0072 live (npm run migrate on VPS).
+- Admin settings: NEW live Telnyx verify (GET presence + POST phone_numbers ping w/ companion-var flags) + NEW live Retreaver verify (reuses checkRetreaverConnection) + UI cards w/ green-only-after-ping badges; Stripe card already live-pings. Secrets never leave server.
+- Localhost audit: auth-client no longer bakes localhost:3000 (runtime origin fallback); server auth chains BETTER_AUTH_URL>APP_BASE_URL>NEXT_PUBLIC_APP_URL; prod one-time warns in app-url + event-bridge when env fallbacks hit; .env.example :3000->:30001 + prod notes.
+- Auto-pause: removed the LAST vector â€” syncRetreaverCampaigns no longer mirrors remote paused/active onto local rows (that 10-min mirror re-paused after human unpause); drift now logged as retreaver_status_drift kept_local. Agent-switch explained: ring-timeout failover (30s x max 2 = your 1m15s) rewrites agent_id; call detail now shows Agents tried chain.
+- Tests: typecheck 0 - vitest 949 passed | 5 skipped (132 files, +17 new) - migration lint 72 contiguous.
+
+## 2026-10-02 - assistant - SOFTPHONE DEBUG OUT + INBOUND PILL BLINK
+- Removed the bottom-right Softphone Debug panel + Debug (N) button (softphone.tsx): polling internals no longer cover the agent workspace. addDebug() kept at all call sites, now console-only ([softphone] filter in devtools).
+- WebRTC pill: dot turns yellow + blinking (softphone-inbound-blink, reduced-motion safe) with "Incoming call..." text while a routed call waits for pickup (ringing/connecting); normal green/amber/red otherwise. Live/No-signal half untouched.
+- Tests: typecheck 0 - vitest 949 passed | 5 skipped (132 files).
 

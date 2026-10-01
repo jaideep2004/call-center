@@ -220,7 +220,10 @@ describe("syncRetreaverCampaigns", () => {
     expect(repos.campaigns.update).not.toHaveBeenCalledWith("c3", { status: "active" });
   });
 
-  it("pauses local campaigns that are paused in Retreaver", async () => {
+  // Pause state is human-controlled: the sync surfaces drift in logs but
+  // never flips a local active<->paused row (client decision — campaigns stay
+  // exactly as a human left them).
+  it("never pauses local campaigns that are paused in Retreaver (drift is logged, local kept)", async () => {
     (repos.campaigns.findByRetreaverCid as ReturnType<typeof vi.fn>).mockImplementation((cid: string) =>
       Promise.resolve(cid === "cid-1" ? ({ ...campaign, id: "c1", retreaver_cid: "cid-1" } as { status: string }) : null),
     );
@@ -235,12 +238,12 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 1, updated: 1, archived: 0, total: 2 });
-    expect(repos.campaigns.update).toHaveBeenCalledWith("c1", { status: "paused" });
+    expect(result).toEqual({ created: 1, updated: 0, archived: 0, total: 2 });
+    expect(repos.campaigns.update).not.toHaveBeenCalledWith("c1", expect.anything());
     expect(repos.campaigns.create).toHaveBeenCalledWith(expect.objectContaining({ name: "Paused New", status: "paused" }));
   });
 
-  it("unpauses synced campaigns when Retreaver unpauses them", async () => {
+  it("never unpauses local campaigns when Retreaver unpauses them (drift is logged, local kept)", async () => {
     (repos.campaigns.findByRetreaverCid as ReturnType<typeof vi.fn>).mockResolvedValue({
       ...campaign, id: "c1", retreaver_cid: "cid-1", status: "paused",
     } as { status: string });
@@ -250,8 +253,8 @@ describe("syncRetreaverCampaigns", () => {
 
     const result = await syncRetreaverCampaigns({ agencyId: "agency-1" });
 
-    expect(result).toEqual({ created: 0, updated: 1, archived: 0, total: 1 });
-    expect(repos.campaigns.update).toHaveBeenCalledWith("c1", { status: "active" });
+    expect(result).toEqual({ created: 0, updated: 0, archived: 0, total: 1 });
+    expect(repos.campaigns.update).not.toHaveBeenCalledWith("c1", expect.anything());
   });
 
   it("leaves completed campaigns untouched even when paused in Retreaver", async () => {

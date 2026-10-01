@@ -19,7 +19,13 @@ function resolveAuthSecret(): string {
 export const auth = betterAuth({
   database: new PostgresDialect({ pool }),
   secret: resolveAuthSecret(),
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  // Chain mirrors getAppBaseUrl (APP_BASE_URL is canonical). The old
+  // localhost:3000 default was stale (dev serves :30001) and poisoned
+  // production email links whenever BETTER_AUTH_URL was unset.
+  baseURL: process.env.BETTER_AUTH_URL
+    ?? process.env.APP_BASE_URL
+    ?? process.env.NEXT_PUBLIC_APP_URL
+    ?? "http://localhost:30001",
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: smtpConfigured(),
