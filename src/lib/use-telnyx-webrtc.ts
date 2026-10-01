@@ -167,6 +167,23 @@ async function createShared(agentId: string): Promise<Shared> {
     if (s.dead) return;
     const call = notification?.call;
     if (notification?.type !== "callUpdate" || !call) return;
+    // Invite-seen beacon: the FIRST proof of whether Telnyx's INVITE reaches
+    // THIS tab. Fires once per SDK leg — the server log then shows "browser
+    // SAW the invite" vs silence, which separates a dead contact (Telnyx
+    // side) from a mishandled notification (client side). Fire-and-forget.
+    try {
+      const legId = String(call.id ?? call.callId ?? "");
+      if (legId && s.tracker.currentCallId !== legId) {
+        const st = String(call.state ?? "");
+        if (/ring|new|invite/i.test(st) || !s.tracker.currentCallId) {
+          void fetch("/api/v1/webrtc/invite-seen", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sdkCallId: legId, state: st || null }),
+          }).catch(() => {});
+        }
+      }
+    } catch { /* beacon never breaks the call */ }
     const id = String(call.id ?? call.callId ?? "");
     const state = String(call.state ?? "");
     const changed = s.tracker.onNotification(id || null, state);

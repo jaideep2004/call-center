@@ -724,6 +724,11 @@ pm run build to avoid re-corrupting dev types.
 - Shipped: webhook_done now logs raw Telnyx event + leg (caller/agent via client_state) + hangup cause/src/sip on ended — next test reads agent-leg delivery in one glance. Needs commit/push + redeploy with the rest.
 - Tests: typecheck 0 - vitest 964 passed | 5 skipped (134 files, +1 webhook leg log).
 
+## 2026-10-02 - assistant - INVITE-SEEN BEACON (final discriminator, then dialback)
+- Solo-agent 487 pattern holds: INVITE never answered/rejected anywhere. Two hypotheses left: (a) ghost contact eats the INVITE, (b) live tab's SDK drops it. Server cannot tell them apart — so the browser now reports itself: first SIP notification per leg POSTs /api/v1/webrtc/invite-seen (agent-scoped, stamps ringing calls, logs [invite] line). Beacon present = fix client; absent = fix delivery. Zero behavior change otherwise.
+- If beacon absent: the robust cure is inverting the leg — browser ORIGINATES a SIP-URI dial back into our Voice app on accept (no inbound INVITE routing needed at all). Needs a Telnyx SIP subdomain + inbound wiring; proposed as next step after beacon verdict.
+- Tests: typecheck 0 - vitest 966 passed | 5 skipped (135 files, +2 beacon).
+
 ## 2026-10-02 - assistant - HARD DELETE both jai rows (user-confirmed x3)
 - Inventory first: "jai 28 sept" was TWO rows — live AG-0014 (10 calls, Online) + suspended leftover AG-0011 (switch-flow duplicate). Both owned money rows, both memberships headed agencies (test 1 oct + test 28 sept).
 - Executed after 2 explicit confirmations: backup JSON of every touched row, one transaction, FK-guard (caught payments.agent_id + a wrong table name in dry runs before commit). Deleted: 2 agents, 2 memberships, 2 wallet entries ($500 ledger), 2 subs, 1 fee, 1 ticket, 1 invite, 1 assignment, 4 selections. Kept: 11 calls + 6 Stripe payments (agent unlinked), 2 agencies (head nulled). Login row kept (no membership = no access). Verified 0/0 left. Backups in opencode temp dir.
