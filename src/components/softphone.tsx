@@ -448,6 +448,29 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     }
   }, [incoming, callState, sdkCallId, webrtc, addDebug]);
 
+  // Autoplay unlock: auto-answer fires with no user gesture, so Chrome blocks
+  // #remoteMedia and the agent hears silence on a LIVE call. Retry playback
+  // on any user gesture (click/key/touch) while a call is active — first
+  // gesture wins, listeners detach with the call.
+  useEffect(() => {
+    if (callState !== "ringing" && callState !== "connecting" && callState !== "connected") return;
+    const unlock = () => {
+      try {
+        const el = document.getElementById("remoteMedia") as HTMLAudioElement | null;
+        const p = el?.play?.() as unknown as Promise<void> | undefined;
+        p?.then?.(() => addDebug("Audio unlocked on user gesture"))?.catch?.(() => {});
+      } catch { /* still blocked — next gesture retries */ }
+    };
+    document.addEventListener("click", unlock);
+    document.addEventListener("keydown", unlock);
+    document.addEventListener("touchend", unlock);
+    return () => {
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("keydown", unlock);
+      document.removeEventListener("touchend", unlock);
+    };
+  }, [callState, addDebug]);
+
   // Auto-pickup: fire accept() once per ringing call while enabled. The ref
   // guard makes it idempotent across re-renders and StrictMode double-effects.
   // Covers both socket ringing and the polling fallback (both set `incoming`).
@@ -459,7 +482,10 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     try {
       const el = document.getElementById("remoteMedia") as HTMLAudioElement | null;
       const p = el?.play?.() as unknown as Promise<void> | undefined;
-      p?.catch?.(() => { addDebug("Audio autoplay blocked — click anywhere to enable audio"); });
+      p?.catch?.(() => {
+        addDebug("Audio autoplay blocked — click anywhere to enable audio");
+        showToast("Click anywhere to enable call audio", "warning");
+      });
     } catch { /* audio unlock is best-effort */ }
     void accept();
   }, [autoAnswer, incoming, callState, accept, addDebug]);

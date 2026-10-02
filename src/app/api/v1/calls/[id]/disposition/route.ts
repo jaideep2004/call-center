@@ -7,9 +7,10 @@ import { isQualifiedOutcome } from "@/server/constants";
 export const POST = apiHandler(async (req, { params, membership, agencyId }) => {
   const { id } = await params;
   if (!membership) return fail("Agent membership required", 403);
-  const scope = agencyId ?? undefined;
-  if (!scope) return fail("Agency scope required", 403);
-  const call = await calls.findById(id, scope).catch(() => null);
+  // Unscoped lookup: platform-agency calls belong to no member agency, so an
+  // agency-scoped fetch 404s agents filing on their OWN assigned calls.
+  // Ownership is enforced below (assigned agent only).
+  const call = await calls.findById(id).catch(() => null);
   if (!call) return fail("Call not found", 404);
 
   const agent = await agents.findByMembershipId(membership.id);

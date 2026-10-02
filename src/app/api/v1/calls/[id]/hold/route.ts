@@ -7,7 +7,8 @@ export const POST = apiHandler(async (req, context: any) => {
   const { id } = await context.params;
   const { agencyId, membership, user } = context;
   const canManage = Boolean(user && hasPermission(user.role as any, "calls", "manage"));
-  const call = await calls.findById(id, agencyId ?? undefined).catch(() => null);
+  // Unscoped for agents: platform-agency calls fail an agency-scoped lookup.
+  const call = await calls.findById(id, canManage ? agencyId ?? undefined : undefined).catch(() => null);
   if (!call) return fail("Call not found", 404);
   if (!canManage) {
     if (!membership) return fail("Agent membership required", 403);

@@ -25,15 +25,26 @@ export async function storeRecording(input: StoreRecordingInput) {
     providerCallId: input.providerCallId,
   });
 
-  return recordings.create({
-    agency_id: input.agencyId,
-    call_id: input.callId,
-    storage_path: info.url,
-    content_type: info.contentType,
-    duration_seconds: info.durationSeconds,
-    provider: input.provider,
-    provider_recording_id: input.recordingId,
-  });
+  // Check-then-insert races when two recording.saved webhooks enqueue two
+  // jobs for one call (seen live: duplicate recordings_call_id_key). The
+  // second writer converges on the first row instead of failing the job.
+  try {
+    return await recordings.create({
+      agency_id: input.agencyId,
+      call_id: input.callId,
+      storage_path: info.url,
+      content_type: info.contentType,
+      duration_seconds: info.durationSeconds,
+      provider: input.provider,
+      provider_recording_id: input.recordingId,
+    });
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === "23505") {
+      const raced = await recordings.findByCallId(input.callId);
+      if (raced) return raced;
+    }
+    throw e;
+  }
 }
 
 /**

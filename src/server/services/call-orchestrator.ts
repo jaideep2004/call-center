@@ -1008,13 +1008,14 @@ export async function acceptCall(callId: string) {
     //
     // Fast wake: the agent-leg `connected` webhook stamps
     // routing_snapshot.agent_answered_at while state is still ringing. Between
-    // attempts we poll for that stamp (or a terminal state) every 200ms —
-    // capped ~1s per gap so all 8 attempts stay spread across the window
-    // instead of collapsing into ~2 immediate tries.
+    // attempts we poll for that stamp (or a terminal state) every 150ms —
+    // capped ~0.6s per gap so all 8 attempts stay spread across the window
+    // instead of collapsing into immediate tries, while a late SDK answer
+    // (INVITE lands just after accept) is picked up within ~a second.
     const BRIDGE_ATTEMPTS = 8;
     const BRIDGE_WINDOW_MS = 8000;
-    const ANSWER_POLL_MS = 200;
-    const GAP_BUDGET_MS = 1000;
+    const ANSWER_POLL_MS = 150;
+    const GAP_BUDGET_MS = 600;
     const deadline = Date.now() + BRIDGE_WINDOW_MS;
     let bridged = false;
     let stopped = false;

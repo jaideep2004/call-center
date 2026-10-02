@@ -89,4 +89,24 @@ describe("GET /calls agent isolation", () => {
     const res = await get("?limit=5");
     expect(res.status).toBe(403);
   });
+
+  // Platform-agency (00000000) calls belong to no member agency: an extra
+  // agency filter hides an agent's OWN assigned calls (empty dashboard).
+  it("does not agency-filter plain agents (ownership is the scope)", async () => {
+    const res = await get("?limit=5");
+    expect(res.status).toBe(200);
+    expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({ agencyId: undefined }));
+  });
+
+  it("keeps the agency filter for heads and admins", async () => {
+    ctxIsHead = true;
+    let res = await get("?limit=5");
+    expect(res.status).toBe(200);
+    expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({ agencyId: "agency-1" }));
+    ctxIsHead = false;
+    ctxRole = "admin";
+    res = await get("?limit=5");
+    expect(res.status).toBe(200);
+    expect(findManyMock).toHaveBeenCalledWith(expect.objectContaining({ agencyId: "agency-1" }));
+  });
 });

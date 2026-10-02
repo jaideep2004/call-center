@@ -28,12 +28,17 @@ export const GET = apiHandler(async (req, context) => {
     agentId = me.id;
   }
 
+  // Plain agents see ONLY their own calls (agent_id forced above) — and must
+  // NOT also be agency-filtered: platform-agency (00000000) calls belong to
+  // no member agency, so the extra filter hid every assigned call from the
+  // agent dashboard ("0 total calls", empty lists). Ownership is the scope.
+  const ownOnly = !isAdmin && !context.isHead;
   const { rows, pagination } = await calls.findMany({
     pagination: { page, limit },
     search,
     sortBy,
     order,
-    agencyId: scopeAgency,
+    agencyId: ownOnly ? undefined : scopeAgency,
     state,
     filters: {
       ...(agentId ? { agent_id: agentId } : {}),
@@ -47,7 +52,7 @@ export const GET = apiHandler(async (req, context) => {
   const buffers = new Map<string, number>();
   await Promise.all(
     campaignIds.map(async (cid) => {
-      const c = await campaigns.findById(cid, scopeAgency).catch(() => null);
+      const c = await campaigns.findById(cid, ownOnly ? undefined : scopeAgency).catch(() => null);
       buffers.set(cid, c?.buffer_seconds ?? 30);
     }),
   );

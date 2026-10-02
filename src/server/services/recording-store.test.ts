@@ -73,6 +73,18 @@ describe("storeRecording", () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
+  it("converges on the winner when two jobs race the insert (23505)", async () => {
+    const winner = { id: "row-9", call_id: "call-1" };
+    findByCallIdMock.mockResolvedValue(null);
+    fetchRecordingMock.mockResolvedValue({ url: "https://x/rec.wav", contentType: "audio/wav", durationSeconds: 31 });
+    createMock.mockRejectedValueOnce(Object.assign(new Error("duplicate key"), { code: "23505" }));
+    findByCallIdMock.mockResolvedValueOnce(null).mockResolvedValueOnce(winner);
+
+    const result = await storeRecording(input);
+
+    expect(result).toBe(winner);
+  });
+
   it("propagates provider fetch errors so the job can retry", async () => {
     findByCallIdMock.mockResolvedValue(null);
     fetchRecordingMock.mockRejectedValue(new Error("Telnyx api down"));

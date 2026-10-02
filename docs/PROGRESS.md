@@ -744,3 +744,9 @@ pm run build to avoid re-corrupting dev types.
 - One UI-only bug inside that success: the agent-leg answered-webhook won the final connecting->connected claim, so acceptCall hit "already moved to connected — not resurrecting" and returned WITHOUT publishing call:connected — softphone spun on connecting while both sides talked. Fixed: connected-anyhow still publishes + records; other states still never resurrect. Beacon now also stamps connecting/accepted calls.
 - Tests: typecheck 0 - vitest 965 passed | 5 skipped (135 files, +1 race test).
 
+## 2026-10-02 - assistant - AGENT-SCOPE 404s (notes/hold/dtmf/list), AUDIO UNLOCK, RECORDING RACE
+- Same bug class as routing scope: every per-call route fetched agency-scoped, so agents on platform-agency (00000000) calls got 404 on note save, hold, dtmf, hangup, disposition, detail, and an EMPTY dashboard list ("0 total calls"). Fixed all to unscoped-fetch + ownership-check (accept route already did this); heads/admins keep agency scoping. +6 tests (notes route 3, list isolation 2, race 1... see below).
+- Audio silence prime suspect: auto-answer = no user gesture = Chrome blocks #remoteMedia. Added gesture-unlock retry (click/key/touch while call active) + warning toast on block (was debug-only). Bridge pacing tightened (200/1000ms -> 150/600ms polls; ~1s shaved, floor stays ~2s Telnyx round trips).
+- Recording double-store (two recording.saved webhooks -> duplicate key job failure): storeRecording now converges 23505 -> existing row. +1 test.
+- Tests: typecheck 0 - vitest 971 passed | 5 skipped (136 files, +6).
+

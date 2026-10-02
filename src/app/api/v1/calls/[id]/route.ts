@@ -33,12 +33,19 @@ async function requireCallAccess(
   scope: string | undefined,
   context: CallAccessContext,
 ): Promise<{ call: CallRow } | { error: NextResponse }> {
-  const call = await calls.findById(id, scope).catch(() => null);
+  // Fetch unscoped: platform-agency calls (00000000) belong to no member
+  // agency, so an agency-scoped lookup 404s agents on their OWN assigned
+  // calls (notes/hold/dtmf all broke this way). Authorization below keeps the
+  // boundary: admin bypass, heads confined to their agency, agents to their
+  // own (or unassigned ringing) calls.
+  const call = await calls.findById(id).catch(() => null);
   if (!call) return { error: fail("Call not found", 404) };
   if (context.user?.role !== "admin" && !context.isHead) {
     const me = context.membership ? await agents.findByMembershipId(context.membership.id).catch(() => null) : null;
     if (!me) return { error: fail("Agent profile not found", 403) };
     if (call.agent_id && call.agent_id !== me.id) return { error: fail("Call not found", 404) };
+  } else if (context.isHead && scope && call.agency_id !== scope) {
+    return { error: fail("Call not found", 404) };
   }
   return { call };
 }
@@ -49,11 +56,14 @@ export const GET = apiHandler(async (req, context) => {
   const scope = scopeFor({ agencyId, user });
   const access = await requireCallAccess(id, scope, { user, membership, isHead });
   if ("error" in access) return access.error;
-  const events = await callEvents.findByCallId(id, scope);
+  // Access already enforced above; sub-reads must not re-scope agents off
+  // their own platform-agency calls (same 404 class as the call lookup).
+  const privileged = user?.role === "admin" || isHead;
+  const events = await callEvents.findByCallId(id, privileged ? scope : undefined);
   // Post-buffer caller reveal (Option A escrow): entitled viewers are admin,
   // heads, and the assigned agent (visibility already enforced above). Every
   // reveal is logged for audit.
-  const campaign = await campaigns.findById(access.call.campaign_id, scope).catch(() => null);
+  const campaign = await campaigns.findById(access.call.campaign_id, privileged ? scope : undefined).catch(() => null);
   const reveal = callerRevealFor(access.call, campaign?.buffer_seconds ?? 30);
   if (reveal.revealed) {
     console.info(JSON.stringify({
