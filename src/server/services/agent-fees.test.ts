@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const clientQueryMock = vi.hoisted(() => vi.fn());
+const queryMock = vi.hoisted(() => vi.fn(async (..._args: unknown[]): Promise<Record<string, unknown>[]> => []));
 const sendMock = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
+const ensureMonthlyFeeMock = vi.hoisted(() => vi.fn(async () => ({ id: "fee-new" })));
 
 vi.mock("@/server/db", () => ({
-  query: vi.fn(async () => []),
+  query: queryMock,
   queryOne: vi.fn(async () => null),
   transaction: vi.fn(async (fn: (client: unknown) => Promise<unknown>) =>
     fn({ query: clientQueryMock }),
@@ -12,14 +14,14 @@ vi.mock("@/server/db", () => ({
 }));
 
 vi.mock("@/server/repositories/agent-fees", () => ({
-  agentFees: { ensureMonthlyFee: vi.fn() },
+  agentFees: { ensureMonthlyFee: ensureMonthlyFeeMock },
 }));
 
 vi.mock("@/server/services/invoice-delivery", () => ({
   sendWeeklyInvoice: sendMock,
 }));
 
-const { generateWeeklyInvoices } = await import("./agent-fees");
+const { generateWeeklyInvoices, generateMonthlyFees } = await import("./agent-fees");
 
 const FEES = [
   { id: "fee-1", agency_id: "agency-1", amount_cents: 5000 },
@@ -58,5 +60,30 @@ describe("generateWeeklyInvoices claim-first (H4)", () => {
       (sql as string).includes("FROM app.agent_fees"),
     );
     expect(selectCall?.[0] as string).toContain("FOR UPDATE SKIP LOCKED");
+  });
+});
+
+describe("generateMonthlyFees candidate gate", () => {
+  it("excludes NULL-agency and soft-deleted agents (their INSERT would 500)", async () => {
+    queryMock.mockResolvedValueOnce([
+      { id: "a-1", agency_id: "agency-1", software_fee_cents: 5000, plan_price_cents: null },
+    ]);
+    const out = await generateMonthlyFees(new Date("2026-10-01T00:00:00Z"));
+    expect(out).toEqual({ generated: 1, skipped: 0 });
+    const [sql] = queryMock.mock.calls[0] as [string];
+    expect(sql).toContain("a.agency_id IS NOT NULL");
+    expect(sql).toContain("a.deleted_at IS NULL");
+    expect(ensureMonthlyFeeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ agent_id: "a-1", kind: "software", amount_cents: 5000 }),
+    );
+  });
+
+  it("skips zero-amount agents without inserting", async () => {
+    queryMock.mockResolvedValueOnce([
+      { id: "a-2", agency_id: "agency-1", software_fee_cents: 0, plan_price_cents: null },
+    ]);
+    const out = await generateMonthlyFees(new Date("2026-10-01T00:00:00Z"));
+    expect(out).toEqual({ generated: 0, skipped: 1 });
+    expect(ensureMonthlyFeeMock).not.toHaveBeenCalled();
   });
 });

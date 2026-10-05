@@ -87,7 +87,7 @@ function CallsInner() {
         showToast("Test call created! Check the list below.", "success");
         fetchCalls();
       } else {
-        const body = await res.json();
+        const body = await res.json().catch(() => ({}));
         showToast(body.message ?? "Simulation failed", "error");
       }
     } catch {

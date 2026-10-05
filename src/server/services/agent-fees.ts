@@ -27,7 +27,9 @@ export async function generateMonthlyFees(dueDate: Date = new Date()): Promise<{
                AND (s.end_date IS NULL OR s.end_date > now())
                AND s.calls_used < p.call_allowance
              ORDER BY s.created_at DESC LIMIT 1) AS plan_price_cents
-     FROM app.agents a`,
+      FROM app.agents a
+     WHERE a.agency_id IS NOT NULL
+       AND a.deleted_at IS NULL`,
   );
 
   let generated = 0;

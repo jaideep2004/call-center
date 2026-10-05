@@ -1,0 +1,152 @@
+- generic [active] [ref=f8e1]:
+  - generic [ref=f8e2]:
+    - banner:
+      - navigation [ref=f8e3]:
+        - link "Coverage Calls home" [ref=f8e4] [cursor=pointer]:
+          - /url: /
+          - img "Coverage Calls" [ref=f8e5]
+        - navigation "Primary" [ref=f8e6]:
+          - link "How it Works" [ref=f8e7] [cursor=pointer]:
+            - /url: /#how-it-works
+          - link "Features" [ref=f8e8] [cursor=pointer]:
+            - /url: /#features
+          - link "Pricing" [ref=f8e9] [cursor=pointer]:
+            - /url: /#pricing
+          - link "Testimonials" [ref=f8e10] [cursor=pointer]:
+            - /url: /#testimonials
+          - link "Blog" [ref=f8e11] [cursor=pointer]:
+            - /url: /blog
+          - link "About" [ref=f8e12] [cursor=pointer]:
+            - /url: /about
+        - generic [ref=f8e13]:
+          - link "Log in" [ref=f8e14] [cursor=pointer]:
+            - /url: /login
+          - link [ref=f8e15] [cursor=pointer]:
+            - /url: /register
+            - generic [ref=f8e16]:
+              - text: Start free trial
+              - generic [aria-hidden] [ref=f8e17]: →
+    - main [ref=f8e18]:
+      - region "Frequently asked questions" [ref=f8e19]:
+        - generic [ref=f8e20]:
+          - generic [ref=f8e21]:
+            - generic [ref=f8e22]: FREQUENTLY ASKED QUESTIONS
+            - heading "Everything you need to know aboutCoverage Calls." [level=2] [ref=f8e25]
+            - generic [ref=f8e26]:
+              - button "All" [ref=f8e27] [cursor=pointer]
+              - button "Voice & WebRTC" [ref=f8e28] [cursor=pointer]
+              - button "Billing & Leads" [ref=f8e29] [cursor=pointer]
+              - button "AI & Features" [ref=f8e30] [cursor=pointer]
+              - button "Security & TCPA" [ref=f8e31] [cursor=pointer]
+          - generic [ref=f8e32]:
+            - generic [ref=f8e33]:
+              - button "Voice & WebRTC How does browser WebRTC work without desk phones or desktop SIP clients? Coverage Calls uses low-latency WebRTC technology directly inside modern web browsers (Chrome, Edge, Safari, Firefox). When an inbound caller dials your campaign number, voice audio is routed into encrypted audio channels in under 150ms. Your agents just plug in any USB headset and click 'Answer' — no PBX boxes, desktop softphones, or SIP trunk configuration needed." [expanded] [ref=f8e34] [cursor=pointer]:
+                - generic [ref=f8e36]:
+                  - generic [ref=f8e37]: Voice & WebRTC
+                  - heading "How does browser WebRTC work without desk phones or desktop SIP clients?" [level=3] [ref=f8e38]
+                - paragraph [ref=f8e44]: Coverage Calls uses low-latency WebRTC technology directly inside modern web browsers (Chrome, Edge, Safari, Firefox). When an inbound caller dials your campaign number, voice audio is routed into encrypted audio channels in under 150ms. Your agents just plug in any USB headset and click 'Answer' — no PBX boxes, desktop softphones, or SIP trunk configuration needed.
+              - button "Billing & Leads How does billable call verification work? You only pay for qualified, billable conversations that meet your custom connection threshold (e.g. connected for over 90–120 seconds with confirmed intent). Our routing engine automatically disqualifies duplicate calls, spam, and disconnected lines before they hit your agent's live screen." [ref=f8e45] [cursor=pointer]:
+                - generic [ref=f8e47]:
+                  - generic [ref=f8e48]: Billing & Leads
+                  - heading "How does billable call verification work?" [level=3] [ref=f8e49]
+                - paragraph [ref=f8e53]: You only pay for qualified, billable conversations that meet your custom connection threshold (e.g. connected for over 90–120 seconds with confirmed intent). Our routing engine automatically disqualifies duplicate calls, spam, and disconnected lines before they hit your agent's live screen.
+              - button "AI & Features What is AI Whisper Coaching and how does it assist agents during live calls? Our low-latency AI Copilot transcribes the conversation in real time. It displays script adherence suggestions, detects prospect sentiment, and feeds instant rebuttals and coverage benefit bullets directly on the agent workspace without interrupting audio flow." [ref=f8e54] [cursor=pointer]:
+                - generic [ref=f8e56]:
+                  - generic [ref=f8e57]: AI & Features
+                  - heading "What is AI Whisper Coaching and how does it assist agents during live calls?" [level=3] [ref=f8e58]
+                - paragraph [ref=f8e62]: Our low-latency AI Copilot transcribes the conversation in real time. It displays script adherence suggestions, detects prospect sentiment, and feeds instant rebuttals and coverage benefit bullets directly on the agent workspace without interrupting audio flow.
+              - button "Voice & WebRTC Can I integrate Coverage Calls with my existing agency CRM? Yes. We offer webhooks and direct integrations for AgencyBloc, HubSpot, Salesforce, GoHighLevel, and Zapier. Contact records, call recordings, AI summaries, and disposition tags sync instantly the second a call finishes." [ref=f8e63] [cursor=pointer]:
+                - generic [ref=f8e65]:
+                  - generic [ref=f8e66]: Voice & WebRTC
+                  - heading "Can I integrate Coverage Calls with my existing agency CRM?" [level=3] [ref=f8e67]
+                - paragraph [ref=f8e71]: Yes. We offer webhooks and direct integrations for AgencyBloc, HubSpot, Salesforce, GoHighLevel, and Zapier. Contact records, call recordings, AI summaries, and disposition tags sync instantly the second a call finishes.
+              - button "Security & TCPA Is Coverage Calls TCPA compliant and HIPAA ready? Yes. All voice streams, call recordings, and transcripts are encrypted at rest with AES-256 and in transit with TLS 1.3 / SRTP. We maintain strict TCPA compliance logging with exact timestamp verification, caller consent records, and automated DNC scrubber integration." [ref=f8e72] [cursor=pointer]:
+                - generic [ref=f8e74]:
+                  - generic [ref=f8e75]: Security & TCPA
+                  - heading "Is Coverage Calls TCPA compliant and HIPAA ready?" [level=3] [ref=f8e76]
+                - paragraph [ref=f8e80]: Yes. All voice streams, call recordings, and transcripts are encrypted at rest with AES-256 and in transit with TLS 1.3 / SRTP. We maintain strict TCPA compliance logging with exact timestamp verification, caller consent records, and automated DNC scrubber integration.
+              - button "Billing & Leads How does the 7-day free trial work and can I cancel anytime? Every plan includes full access to the agent workspace, browser calling, analytics dashboard, and AI call notes for 7 days. You can invite your team, test inbound routing, and cancel at any time with a single click in your settings dashboard — no long-term lock-in contracts." [ref=f8e81] [cursor=pointer]:
+                - generic [ref=f8e83]:
+                  - generic [ref=f8e84]: Billing & Leads
+                  - heading "How does the 7-day free trial work and can I cancel anytime?" [level=3] [ref=f8e85]
+                - paragraph [ref=f8e89]: Every plan includes full access to the agent workspace, browser calling, analytics dashboard, and AI call notes for 7 days. You can invite your team, test inbound routing, and cancel at any time with a single click in your settings dashboard — no long-term lock-in contracts.
+            - complementary [ref=f8e90]:
+              - heading "Have more questions?" [level=4] [ref=f8e94]
+              - paragraph [ref=f8e95]: Can't find the answer you're looking for? Talk directly with our technical inbound engineers.
+              - generic [ref=f8e96]:
+                - generic [ref=f8e97]: "Average response: < 5 mins"
+                - generic [ref=f8e100]: Live WebRTC setup assistance
+              - link "Talk to an Expert" [ref=f8e103] [cursor=pointer]:
+                - /url: /contact
+    - contentinfo [ref=f8e107]:
+      - generic [ref=f8e108]:
+        - generic [ref=f8e109]:
+          - generic [ref=f8e110]:
+            - link "Coverage Calls home" [ref=f8e111] [cursor=pointer]:
+              - /url: /
+              - img "Coverage Calls" [ref=f8e112]
+            - paragraph [ref=f8e113]: The inbound call platform for agents and agencies who want better conversations and better results.
+            - generic [ref=f8e114]:
+              - link "X" [ref=f8e115] [cursor=pointer]:
+                - /url: https://x.com
+              - link "LinkedIn" [ref=f8e118] [cursor=pointer]:
+                - /url: https://linkedin.com
+          - generic [ref=f8e121]:
+            - heading "Product" [level=4] [ref=f8e122]
+            - list [ref=f8e123]:
+              - listitem [ref=f8e124]:
+                - link "Features" [ref=f8e125] [cursor=pointer]:
+                  - /url: /#features
+              - listitem [ref=f8e126]:
+                - link "Pricing" [ref=f8e127] [cursor=pointer]:
+                  - /url: /#pricing
+              - listitem [ref=f8e128]:
+                - link "How it Works" [ref=f8e129] [cursor=pointer]:
+                  - /url: /#how-it-works
+          - generic [ref=f8e130]:
+            - heading "Solutions" [level=4] [ref=f8e131]
+            - list [ref=f8e132]:
+              - listitem [ref=f8e133]:
+                - link "For Agents" [ref=f8e134] [cursor=pointer]:
+                  - /url: /#agent-calls
+              - listitem [ref=f8e135]:
+                - link "For Agencies" [ref=f8e136] [cursor=pointer]:
+                  - /url: /#dashboard-preview
+              - listitem [ref=f8e137]:
+                - link "Testimonials" [ref=f8e138] [cursor=pointer]:
+                  - /url: /#testimonials
+          - generic [ref=f8e139]:
+            - heading "Resources" [level=4] [ref=f8e140]
+            - list [ref=f8e141]:
+              - listitem [ref=f8e142]:
+                - link "Blog" [ref=f8e143] [cursor=pointer]:
+                  - /url: /blog
+              - listitem [ref=f8e144]:
+                - link "FAQ" [ref=f8e145] [cursor=pointer]:
+                  - /url: /faq
+              - listitem [ref=f8e146]:
+                - link "Privacy" [ref=f8e147] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=f8e148]:
+                - link "Terms" [ref=f8e149] [cursor=pointer]:
+                  - /url: /terms
+          - generic [ref=f8e150]:
+            - heading "Company" [level=4] [ref=f8e151]
+            - list [ref=f8e152]:
+              - listitem [ref=f8e153]:
+                - link "About Us" [ref=f8e154] [cursor=pointer]:
+                  - /url: /about
+              - listitem [ref=f8e155]:
+                - link "Contact" [ref=f8e156] [cursor=pointer]:
+                  - /url: /contact
+              - listitem [ref=f8e157]:
+                - link "Privacy Policy" [ref=f8e158] [cursor=pointer]:
+                  - /url: /privacy
+          - generic [ref=f8e159]:
+            - heading "Stay updated" [level=4] [ref=f8e160]
+            - paragraph [ref=f8e161]: Get product updates and tips to grow your business.
+            - generic [ref=f8e162]:
+              - textbox "Enter your email" [ref=f8e163]
+              - button "Subscribe" [ref=f8e164] [cursor=pointer]
+        - paragraph [ref=f8e168]: © 2025 Coverage Calls. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=f8e174] [cursor=pointer]

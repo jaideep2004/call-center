@@ -247,7 +247,7 @@ function LeadsInner() {
               fetchLeads();
               showToast("Lead deleted", "success");
             } else {
-              const body = await res.json();
+              const body = await res.json().catch(() => ({}));
               showToast(body.message ?? "Failed to delete lead", "error");
             }
           } catch {

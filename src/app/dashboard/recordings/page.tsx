@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
 import { formatDuration } from "@/lib/format";
@@ -14,6 +15,9 @@ interface RecordingRow {
   content_type: string;
   duration_seconds: number | null;
   created_at: string;
+  call_display_code?: string | null;
+  agent_id?: string | null;
+  agent_name?: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -101,6 +105,8 @@ function RecordingsInner() {
     const q = debouncedQ;
     return recordings.filter((r) =>
       r.call_id.toLowerCase().includes(q) ||
+      (r.call_display_code ?? "").toLowerCase().includes(q) ||
+      (r.agent_name ?? "").toLowerCase().includes(q) ||
       r.content_type.toLowerCase().includes(q) ||
       r.storage_path.toLowerCase().includes(q)
     );
@@ -117,7 +123,8 @@ function RecordingsInner() {
   }, [totalPages, page]);
 
   const columns: Column<RecordingRow>[] = [
-    { key: "call_id", header: "Call", render: (r) => <span className="text-mono-sm" title={r.call_id}>{r.call_id.slice(0, 8)}</span> },
+    { key: "call_id", header: "Call", render: (r) => <Link href={`/dashboard/calls/${r.call_id}`} className="text-mono-sm clickable" title={r.call_id}>{r.call_display_code ?? r.call_id.slice(0, 8)}</Link> },
+    { key: "agent_name", header: "Agent", render: (r) => <span className="text-mono-sm">{r.agent_name ?? "—"}</span> },
     { key: "content_type", header: "Type", render: (r) => <span className="badge badge-info">{r.content_type}</span> },
     { key: "duration_seconds", header: "Duration", render: (r) => <span className="text-mono-sm">{formatDuration(r.duration_seconds)}</span> },
     { key: "created_at", header: "Date", render: (r) => <span className="text-mono-sm">{new Date(r.created_at).toLocaleString()}</span> },

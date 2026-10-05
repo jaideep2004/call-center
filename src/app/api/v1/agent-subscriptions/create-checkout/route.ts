@@ -70,7 +70,9 @@ export const POST = apiHandler(async (req, { membership, agencyId }) => {
       plan_id: plan.id,
       stripe_session_id: session.id,
       amount_cents: plan.price_cents,
-      livemode: session.livemode ?? true,
+      // Unknown Stripe mode fails closed to test (never leaks into live
+      // revenue); the webhook/reconcile stamps the truth when known.
+      livemode: session.livemode ?? false,
     });
   } catch (e) {
     // Never leave a payable session without an app row — expire it; the

@@ -316,7 +316,7 @@ const publisherNav = [
   { label: "Campaigns", href: "/dashboard/publisher/campaigns", icon: "03" },
   { label: "Calls", href: "/dashboard/publisher/calls", icon: "06" },
   { label: "Payouts", href: "/dashboard/publisher/payouts", icon: "07" },
-  { label: "Scripts", href: "/dashboard/scripts", icon: "05c" },
+  // Scripts removed from the publisher portal (agent/admin-only content).
   { label: "Tutorials", href: "/dashboard/tutorials", icon: "05h" },
   { label: "Settings", href: "/dashboard/publisher/settings", icon: "10" },
 ];

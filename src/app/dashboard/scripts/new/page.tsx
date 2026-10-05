@@ -53,12 +53,30 @@ export default function NewScriptPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Admin-only visibility: global (every agency) or one agency. Agents always
+  // file into their own agency (server enforces).
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [visibility, setVisibility] = useState<string>("global");
+  const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     fetch("/api/v1/campaigns?limit=100").then(async (res) => {
       if (res.ok) {
         const body = await res.json();
         setCampaigns(body.data ?? []);
+      }
+    }).catch(() => {});
+    fetch("/api/v1/me").then(async (res) => {
+      if (!res.ok) return;
+      const body = await res.json();
+      if (body.data?.user?.role === "admin") {
+        setIsAdmin(true);
+        fetch("/api/v1/agencies").then(async (r) => {
+          if (r.ok) {
+            const b = await r.json();
+            setAgencies(((b.data ?? []) as any[]).map((a) => ({ id: a.id, name: a.name ?? a.slug ?? a.id.slice(0, 8) })));
+          }
+        }).catch(() => {});
       }
     }).catch(() => {});
   }, []);
@@ -89,7 +107,13 @@ export default function NewScriptPage() {
       const res = await fetch("/api/v1/scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content, category, tags: tags.split(",").map((t) => t.trim()).filter(Boolean), campaign_id: campaignId || null }),
+        body: JSON.stringify({
+          title, content, category,
+          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+          campaign_id: campaignId || null,
+          // Admins choose visibility; agents omit it (server files own agency).
+          ...(isAdmin ? { agency_id: visibility === "global" ? null : visibility } : {}),
+        }),
       });
       if (res.ok) {
         const body = await res.json();
@@ -137,6 +161,18 @@ export default function NewScriptPage() {
               <span className="form-hint">Used to filter scripts on the agent dashboard.</span>
             </div>
           </div>
+          {isAdmin && (
+            <div className="form-group">
+              <label className="form-label">Visibility</label>
+              <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+                <option value="global">Global — every agency sees it</option>
+                {agencies.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name} only</option>
+                ))}
+              </select>
+              <span className="form-hint">Global scripts appear in every agent&apos;s library. Agency scripts stay inside that agency.</span>
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Assigned Campaign</label>
             <select className="select" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>

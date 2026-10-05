@@ -45,7 +45,7 @@ export default function AdminPaymentsPage() {
   const [agencyMap, setAgencyMap] = useState<Record<string, string>>({});
 
   const refresh = useCallback(() => {
-    fetch(`/api/v1/payments?limit=200&mode=${mode}`).then(async (res) => {
+    fetch(`/api/v1/payments?limit=100&mode=${mode}`).then(async (res) => {
       if (res.ok) {
         const body = await res.json();
         setRows(body.data ?? []);

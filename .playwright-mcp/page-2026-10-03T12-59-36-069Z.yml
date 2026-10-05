@@ -1,0 +1,267 @@
+- generic [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - complementary [ref=f5e3]:
+      - generic [ref=f5e4]:
+        - link "Coverage Calls home" [ref=f5e5] [cursor=pointer]:
+          - /url: /
+          - img "Coverage Calls" [ref=f5e6]
+        - button "Collapse sidebar" [expanded] [ref=f5e7] [cursor=pointer]: «
+      - paragraph [ref=f5e8]: ADMIN CONSOLE
+      - navigation [ref=f5e9]:
+        - link "Command" [ref=f5e258] [cursor=pointer]:
+          - /url: /dashboard
+        - generic [ref=f5e265]:
+          - generic [ref=f5e266]: PEOPLE
+          - link "Agencies" [ref=f5e267] [cursor=pointer]:
+            - /url: /dashboard/admin/agencies
+          - link "Agents" [ref=f5e273] [cursor=pointer]:
+            - /url: /dashboard/agents
+          - link "Users" [ref=f5e280] [cursor=pointer]:
+            - /url: /dashboard/admin/users
+          - link "Leads" [ref=f5e287] [cursor=pointer]:
+            - /url: /dashboard/leads
+        - generic [ref=f5e292]:
+          - generic [ref=f5e293]: OPERATIONS
+          - link "Campaigns" [ref=f5e294] [cursor=pointer]:
+            - /url: /dashboard/campaigns
+          - link "Publishers" [ref=f5e299] [cursor=pointer]:
+            - /url: /dashboard/admin/publishers
+          - link "Calls" [ref=f5e307] [cursor=pointer]:
+            - /url: /dashboard/calls
+          - link "Disputes" [ref=f5e311] [cursor=pointer]:
+            - /url: /dashboard/admin/disputes
+          - link "Recordings" [ref=f5e317] [cursor=pointer]:
+            - /url: /dashboard/recordings
+          - link "Scripts" [ref=f5e322] [cursor=pointer]:
+            - /url: /dashboard/scripts
+          - link "Tutorials" [ref=f5e327] [cursor=pointer]:
+            - /url: /dashboard/tutorials
+          - link "Skills" [ref=f5e332] [cursor=pointer]:
+            - /url: /dashboard/admin/skills
+        - generic [ref=f5e335]:
+          - generic [ref=f5e336]: FINANCE
+          - link "Plans" [ref=f5e337] [cursor=pointer]:
+            - /url: /dashboard/admin/plans
+          - link "Fees" [ref=f5e343] [cursor=pointer]:
+            - /url: /dashboard/admin/fees
+          - link "Revenue" [ref=f5e348] [cursor=pointer]:
+            - /url: /dashboard/admin/revenue
+          - link "Payments" [ref=f5e353] [cursor=pointer]:
+            - /url: /dashboard/admin/payments
+          - link "Ledger" [ref=f5e357] [cursor=pointer]:
+            - /url: /dashboard/wallet
+        - generic [ref=f5e361]:
+          - generic [ref=f5e362]: SYSTEM
+          - link "Reports" [ref=f5e363] [cursor=pointer]:
+            - /url: /dashboard/reports
+          - link "Support" [ref=f5e367] [cursor=pointer]:
+            - /url: /dashboard/admin/support
+          - link "CMS" [ref=f5e376] [cursor=pointer]:
+            - /url: /dashboard/admin/cms
+          - link "Notifications 3" [ref=f5e382] [cursor=pointer]:
+            - /url: /dashboard/notifications
+            - generic [ref=f5e386]: Notifications
+            - generic [ref=f5e387]: "3"
+          - link "Settings" [ref=f5e388] [cursor=pointer]:
+            - /url: /dashboard/settings
+          - link "System Settings" [ref=f5e393] [cursor=pointer]:
+            - /url: /dashboard/admin/settings
+          - link "Feature Requests" [ref=f5e396] [cursor=pointer]:
+            - /url: /dashboard/feature-requests
+        - link "Admin" [ref=f5e400] [cursor=pointer]:
+          - /url: /dashboard/admin
+      - button "A Admin admin@coveragecalls.com ▾" [ref=f5e44] [cursor=pointer]:
+        - generic [ref=f5e21]: A
+        - generic [ref=f5e22]:
+          - strong [ref=f5e23]: Admin
+          - generic [ref=f5e45]: admin@coveragecalls.com
+        - generic [ref=f5e25]: ▾
+    - generic [ref=f5e27]:
+      - generic [ref=f5e28]:
+        - generic [ref=f5e46]:
+          - paragraph [ref=f5e47]: ADMIN / USERS
+          - heading "User Management" [level=1] [ref=f5e49]
+        - generic [ref=f5e50]:
+          - searchbox "Search name, email, role…" [ref=f5e51]
+          - generic [ref=f5e52]: 12 of 12 users · 10 memberships
+      - generic [ref=f5e53]:
+        - combobox [ref=f5e54]:
+          - option "All roles" [selected]
+          - option "admin"
+          - option "agent"
+          - option "publisher"
+        - combobox [ref=f5e55]:
+          - option "All statuses" [selected]
+          - option "Active"
+          - option "Suspended"
+          - option "Pending"
+      - tablist "User management views" [ref=f5e56]:
+        - tab "All users (12)" [ref=f5e57] [cursor=pointer]
+        - tab "Memberships (10)" [active] [selected] [ref=f5e58] [cursor=pointer]
+        - generic [ref=f5e59]: Every role · Delete removes the user from the database permanently
+      - table [ref=f5e405]:
+        - rowgroup [ref=f5e406]:
+          - row [ref=f5e407]:
+            - columnheader "User" [ref=f5e408] [cursor=pointer]
+            - columnheader "Agency" [ref=f5e409] [cursor=pointer]
+            - columnheader "Role" [ref=f5e410] [cursor=pointer]
+            - columnheader "Status" [ref=f5e411] [cursor=pointer]
+            - columnheader "Actions" [ref=f5e412] [cursor=pointer]
+        - rowgroup [ref=f5e413]:
+          - row [ref=f5e414]:
+            - cell "QA Agent qa-agent@coveragecalls.com D9kM285B…" [ref=f5e415]:
+              - generic [ref=f5e416]:
+                - generic [ref=f5e417]: QA Agent
+                - generic [ref=f5e418]: qa-agent@coveragecalls.com
+                - generic [ref=f5e419]: D9kM285B…
+            - cell "Senior Services" [ref=f5e420]
+            - cell "agent" [ref=f5e421]:
+              - combobox [ref=f5e422]:
+                - option "admin"
+                - option "agent" [selected]
+                - option "publisher"
+            - cell "active" [ref=f5e423]
+            - cell [ref=f5e425]:
+              - button "Suspend" [ref=f5e426] [cursor=pointer]
+          - row [ref=f5e427]:
+            - cell "Md Zulkarnain Barik zulkar.nain.barik@gmail.com 3Vki95ag…" [ref=f5e428]:
+              - generic [ref=f5e429]:
+                - generic [ref=f5e430]: Md Zulkarnain Barik
+                - generic [ref=f5e431]: zulkar.nain.barik@gmail.com
+                - generic [ref=f5e432]: 3Vki95ag…
+            - cell "Coverage Calls Public Leads" [ref=f5e433]
+            - cell "agent" [ref=f5e434]:
+              - combobox [ref=f5e435]:
+                - option "admin"
+                - option "agent" [selected]
+                - option "publisher"
+            - cell "active" [ref=f5e436]
+            - cell [ref=f5e438]:
+              - button "Suspend" [ref=f5e439] [cursor=pointer]
+          - row [ref=f5e440]:
+            - cell "RICHARD V BREWER JR rvbrewerjr@gmail.com KiDLw2mX…" [ref=f5e441]:
+              - generic [ref=f5e442]:
+                - generic [ref=f5e443]: RICHARD V BREWER JR
+                - generic [ref=f5e444]: rvbrewerjr@gmail.com
+                - generic [ref=f5e445]: KiDLw2mX…
+            - cell "Coverage Calls Public Leads" [ref=f5e446]
+            - cell "agent" [ref=f5e447]:
+              - combobox [ref=f5e448]:
+                - option "admin"
+                - option "agent" [selected]
+                - option "publisher"
+            - cell "active" [ref=f5e449]
+            - cell [ref=f5e451]:
+              - button "Suspend" [ref=f5e452] [cursor=pointer]
+          - row [ref=f5e453]:
+            - cell "Zulkar Nain zulkar@leadsmktg.com nND0gWOj…" [ref=f5e454]:
+              - generic [ref=f5e455]:
+                - generic [ref=f5e456]: Zulkar Nain
+                - generic [ref=f5e457]: zulkar@leadsmktg.com
+                - generic [ref=f5e458]: nND0gWOj…
+            - cell "Coverage Calls Public Leads" [ref=f5e459]
+            - cell "agent" [ref=f5e460]:
+              - combobox [ref=f5e461]:
+                - option "admin"
+                - option "agent" [selected]
+                - option "publisher"
+            - cell "active" [ref=f5e462]
+            - cell [ref=f5e464]:
+              - button "Suspend" [ref=f5e465] [cursor=pointer]
+          - row [ref=f5e466]:
+            - cell "Abdul Barik abdul.barik.8961@gmail.com UwDxQZsc…" [ref=f5e467]:
+              - generic [ref=f5e468]:
+                - generic [ref=f5e469]: Abdul Barik
+                - generic [ref=f5e470]: abdul.barik.8961@gmail.com
+                - generic [ref=f5e471]: UwDxQZsc…
+            - cell "Zeke Testing" [ref=f5e472]
+            - cell "agent" [ref=f5e473]:
+              - combobox [ref=f5e474]:
+                - option "admin"
+                - option "agent" [selected]
+                - option "publisher"
+            - cell "active" [ref=f5e475]
+            - cell [ref=f5e477]:
+              - button "Suspend" [ref=f5e478] [cursor=pointer]
+          - row [ref=f5e479]:
+            - cell "Admin admin@coveragecalls.com 7N8mtCkR…" [ref=f5e480]:
+              - generic [ref=f5e481]:
+                - generic [ref=f5e482]: Admin
+                - generic [ref=f5e483]: admin@coveragecalls.com
+                - generic [ref=f5e484]: 7N8mtCkR…
+            - cell "Coverage Calls Public Leads" [ref=f5e485]
+            - cell "admin" [ref=f5e486]:
+              - combobox [ref=f5e487]:
+                - option "admin" [selected]
+                - option "agent"
+                - option "publisher"
+            - cell "active" [ref=f5e488]
+            - cell [ref=f5e490]:
+              - button "Suspend" [ref=f5e491] [cursor=pointer]
+          - row [ref=f5e492]:
+            - cell "Solar nationalsolarprograms@gmail.com PS84mQYy…" [ref=f5e493]:
+              - generic [ref=f5e494]:
+                - generic [ref=f5e495]: Solar
+                - generic [ref=f5e496]: nationalsolarprograms@gmail.com
+                - generic [ref=f5e497]: PS84mQYy…
+            - cell "Coverage Calls Public Leads" [ref=f5e498]
+            - cell "agent" [ref=f5e499]:
+              - combobox [ref=f5e500]:
+                - option "admin"
+                - option "agent" [selected]
+                - option "publisher"
+            - cell "active" [ref=f5e501]
+            - cell [ref=f5e503]:
+              - button "Suspend" [ref=f5e504] [cursor=pointer]
+          - row [ref=f5e505]:
+            - cell "jai test 2 oct jai2004bgmi@gmail.com Dg6yFWHi…" [ref=f5e506]:
+              - generic [ref=f5e507]:
+                - generic [ref=f5e508]: jai test 2 oct
+                - generic [ref=f5e509]: jai2004bgmi@gmail.com
+                - generic [ref=f5e510]: Dg6yFWHi…
+            - cell "agency test" [ref=f5e511]
+            - cell "agent" [ref=f5e512]:
+              - combobox [ref=f5e513]:
+                - option "admin"
+                - option "agent" [selected]
+                - option "publisher"
+            - cell "active" [ref=f5e514]
+            - cell [ref=f5e516]:
+              - button "Suspend" [ref=f5e517] [cursor=pointer]
+          - row [ref=f5e518]:
+            - cell "Admin admin@coveragecalls.com 7N8mtCkR…" [ref=f5e519]:
+              - generic [ref=f5e520]:
+                - generic [ref=f5e521]: Admin
+                - generic [ref=f5e522]: admin@coveragecalls.com
+                - generic [ref=f5e523]: 7N8mtCkR…
+            - cell "93202534" [ref=f5e524]
+            - cell "admin" [ref=f5e525]:
+              - combobox [ref=f5e526]:
+                - option "admin" [selected]
+                - option "agent"
+                - option "publisher"
+            - cell "active" [ref=f5e527]
+            - cell [ref=f5e529]:
+              - button "Suspend" [ref=f5e530] [cursor=pointer]
+          - row [ref=f5e531]:
+            - cell "Test Live Calls mortgageattraction@gmail.com JF1wom6y…" [ref=f5e532]:
+              - generic [ref=f5e533]:
+                - generic [ref=f5e534]: Test Live Calls
+                - generic [ref=f5e535]: mortgageattraction@gmail.com
+                - generic [ref=f5e536]: JF1wom6y…
+            - cell "Testing MortgageAttraction" [ref=f5e537]
+            - cell "agent" [ref=f5e538]:
+              - combobox [ref=f5e539]:
+                - option "admin"
+                - option "agent" [selected]
+                - option "publisher"
+            - cell "active" [ref=f5e540]
+            - cell [ref=f5e542]:
+              - button "Suspend" [ref=f5e543] [cursor=pointer]
+      - paragraph [ref=f5e544]: 10 total
+    - generic [ref=f5e242]:
+      - button "Log out" [ref=f5e248] [cursor=pointer]
+      - button "Notifications, 3 unread" [ref=f5e545] [cursor=pointer]:
+        - generic [ref=f5e546]: "3"
+  - button "Open Next.js Dev Tools" [ref=f5e40] [cursor=pointer]
+  - alert [ref=f5e257]

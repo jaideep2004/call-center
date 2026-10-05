@@ -414,9 +414,11 @@ export default function AdminSystemSettingsPage() {
 
       <div className="settings-layout">
         <div style={{ display:"flex", flexDirection:"column", gap:"var(--space-6)" }}>
+          <p className="eyebrow" style={{ margin:0 }}><i /> Integrations — live connection checks</p>
           <TelnyxIntegrationCard />
           <RetreaverIntegrationCard />
           <StripeIntegrationCard />
+          <p className="eyebrow" style={{ margin:"var(--space-2) 0 0" }}><i /> Platform guarantees</p>
           <section className="card card--spacious" style={{ padding:22 }}>
             <h2 className="settings-card-title">Security & Data</h2>
             <p className="settings-card-sub">Retention and encryption are managed centrally. Contact ops for rotation.</p>
@@ -440,6 +442,24 @@ export default function AdminSystemSettingsPage() {
         </div>
 
         <aside className="settings-rail">
+          <p className="eyebrow" style={{ margin:0 }}><i /> Agency setup</p>
+          <section className="card card--spacious" style={{ padding:18 }}>
+            <h2 className="settings-card-title" style={{ fontSize:14 }}>Platform home agency</h2>
+            <p className="settings-card-sub">Solo agents approved with no team auto-join this agency — they can fund, subscribe and take calls without creating one. Teams and invites are unaffected.</p>
+            <div style={{ marginTop:14 }}>
+              <label className="settings-label">Home agency</label>
+              <select className="input" value={platformAgencyId} onChange={(e) => setPlatformAgencyId(e.target.value)} style={{ minHeight:42 }}>
+                <option value="">Not set (approval only, as before)</option>
+                {agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div style={{ marginTop:14, display: "flex", justifyContent: "flex-end" }}>
+              <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving} style={{ minWidth:110, minHeight:36 }}>
+                {saving ? <span className="spinner" /> : "Save setting"}
+              </button>
+            </div>
+          </section>
+
           <section className="card card--spacious" style={{ padding:18 }}>
             <h2 className="settings-card-title" style={{ fontSize:14 }}>Agent agency creation</h2>
             <p className="settings-card-sub">When enabled, agents without an agency can create their own agency and become its head.</p>
@@ -465,23 +485,7 @@ export default function AdminSystemSettingsPage() {
             <p className="text-muted" style={{ fontSize:11, margin:"10px 0 0", lineHeight:1.5 }}>Heads manage members via Settings → Members. Change takes effect immediately.</p>
           </section>
 
-          <section className="card card--spacious" style={{ padding:18, marginTop:16 }}>
-            <h2 className="settings-card-title" style={{ fontSize:14 }}>Platform home agency</h2>
-            <p className="settings-card-sub">Solo agents approved with no team auto-join this agency — they can fund, subscribe and take calls without creating one. Teams and invites are unaffected.</p>
-            <div style={{ marginTop:14 }}>
-              <label className="settings-label">Home agency</label>
-              <select className="input" value={platformAgencyId} onChange={(e) => setPlatformAgencyId(e.target.value)} style={{ minHeight:42 }}>
-                <option value="">Not set (approval only, as before)</option>
-                {agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </div>
-            <div style={{ marginTop:14, display: "flex", justifyContent: "flex-end" }}>
-              <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving} style={{ minWidth:110, minHeight:36 }}>
-                {saving ? <span className="spinner" /> : "Save setting"}
-              </button>
-            </div>
-          </section>
-
+          <p className="eyebrow" style={{ margin:"var(--space-2) 0 0" }}><i /> Shortcuts</p>
           <section className="card" style={{ padding:16, background:"linear-gradient(135deg, rgba(168,85,247,.10), rgba(255,255,255,.02))", borderColor:"rgba(168,85,247,.16)" }}>
             <h3 style={{ font:"600 13px var(--sans)", margin:0, color:"var(--ink)" }}>Platform health</h3>
             <p className="text-muted" style={{ fontSize:12, margin:"6px 0 0", lineHeight:1.5 }}>All systems nominal. Platform controls live here; agency setup under Agencies, members under Users.</p>

@@ -1,0 +1,23 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - complementary [ref=f3e3]:
+      - generic [ref=f3e4]:
+        - link "Coverage Calls home" [ref=f3e5] [cursor=pointer]:
+          - /url: /
+          - img "Coverage Calls" [ref=f3e6]
+        - button "Collapse sidebar" [expanded] [ref=f3e7] [cursor=pointer]: «
+      - paragraph [ref=f3e8]: CONSOLE
+      - navigation [aria-hidden] [ref=f3e9]
+      - button "A Admin admin@coveragecalls.com ▾" [ref=f3e20] [cursor=pointer]:
+        - generic [ref=f3e21]: A
+        - generic [ref=f3e22]:
+          - strong [ref=f3e23]: Admin
+          - generic [ref=f3e24]: admin@coveragecalls.com
+        - generic [ref=f3e26]: ▾
+    - generic [ref=f3e37]:
+      - generic [ref=f3e38]:
+        - button "Go online" [disabled] [ref=f3e39] [cursor=pointer]: Go Online
+        - button "Log out" [ref=f3e43] [cursor=pointer]
+      - button "Notifications" [ref=f3e48] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f3e57] [cursor=pointer]
+  - alert [ref=f3e61]

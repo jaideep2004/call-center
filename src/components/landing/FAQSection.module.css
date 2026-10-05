@@ -217,14 +217,24 @@
   opacity: 1;
 }
 
+/* Spacing lives ONLY on the expanded state: margin/padding/border on the
+   grid item force the 0fr track open (~31px ghost box in every closed card,
+   even with min-height:0). Closed cards render zero answer box. */
 .answerText {
+  min-height: 0;
   overflow: hidden;
   font-size: 0.92rem;
   line-height: 1.65;
   color: #a39cb8;
+  margin: 0;
+  padding-top: 0;
+  border-top: 1px solid transparent;
+}
+
+.cardBodyExpanded .answerText {
   margin: 16px 0 0 0;
   padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top-color: rgba(255, 255, 255, 0.06);
 }
 
 .sideHelpCard {

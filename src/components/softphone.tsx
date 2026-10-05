@@ -248,12 +248,24 @@ export default function Softphone({ membershipId, agentId }: SoftphoneProps) {
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let isActive = true;
 
+    // A dead session (401) looks EXACTLY like "no calls" — the agent stares
+    // at an empty dashboard while calls miss. Say so loudly, once per idle
+    // stretch, instead of backing off silently.
+    let authToastShown = false;
     const doPoll = async () => {
       if (!isActive) return;
       pollCount++;
       try {
         const res = await fetch(`/api/v1/calls?agent_id=${encodeURIComponent(agentId)}&state=ringing&limit=1`);
-        if (!res.ok) { addDebug(`Poll #${pollCount}: HTTP ${res.status}`); pollDelay = Math.min(pollDelay * 2, MAX_POLL_DELAY); return; }
+        if (!res.ok) {
+          addDebug(`Poll #${pollCount}: HTTP ${res.status}`);
+          if ((res.status === 401 || res.status === 403) && !authToastShown) {
+            authToastShown = true;
+            showToast("Session expired — log in again to receive calls", "error");
+          }
+          pollDelay = Math.min(pollDelay * 2, MAX_POLL_DELAY);
+          return;
+        }
         const body = await res.json();
         const calls = body.data ?? [];
         if (calls.length > 0) {

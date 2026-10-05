@@ -36,8 +36,17 @@ export class PhoneNumberRepository extends BaseRepository<PhoneNumberRow> {
 
   async findByCampaign(campaignId: string, client?: PoolClient): Promise<PhoneNumberRow | null> {
     return queryOne<PhoneNumberRow>(
-      "SELECT * FROM app.phone_numbers WHERE campaign_id = $1 AND status = 'active' LIMIT 1",
+      `SELECT * FROM app.phone_numbers WHERE campaign_id = $1 AND status = 'active' LIMIT 1`,
       [campaignId],
+      client,
+    );
+  }
+
+  /** First active number attached to a live campaign (simulator + diagnostics). */
+  async findFirstRoutable(client?: PoolClient): Promise<PhoneNumberRow | null> {
+    return queryOne<PhoneNumberRow>(
+      `SELECT * FROM app.phone_numbers WHERE status = 'active' AND campaign_id IS NOT NULL ORDER BY e164 ASC LIMIT 1`,
+      [],
       client,
     );
   }

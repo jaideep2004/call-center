@@ -41,6 +41,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [tab, setTab] = useState<"users" | "memberships">("users");
   const [sortBy, setSortBy] = useState("created_at");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [agentsMap, setAgentsMap] = useState<Record<string, { name: string; email: string }>>({});
@@ -426,37 +427,46 @@ export default function AdminUsersPage() {
         )}
       </div>
 
-      <section className="card" style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)" }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "var(--space-3)" }}>
-          <h2 style={{ font: "500 16px var(--serif)", margin: 0, letterSpacing: "-0.02em" }}>
-            All users <span className="text-mono-sm" style={{ color: "var(--muted)" }}>({filteredUsers.length})</span>
-          </h2>
-          <span className="text-muted" style={{ fontSize: 11 }}>Every role · Delete removes the user from the database permanently</span>
-        </div>
-        {filteredUsers.length === 0 ? (
-          <div className="empty-state"><p>No users found.</p></div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <DataTable
-              columns={userColumns}
-              data={filteredUsers}
-              emptyMessage="No users"
-              page={1}
-              totalPages={1}
-              total={filteredUsers.length}
-              onPageChange={() => {}}
-              sortBy="user"
-              order="asc"
-              onSort={() => {}}
-            />
-          </div>
-        )}
-      </section>
+      <div style={{ display: "flex", gap: 8, marginBottom: "var(--space-5)" }} role="tablist" aria-label="User management views">
+        {(["users", "memberships"] as const).map((t) => (
+          <button
+            key={t}
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => { setTab(t); setPage(1); }}
+            className="btn btn-sm"
+            style={tab === t
+              ? { borderColor: "var(--accent)", color: "var(--ink)" }
+              : { opacity: 0.65 }}
+          >
+            {t === "users" ? `All users (${filteredUsers.length})` : `Memberships (${filtered.length})`}
+          </button>
+        ))}
+        <span className="text-muted" style={{ fontSize: 11, marginLeft: "auto", alignSelf: "center" }}>Every role · Delete removes the user from the database permanently</span>
+      </div>
 
-      <h2 style={{ font: "500 16px var(--serif)", margin: "0 0 var(--space-3)", letterSpacing: "-0.02em" }}>
-        Memberships <span className="text-mono-sm" style={{ color: "var(--muted)" }}>({filtered.length})</span>
-      </h2>
-      {filtered.length === 0 ? (
+      {tab === "users" ? (
+        <section className="card" style={{ padding: "var(--space-5)" }}>
+          {filteredUsers.length === 0 ? (
+            <div className="empty-state"><p>No users found.</p></div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <DataTable
+                columns={userColumns}
+                data={filteredUsers}
+                emptyMessage="No users"
+                page={1}
+                totalPages={1}
+                total={filteredUsers.length}
+                onPageChange={() => {}}
+                sortBy="user"
+                order="asc"
+                onSort={() => {}}
+              />
+            </div>
+          )}
+        </section>
+      ) : filtered.length === 0 ? (
         <div className="empty-state"><p>No users found.</p><p className="text-muted" style={{ fontSize: 12 }}>Try adjusting search or filters.</p></div>
       ) : (
         <DataTable

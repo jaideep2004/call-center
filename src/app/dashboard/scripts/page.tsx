@@ -43,7 +43,27 @@ function ScriptsInner() {
     setLoading(false);
   }, [category, debouncedQ]);
 
-  useEffect(() => { fetchScripts(); }, [fetchScripts]);
+  // Publishers don't get scripts (removed from their nav): resolve the role
+  // first and skip the list fetch for them — otherwise every direct visit
+  // fires doomed 403s before the bounce below kicks in.
+  const [isPublisher, setIsPublisher] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch("/api/v1/me").then(async (res) => {
+      if (!res.ok) { setIsPublisher(false); return; }
+      const body = await res.json();
+      setIsPublisher(body.data?.user?.role === "publisher");
+    }).catch(() => setIsPublisher(false));
+  }, []);
+  useEffect(() => {
+    if (isPublisher === null || isPublisher) return;
+    fetchScripts();
+  }, [fetchScripts, isPublisher]);
+
+  // Bounce direct publisher visitors back to the portal instead of rendering
+  // agent content.
+  useEffect(() => {
+    if (isPublisher) router.replace("/dashboard/publisher");
+  }, [isPublisher, router]);
 
   useEffect(() => {
     const t = setTimeout(() => {

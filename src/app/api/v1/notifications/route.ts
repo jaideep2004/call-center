@@ -1,14 +1,19 @@
-import { apiHandler, ok, created } from "@/server/api-utils";
+import { apiHandler, ok, created, fail } from "@/server/api-utils";
 import { notifications } from "@/server/repositories";
 import { validate, createNotificationSchema } from "@/server/validate";
 import { queryOne } from "@/server/db";
 import { publishCallEvent } from "@/lib/event-bridge";
 
 export const GET = apiHandler(async (req, context) => {
+  // The layout bell renders in all three dashboards; publishers need it too.
+  // Viewer scoping in findForViewer (agency + addressed-to-self + global)
+  // already confines every role — the guard only needs the role allowlist.
+  // POST stays settings-gated below.
+  if (!["admin", "agent", "publisher"].includes(context.user?.role ?? "")) return fail("Forbidden", 403);
   const isAdmin = context.user?.role === "admin";
   const rows = await notifications.findForViewer(50, context.agencyId ?? null, isAdmin, context.user?.id ?? null);
   return ok(rows);
-}, { resource: "settings", action: "view" });
+}, { auth: true });
 
 export const POST = apiHandler(async (req, context) => {
   const body = validate(createNotificationSchema, await req.json());

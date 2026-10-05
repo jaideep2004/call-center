@@ -750,3 +750,33 @@ pm run build to avoid re-corrupting dev types.
 - Recording double-store (two recording.saved webhooks -> duplicate key job failure): storeRecording now converges 23505 -> existing row. +1 test.
 - Tests: typecheck 0 - vitest 971 passed | 5 skipped (136 files, +6).
 
+## 2026-10-02 - assistant - POPUP ABSENCE REVIEW (no defect found) + session toast
+- User reports no popup at all after the scope/audio batch, though popups+bridges worked before. Reviewed the full popup path as committed (useSocket runtime URL, socket handlers, polling fallback, render gate): no popup-killer in these edits — socket/poll/render logic untouched, only additive effects (unlock listeners, late-answer) and server scoping.
+- Prime suspects left are environmental, all one-check each: (1) stale tab JS across 3+ same-day deploys (hard refresh), (2) dead session (socket No-signal + poll 401s — silent until now), (3) hidden tab (polling paused by design), (4) Auto OFF + no manual tap (then no accept is correct behavior).
+- Shipped: polling fallback toasts once per idle stretch on 401/403 ("Session expired — log in again") instead of backing off silently; a dead session can no longer masquerade as "no calls".
+- Tests: typecheck 0 - vitest 971 passed | 5 skipped (136 files).
+
+## 2026-10-02 - assistant - DEEP SCAN ALL TABS + BROWSER E2E 3 ROLES (live fixes)
+- Removed Scripts from publisher portal (nav + direct-URL bounce; fetch gated on role to avoid doomed 403s).
+- Static scan: 0 orphan hrefs; fixed Simulate 403 (calls:create->update; agents must never get create), publisher Tutorials 403 + bell 403 (auth-only guard + explicit role allowlist, viewer-scoping already confined), 5x res.json().catch guards (wallet topup, leads delete, fees act/generate, publisher settings save).
+- Browser E2E (local dev, QA admin/agent/publisher): 29/29 admin docs 200, 14/14 agent, 7/7 publisher. Live-verified: Telnyx Test Connection green (1308ms), Simulate 201 as admin AND agent (was 500 always — hardcoded fake DID; now resolves real tracking number + 422 guidance, +4 tests), Join Campaign flips Assigned, ticket create 201, mark-all/single-read, publisher settings save 200, publisher scripts bounce, tutorials 200 as publisher.
+- E2E-found bugs fixed live: Ledger summary 422 (limit=500 > API max 100 -> 100; same for payments limit=200), agent Command revenue 403 (skip fetch for non-admin; margin privacy), publisher landing 11x403 (Command page no longer fires agent batch for publishers + portal stub), tutorial_progress.user_id uuid vs better-auth text (migration 0073 applied live; Tutorials 500 -> 200), publisher bell/tutorials access.
+- Agency-switch call disappearance explained + PROVEN fixed: cross-agency own call CL-0117 visible to QA agent after simulated switch (old code hid it).
+- QA footprint on live DB (report for cleanup): users qa-agent/qa-pub, QA agent membership+agent row (agency a7d986f3), QA publisher row, 1 QA ticket, 1 QA campaign join; test call assignment restored to NULL. Dev servers (Next :30001, gateway :3002) left running locally.
+- Tests: typecheck 0 - vitest 975 passed | 5 skipped (137 files, +4 simulate).
+
+## 2026-10-03 - assistant - 11-ITEM BATCH (FAQ, CLI, widths, JSON cards, fees 500, recordings, scripts, tabs, leads, settings, payments)
+- FAQ: View-all link was a 3rd grid child pushing the help card below + answer <p> margin/padding defeated 0fr collapse (~31px ghost per closed card). Link moved under grid, spacing only when expanded, min-height:0, keyboard+aria. Verified live: 2-col grid, 1px closed.
+- Retreaver CLI on call page: new retreaverCalls.findById + buffer-gated reveal (full only when revealed, else +91•••21 mask). Same privacy policy as escrow.
+- Privacy/terms: inline maxWidth 720 -> 1200 (CSS class was overridden by inline styles); .content-page base now margin+padding only.
+- Routing/Qualification JSON -> RoutingCard + QualificationCard (strategy, considered/eligible, connected-to, tried chain, skip reasons, marketplace $ + qualified + why, raw JSON in <details>).
+- Fees 500: generateMonthlyFees scanned ALL agents incl. NULL-agency pending rows (0065) -> INSERT violated NOT NULL. Filtered (agency NOT NULL + not deleted) + invoice link hint. +2 tests.
+- Recordings: Call column now CL-code link + new Agent column (single JOIN, +mock update).
+- Scripts: detail 60vh scroll; NULL agency = global (migration 0074 applied live after catching it missing — global create 500d first), repo/API/UI visibility picker for admins. Verified: global script created + visible cross-agency to agent.
+- Users: Users/Memberships tabs (was scroll-hunt).
+- Settings: INTEGRATIONS / PLATFORM / AGENCY SETUP / SHORTCUTS eyebrows, home-agency card first.
+- Payments: all rows correctly labeled (livemode from Stripe sessions); UI/API/summary filter correctly. Hardened 4 checkout routes to fail-closed ?? false. Table Mode badges show it. No live/test leak found — likely All-tab confusion or pre-reconcile window.
+- Approval-loading root cause: leave-and-create moved membership but never agents.agency_id -> own detail 404s -> eternal Loading + NO ENDPOINT + 0 calls. Fixed in-txn (+test). Take-calls now shows an explicit profile-error state instead of Loading forever. Live DB has exactly 1 stale row (AG-0022 jai test 2 oct) awaiting repair approval.
+- Tests: typecheck 0 - vitest 978 passed | 5 skipped (137 files).
+- Live repair 2026-10-03: AG-0022 (jai test 2 oct) agency realigned 00000000 -> c932ce47 (membership agency); stale-agency count now 0. User must refresh/re-login for the take-calls error state to clear.
+

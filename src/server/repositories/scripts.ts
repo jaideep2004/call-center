@@ -18,13 +18,14 @@ export class ScriptRepository extends BaseRepository<ScriptRow> {
   protected table = "scripts";
   protected skipDeleted = true;
 
+  /** Agency list = own agency + global (NULL) rows, newest first. */
   async findByAgency(agencyId: string): Promise<ScriptRow[]> {
-    const { rows } = await super.findMany({
-      filters: { agency_id: agencyId },
-      sortBy: "created_at",
-      order: "desc",
-    });
-    return rows;
+    return query<ScriptRow>(
+      `SELECT * FROM app.scripts
+        WHERE (agency_id = $1 OR agency_id IS NULL) AND deleted_at IS NULL
+        ORDER BY created_at DESC`,
+      [agencyId],
+    );
   }
 
   async findScriptsForCampaign(agencyId: string, campaignId: string): Promise<ScriptRow[]> {
@@ -36,15 +37,27 @@ export class ScriptRepository extends BaseRepository<ScriptRow> {
     return rows;
   }
 
+  /** Platform-global unbound library (admin-authored, agency_id NULL). */
+  async findGlobalUnbound(): Promise<ScriptRow[]> {
+    return query<ScriptRow>(
+      `SELECT * FROM app.scripts
+        WHERE agency_id IS NULL AND campaign_id IS NULL AND deleted_at IS NULL
+        ORDER BY created_at DESC`,
+      [],
+    );
+  }
+
   async findUnbound(agencyId: string): Promise<ScriptRow[]> {
     return query<ScriptRow>(
-      `SELECT * FROM app.scripts WHERE agency_id = $1 AND campaign_id IS NULL ORDER BY created_at DESC`,
+      `SELECT * FROM app.scripts
+        WHERE (agency_id = $1 OR agency_id IS NULL) AND campaign_id IS NULL AND deleted_at IS NULL
+        ORDER BY created_at DESC`,
       [agencyId],
     );
   }
 
   async create(data: {
-    agency_id: string;
+    agency_id: string | null;
     title: string;
     content: string;
     category?: string;

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const findByAgentMock = vi.hoisted(() => vi.fn(async () => [{ id: "r-1" }]));
 const findByCallForAgentMock = vi.hoisted(() => vi.fn(async () => ({ id: "r-2" })));
 const findByAgencyMock = vi.hoisted(() => vi.fn(async () => [{ id: "r-1" }, { id: "r-9" }]));
+const findByAgencyWithAgentMock = vi.hoisted(() => vi.fn(async () => [{ id: "r-1", call_display_code: "CL-0001", agent_name: "Agent One" }]));
 const findByCallMock = vi.hoisted(() => vi.fn(async () => ({ id: "r-9" })));
 const findAgentMock = vi.hoisted(() => vi.fn(async () => ({ id: "agent-own" })));
 
@@ -11,6 +12,7 @@ vi.mock("@/server/repositories", () => ({
     findByAgent: findByAgentMock,
     findByCallIdForAgent: findByCallForAgentMock,
     findByAgency: findByAgencyMock,
+    findByAgencyWithAgent: findByAgencyWithAgentMock,
     findByCallId: findByCallMock,
   },
   agents: { findByMembershipId: findAgentMock },
@@ -73,10 +75,10 @@ describe("GET /recordings agent isolation", () => {
     expect(findByCallMock).not.toHaveBeenCalled();
   });
 
-  it("heads keep the agency-wide view", async () => {
+  it("heads keep the agency-wide view with call + agent columns", async () => {
     ctxIsHead = true;
     const res = await get();
     expect(res.status).toBe(200);
-    expect(findByAgencyMock).toHaveBeenCalledWith("agency-1");
+    expect(findByAgencyWithAgentMock).toHaveBeenCalledWith("agency-1");
   });
 });

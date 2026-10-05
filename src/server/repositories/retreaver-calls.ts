@@ -94,6 +94,11 @@ export class RetreaverCallRepository {
     return queryOne<RetreaverCallRow>("SELECT * FROM app.retreaver_calls WHERE uuid = $1", [uuid]);
   }
 
+  /** Linked Retreaver record for an app call (app.calls.retreaver_call_id). */
+  async findById(id: string): Promise<RetreaverCallRow | null> {
+    return queryOne<RetreaverCallRow>("SELECT * FROM app.retreaver_calls WHERE id = $1", [id]);
+  }
+
   async latestSyncedAt(): Promise<Date | null> {
     const row = await queryOne<{ synced_at: string }>(
       "SELECT MAX(synced_at) as synced_at FROM app.retreaver_calls",

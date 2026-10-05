@@ -52,7 +52,7 @@ export default function ScriptDetailPage() {
             {script.tags.map((t) => <span key={t} className="badge">{t}</span>)}
           </div>
         )}
-        <div className="script-content" style={{ whiteSpace: "pre-wrap", font: "14px/1.7 var(--sans)", color: "#b9c7be" }}>
+        <div className="script-content" style={{ whiteSpace: "pre-wrap", font: "14px/1.7 var(--sans)", color: "#b9c7be", maxHeight: "60vh", overflowY: "auto", paddingRight: 8 }}>
           {script.content}
         </div>
       </div>

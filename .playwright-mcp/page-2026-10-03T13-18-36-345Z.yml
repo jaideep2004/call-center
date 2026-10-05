@@ -1,0 +1,14 @@
+- generic [active] [ref=f12e1]:
+  - complementary [ref=f12e3]:
+    - generic [ref=f12e4]:
+      - link "Coverage Calls home" [ref=f12e5] [cursor=pointer]:
+        - /url: /
+        - img "Coverage Calls" [ref=f12e6]
+      - button "Collapse sidebar" [expanded] [ref=f12e7] [cursor=pointer]: «
+    - paragraph [ref=f12e8]: CONSOLE
+    - navigation [aria-hidden] [ref=f12e9]
+    - button "?? Operator ▾" [ref=f12e20] [cursor=pointer]:
+      - generic [ref=f12e21]: "??"
+      - strong [ref=f12e23]: Operator
+      - generic [ref=f12e25]: ▾
+  - button "Open Next.js Dev Tools" [ref=f12e37] [cursor=pointer]

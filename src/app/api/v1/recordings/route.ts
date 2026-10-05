@@ -23,6 +23,6 @@ export const GET = apiHandler(async (req, context) => {
     const row = await recordings.findByCallId(callId);
     return ok(row ? [row] : []);
   }
-  const rows = await recordings.findByAgency(agencyId);
+  const rows = await recordings.findByAgencyWithAgent(agencyId);
   return ok(rows);
 }, { resource: "calls", action: "view" });

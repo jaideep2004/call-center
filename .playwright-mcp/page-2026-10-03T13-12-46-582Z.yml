@@ -1,0 +1,638 @@
+- generic [active] [ref=f11e1]:
+  - main [ref=f11e3]:
+    - generic [ref=f11e5]:
+      - navigation [ref=f11e7]:
+        - link "Coverage Calls home" [ref=f11e8] [cursor=pointer]:
+          - /url: /
+          - img "Coverage Calls" [ref=f11e9]
+        - generic [ref=f11e10]:
+          - link "How it Works" [ref=f11e11] [cursor=pointer]:
+            - /url: /#how-it-works
+          - link "Features" [ref=f11e12] [cursor=pointer]:
+            - /url: /#features
+          - link "Pricing" [ref=f11e13] [cursor=pointer]:
+            - /url: /#pricing
+          - link "Testimonials" [ref=f11e14] [cursor=pointer]:
+            - /url: /#testimonials
+          - link "About" [ref=f11e15] [cursor=pointer]:
+            - /url: /about
+        - generic [ref=f11e16]:
+          - link "Log in" [ref=f11e17] [cursor=pointer]:
+            - /url: /login
+          - link "Start free trial" [ref=f11e18] [cursor=pointer]:
+            - /url: /register
+      - main [ref=f11e22]:
+        - generic [ref=f11e23]:
+          - generic [ref=f11e24]: INBOUND CALLS. REAL PEOPLE. REAL RESULTS.
+          - heading "Every qualified call. Exactly where it belongs." [level=1] [ref=f11e26]
+          - paragraph [ref=f11e27]: Coverage Calls delivers verified inbound calls to your team in real time. Answer in your browser. Close more deals. Scale with confidence.
+          - generic [ref=f11e28]:
+            - link "Start 7-day free trial" [ref=f11e29] [cursor=pointer]:
+              - /url: /register
+            - link "Watch demo" [ref=f11e33] [cursor=pointer]:
+              - /url: /how-it-works
+          - generic [ref=f11e38]:
+            - generic [ref=f11e39]: No credit card required
+            - generic [ref=f11e44]: Setup in minutes
+            - generic [ref=f11e49]: Cancel anytime
+        - generic [ref=f11e54]:
+          - generic [ref=f11e55]:
+            - generic [ref=f11e57]:
+              - generic [ref=f11e60]: LIVE CALL
+              - generic [ref=f11e61]: ·
+              - generic [ref=f11e62]: 04:32
+            - generic [ref=f11e70]:
+              - heading "Medicare Prospect" [level=3] [ref=f11e71]
+              - paragraph [ref=f11e72]: Dallas, TX · Via Web Lead
+            - generic [ref=f11e113]:
+              - generic [ref=f11e116]: Incoming
+              - generic [ref=f11e119]: Routed
+              - generic [ref=f11e122]: Connected
+              - generic [ref=f11e125]: Completed
+            - generic [ref=f11e128]:
+              - button "Mute" [ref=f11e129] [cursor=pointer]
+              - button "Hold" [ref=f11e134] [cursor=pointer]
+              - button "Keypad" [ref=f11e139] [cursor=pointer]
+              - button "End Call" [ref=f11e146] [cursor=pointer]
+          - generic [ref=f11e151]:
+            - generic [ref=f11e152]:
+              - generic [ref=f11e153]: YOUR AGENT
+              - generic [ref=f11e154]: ONLINE
+            - generic [ref=f11e157]:
+              - img "James Wilson" [ref=f11e160]
+              - heading "James Wilson" [level=4] [ref=f11e161]
+              - paragraph [ref=f11e162]: Licensed Agent
+              - generic [ref=f11e163]: "4.9"
+            - button "Connected & Live" [ref=f11e167] [cursor=pointer]
+    - generic [ref=f11e168]:
+      - generic [ref=f11e169]:
+        - generic [ref=f11e170]: TRUSTED BY GROWING TEAMS
+        - generic [ref=f11e174]:
+          - generic [ref=f11e175]: Pinnacle
+          - generic [ref=f11e181]: HealthFirst
+          - generic [ref=f11e187]: TrustCare
+          - generic [ref=f11e193]: SecureLife
+          - generic [ref=f11e199]: Apex Benefits
+          - generic [ref=f11e204]: Unity Health
+      - generic [ref=f11e210]:
+        - generic [ref=f11e211]:
+          - generic [ref=f11e212]: HOW IT WORKS
+          - heading "From ad click to closed policy" [level=2] [ref=f11e213]
+        - generic [ref=f11e215]:
+          - generic [ref=f11e216]:
+            - generic [ref=f11e218] [cursor=pointer]
+            - generic [ref=f11e226]:
+              - generic [ref=f11e227]: "01"
+              - heading "We run the ads" [level=3] [ref=f11e228]
+              - paragraph [ref=f11e229]: High-intent campaigns reach people actively looking for coverage.
+          - generic [ref=f11e230]:
+            - generic [ref=f11e232] [cursor=pointer]
+            - generic [ref=f11e239]:
+              - generic [ref=f11e240]: "02"
+              - heading "Prospects call in" [level=3] [ref=f11e241]
+              - paragraph [ref=f11e242]: Calls are verified and matched to the right campaign and licensed status.
+          - generic [ref=f11e243]:
+            - generic [ref=f11e245] [cursor=pointer]
+            - generic [ref=f11e252]:
+              - generic [ref=f11e253]: "03"
+              - heading "Calls route to you" [level=3] [ref=f11e254]
+              - paragraph [ref=f11e255]: Live calls land in your browser instantly—no phone system needed.
+          - generic [ref=f11e256]:
+            - generic [ref=f11e258] [cursor=pointer]
+            - generic [ref=f11e262]:
+              - generic [ref=f11e263]: "04"
+              - heading "You have the conversation" [level=3] [ref=f11e264]
+              - paragraph [ref=f11e265]: Talk, qualify, and close. Every call is recorded and tracked for quality.
+          - generic [ref=f11e266]:
+            - generic [ref=f11e268] [cursor=pointer]
+            - generic [ref=f11e273]:
+              - generic [ref=f11e274]: "05"
+              - heading "We handle the rest" [level=3] [ref=f11e275]
+              - paragraph [ref=f11e276]: You only pay for qualified, billable calls. Everything stays transparent.
+    - generic [ref=f11e277]:
+      - status:
+        - generic:
+          - paragraph: Call Disposed & Logged!
+          - paragraph: Synced to CRM • Recording & Transcript Uploaded
+      - generic [ref=f11e278]:
+        - generic [ref=f11e279]:
+          - generic [ref=f11e280]: BUILT FOR AGENTS
+          - heading "Calls land right in your browser" [level=1] [ref=f11e281]:
+            - text: Calls land rightin
+            - generic [ref=f11e282]: your browser
+          - paragraph [ref=f11e283]: No downloads. No desk phones. Just openCoverage Calls and start taking inbound calls.
+          - list [ref=f11e284]:
+            - listitem [ref=f11e285]: Real-time caller info & intent
+            - listitem [ref=f11e290]: Live call recording & transcriptions
+            - listitem [ref=f11e295]: Script & campaign context
+            - listitem [ref=f11e300]: One-click disposition
+          - button "View full dashboard" [ref=f11e306] [cursor=pointer]
+        - generic [ref=f11e310]:
+          - generic [ref=f11e311]:
+            - generic [ref=f11e312]: ✨
+            - text: AI Copilot Active
+          - generic [ref=f11e313]:
+            - generic [ref=f11e314]:
+              - generic [ref=f11e319]: Coverage Calls • Agent Workspace
+              - generic [ref=f11e323]: Ultra-low Latency (14ms)
+            - generic [ref=f11e326]:
+              - complementary [ref=f11e327]:
+                - button "Live Call View" [ref=f11e328] [cursor=pointer]
+                - button "Lead Profile & CRM" [ref=f11e332] [cursor=pointer]
+                - button "Real-time Metrics" [ref=f11e338] [cursor=pointer]
+                - button "HIPAA & Compliance" [ref=f11e340] [cursor=pointer]
+              - generic [ref=f11e344]:
+                - generic [ref=f11e345]:
+                  - generic [ref=f11e346]: LIVE CALL
+                  - generic [ref=f11e349]: •
+                  - generic [ref=f11e350]: 04:32
+                  - generic [ref=f11e351]:
+                    - generic [ref=f11e352]: 🔥
+                    - generic [ref=f11e353]: High Intent (94%)
+                - generic [ref=f11e360]:
+                  - generic [ref=f11e361]:
+                    - heading "Eleanor Vance (Medicare)" [level=3] [ref=f11e362]
+                    - generic [ref=f11e363]: Verified Inbound
+                  - paragraph [ref=f11e364]: Dallas, TX (75201) • Form Fill via Web Lead
+                - generic [ref=f11e365]:
+                  - generic [ref=f11e366]: Medicare Advantage
+                  - generic [ref=f11e367]: Plan Switch
+                  - generic [ref=f11e368]: Dental & Vision Required
+                - generic [ref=f11e417]:
+                  - generic [ref=f11e418]:
+                    - generic [ref=f11e419]: "Prospect:"
+                    - generic [ref=f11e420]: Live Subtitle
+                  - paragraph [ref=f11e421]:
+                    - text: “I'm looking for a plan that covers dental and $0 co-pays.”
+                    - generic [ref=f11e422]: "|"
+                - generic [ref=f11e423]:
+                  - button "Mute" [ref=f11e424] [cursor=pointer]
+                  - button "Hold" [ref=f11e429] [cursor=pointer]
+                  - button "Keypad" [ref=f11e434] [cursor=pointer]
+                  - button "End Call" [ref=f11e443] [cursor=pointer]
+              - generic [ref=f11e448]:
+                - generic [ref=f11e449]:
+                  - generic [ref=f11e450]:
+                    - generic [ref=f11e451]: AI Live Call Notes
+                    - generic [ref=f11e452]: Auto-transcribing
+                  - list [ref=f11e454]:
+                    - listitem [ref=f11e455]: Interested in $0 premium plan
+                    - listitem [ref=f11e456]: Looking for comprehensive dental
+                    - listitem [ref=f11e457]: Prefers morning doctor visits
+                    - listitem [ref=f11e458]: "Primary Clinic: Baylor Scott & White"
+                - generic [ref=f11e459]:
+                  - generic [ref=f11e460]: Disposition & Outcome
+                  - combobox "Disposition & Outcome" [ref=f11e462] [cursor=pointer]:
+                    - option "Appointment Set" [selected]
+                    - option "Follow Up Required"
+                    - option "Policy Enrolled"
+                    - option "Not Interested"
+                - button "Save & Complete" [ref=f11e463] [cursor=pointer]
+    - generic [ref=f11e468]:
+      - generic [ref=f11e469]:
+        - generic [ref=f11e470]: BUILT FOR VISIBILITY
+        - heading "Track every call. Every dollar." [level=2] [ref=f11e471]
+        - paragraph [ref=f11e472]: Know what's happening across your team and campaigns in real time.
+        - list [ref=f11e473]:
+          - listitem [ref=f11e474]:
+            - generic [ref=f11e478]: Live call & agent activity
+          - listitem [ref=f11e479]:
+            - generic [ref=f11e483]: Earnings, billable calls & commissions
+          - listitem [ref=f11e484]:
+            - generic [ref=f11e488]: Call outcomes & quality scores
+          - listitem [ref=f11e489]:
+            - generic [ref=f11e493]: Drill-down by campaign, agent, or date
+        - button "Start full dashboard" [ref=f11e494] [cursor=pointer]
+      - generic [ref=f11e498]:
+        - generic [ref=f11e499]:
+          - generic [ref=f11e500]:
+            - generic [ref=f11e501]: Total Earnings
+            - generic [ref=f11e506]: $14,250.00
+            - generic [ref=f11e507]:
+              - generic [ref=f11e510]: +16.8%
+              - generic [ref=f11e511]: vs yesterday
+          - generic [ref=f11e512]:
+            - generic [ref=f11e513]: Billable Calls
+            - generic [ref=f11e515]: "186"
+            - generic [ref=f11e516]:
+              - generic [ref=f11e519]: +12.4%
+              - generic [ref=f11e520]: vs yesterday
+          - generic [ref=f11e521]:
+            - generic [ref=f11e522]: Answered Calls
+            - generic [ref=f11e524]: "212"
+            - generic [ref=f11e525]:
+              - generic [ref=f11e528]: +9.7%
+              - generic [ref=f11e529]: vs yesterday
+          - generic [ref=f11e530]:
+            - generic [ref=f11e531]: Avg. Talk Time
+            - generic [ref=f11e533]: 11:42
+            - generic [ref=f11e534]:
+              - generic [ref=f11e537]: +6.1%
+              - generic [ref=f11e538]: vs yesterday
+        - generic [ref=f11e539]:
+          - generic [ref=f11e540]:
+            - generic [ref=f11e541]:
+              - generic [ref=f11e542]:
+                - generic [ref=f11e543]: Call Activity
+                - generic [ref=f11e544]: LIVE FEED
+              - generic [ref=f11e545]:
+                - generic [ref=f11e546]: Answered
+                - generic [ref=f11e548]: Billable
+                - generic [ref=f11e550]: Revenue
+            - generic [ref=f11e553]:
+              - generic [ref=f11e554]: "80"
+              - generic [ref=f11e555]: "60"
+              - generic [ref=f11e556]: "40"
+              - generic [ref=f11e557]: "20"
+              - generic [ref=f11e558]: "0"
+            - generic [ref=f11e566]:
+              - generic [ref=f11e567]: 12 AM
+              - generic [ref=f11e568]: 4 AM
+              - generic [ref=f11e569]: 8 AM
+              - generic [ref=f11e570]: 12 PM
+              - generic [ref=f11e571]: 4 PM
+              - generic [ref=f11e572]: 8 PM
+              - generic [ref=f11e573]: 12 AM
+          - generic [ref=f11e574]:
+            - generic [ref=f11e575]:
+              - generic [ref=f11e576]: Top Campaigns
+              - generic [ref=f11e577]: AUTO UPDATING
+            - generic [ref=f11e578]:
+              - generic [ref=f11e579]:
+                - generic [ref=f11e580]: Medicare Advantage
+                - generic [ref=f11e585]: $4,250
+              - generic [ref=f11e586]:
+                - generic [ref=f11e587]: ACA Health
+                - generic [ref=f11e593]: $4,150
+              - generic [ref=f11e594]:
+                - generic [ref=f11e595]: Final Expense
+                - generic [ref=f11e600]: $2,840
+              - generic [ref=f11e601]:
+                - generic [ref=f11e602]: Life Insurance
+                - generic [ref=f11e607]: $1,010
+    - generic [ref=f11e609]:
+      - generic [ref=f11e610]:
+        - generic [ref=f11e611]: POWERFUL FEATURES. SIMPLE TO USE.
+        - generic [ref=f11e612]:
+          - generic [ref=f11e613] [cursor=pointer]:
+            - heading "WebRTC Calling" [level=3] [ref=f11e619]
+            - paragraph [ref=f11e620]: Crystal clear calls right in your browser. No plugins, no hassle.
+          - generic [ref=f11e621] [cursor=pointer]:
+            - heading "Real-Time Routing" [level=3] [ref=f11e625]
+            - paragraph [ref=f11e626]: Smart routing connects callers to the best available agent instantly.
+          - generic [ref=f11e627] [cursor=pointer]:
+            - heading "Call Recording" [level=3] [ref=f11e632]
+            - paragraph [ref=f11e633]: 100% call recording with transcripts for training and compliance.
+          - generic [ref=f11e634] [cursor=pointer]:
+            - heading "Agent Management" [level=3] [ref=f11e641]
+            - paragraph [ref=f11e642]: Add agents, set permissions, and track performance.
+          - generic [ref=f11e643] [cursor=pointer]:
+            - heading "Campaign Tracking" [level=3] [ref=f11e651]
+            - paragraph [ref=f11e652]: See which campaigns drive the best calls and conversions.
+          - generic [ref=f11e653] [cursor=pointer]:
+            - heading "Secure & Compliant" [level=3] [ref=f11e658]
+            - paragraph [ref=f11e659]: Enterprise-grade security and compliance you can count on.
+      - generic [ref=f11e660]:
+        - generic [ref=f11e661]:
+          - generic [ref=f11e662]: SIMPLE, SCALABLE PRICING
+          - heading "Start small. Scale big." [level=2] [ref=f11e663]
+        - generic [ref=f11e664]:
+          - generic [ref=f11e665]:
+            - generic [ref=f11e666]:
+              - generic [ref=f11e667]: Agent
+              - generic [ref=f11e669]:
+                - generic [ref=f11e670]: $97
+                - generic [ref=f11e671]: /mo
+              - paragraph [ref=f11e672]: For individual agents taking inbound calls.
+            - generic [ref=f11e673]:
+              - generic [ref=f11e674]: 7-day free trial
+              - generic [ref=f11e679]: Live inbound calls
+              - generic [ref=f11e684]: Full call logs & recordings
+              - generic [ref=f11e689]: Scripts & lead context
+            - link "Start free trial" [ref=f11e694] [cursor=pointer]:
+              - /url: /register
+          - generic [ref=f11e695]:
+            - generic [ref=f11e696]:
+              - generic [ref=f11e697]:
+                - generic [ref=f11e698]: Agency
+                - generic [ref=f11e699]: MOST POPULAR
+              - generic [ref=f11e700]:
+                - generic [ref=f11e701]: $147
+                - generic [ref=f11e702]: /mo
+              - paragraph [ref=f11e703]: For teams managing a growing group of agents.
+            - generic [ref=f11e704]:
+              - generic [ref=f11e705]: Everything in Agent
+              - generic [ref=f11e710]: Team analytics & leaderboards
+              - generic [ref=f11e715]: Whisper coaching
+              - generic [ref=f11e720]: Priority support
+            - link "Start free trial" [ref=f11e725] [cursor=pointer]:
+              - /url: /register
+          - generic [ref=f11e726]:
+            - generic [ref=f11e727]:
+              - generic [ref=f11e728]: White-Label
+              - generic [ref=f11e730]:
+                - generic [ref=f11e731]: $499
+                - generic [ref=f11e732]: /mo
+              - paragraph [ref=f11e733]: For agencies ready to launch their own brand.
+            - generic [ref=f11e734]:
+              - generic [ref=f11e735]: Everything in Agency
+              - generic [ref=f11e740]: Custom branding & domain
+              - generic [ref=f11e745]: Agent & client portals
+              - generic [ref=f11e750]: Dedicated onboarding
+            - link "Start free trial" [ref=f11e755] [cursor=pointer]:
+              - /url: /register
+        - paragraph [ref=f11e756]: All plans include a 7-day free trial. Cancel anytime.
+    - generic [ref=f11e757]:
+      - generic [ref=f11e758]:
+        - generic [ref=f11e759]: PROVEN BY TOP AGENTS
+        - heading "Trusted by the best. Validated by every call." [level=2] [ref=f11e762]
+        - paragraph [ref=f11e763]: Over 1,200+ agents and high-growth agencies rely on Coverage Calls to qualify, route, and close inbound leads with zero friction.
+      - generic [ref=f11e764]:
+        - generic [ref=f11e765]:
+          - generic [ref=f11e766]:
+            - generic [ref=f11e767]:
+              - generic [ref=f11e768]:
+                - img "Sarah Jenkins" [ref=f11e770]
+                - generic [ref=f11e772]:
+                  - heading "Sarah Jenkins" [level=4] [ref=f11e773]
+                  - paragraph [ref=f11e774]: Principal Broker • Apex Health Partners
+              - generic [ref=f11e775]: +142% Close Rate
+            - paragraph [ref=f11e776]: “Switching our inbound call routing to Coverage Calls doubled our pickup-to-close conversion rate within the first 30 days. The browser interface is instant.”
+            - generic [ref=f11e777]: Medicare & ACA
+          - generic [ref=f11e790]:
+            - generic [ref=f11e791]:
+              - generic [ref=f11e792]:
+                - img "Marcus Vance" [ref=f11e794]
+                - generic [ref=f11e796]:
+                  - heading "Marcus Vance" [level=4] [ref=f11e797]
+                  - paragraph [ref=f11e798]: Founder & CEO • Vance Insurance Group
+              - generic [ref=f11e799]: 4.9x Inbound ROI
+            - paragraph [ref=f11e800]: “The real-time AI transcription and call intent data are unmatched. We discarded our legacy desk VoIP systems completely and never looked back.”
+            - generic [ref=f11e801]: Commercial Lines
+          - generic [ref=f11e814]:
+            - generic [ref=f11e815]:
+              - generic [ref=f11e816]:
+                - img "Elena Rostova" [ref=f11e818]
+                - generic [ref=f11e820]:
+                  - heading "Elena Rostova" [level=4] [ref=f11e821]
+                  - paragraph [ref=f11e822]: VP of Inbound Sales • Pinnacle Direct
+              - generic [ref=f11e823]: 18s Speed-to-Answer
+            - paragraph [ref=f11e824]: “Live caller intent preview lets my team open calls knowing the prospect's exact coverage gap. It feels like having an unfair advantage.”
+            - generic [ref=f11e825]: Final Expense
+          - generic [ref=f11e838]:
+            - generic [ref=f11e839]:
+              - generic [ref=f11e840]:
+                - img "David Sterling" [ref=f11e842]
+                - generic [ref=f11e844]:
+                  - heading "David Sterling" [level=4] [ref=f11e845]
+                  - paragraph [ref=f11e846]: Agency Director • Sterling & Co. Brokers
+              - generic [ref=f11e847]: 95+ Agents Scaled
+            - paragraph [ref=f11e848]: “We scaled our remote sales force from 12 to 95 agents without purchasing a single hardware phone. Browser WebRTC is crystal clear.”
+            - generic [ref=f11e849]: Life & Annuities
+          - generic [ref=f11e862]:
+            - generic [ref=f11e863]:
+              - generic [ref=f11e864]:
+                - img "Sarah Jenkins" [ref=f11e866]
+                - generic [ref=f11e868]:
+                  - heading "Sarah Jenkins" [level=4] [ref=f11e869]
+                  - paragraph [ref=f11e870]: Principal Broker • Apex Health Partners
+              - generic [ref=f11e871]: +142% Close Rate
+            - paragraph [ref=f11e872]: “Switching our inbound call routing to Coverage Calls doubled our pickup-to-close conversion rate within the first 30 days. The browser interface is instant.”
+            - generic [ref=f11e873]: Medicare & ACA
+          - generic [ref=f11e886]:
+            - generic [ref=f11e887]:
+              - generic [ref=f11e888]:
+                - img "Marcus Vance" [ref=f11e890]
+                - generic [ref=f11e892]:
+                  - heading "Marcus Vance" [level=4] [ref=f11e893]
+                  - paragraph [ref=f11e894]: Founder & CEO • Vance Insurance Group
+              - generic [ref=f11e895]: 4.9x Inbound ROI
+            - paragraph [ref=f11e896]: “The real-time AI transcription and call intent data are unmatched. We discarded our legacy desk VoIP systems completely and never looked back.”
+            - generic [ref=f11e897]: Commercial Lines
+          - generic [ref=f11e910]:
+            - generic [ref=f11e911]:
+              - generic [ref=f11e912]:
+                - img "Elena Rostova" [ref=f11e914]
+                - generic [ref=f11e916]:
+                  - heading "Elena Rostova" [level=4] [ref=f11e917]
+                  - paragraph [ref=f11e918]: VP of Inbound Sales • Pinnacle Direct
+              - generic [ref=f11e919]: 18s Speed-to-Answer
+            - paragraph [ref=f11e920]: “Live caller intent preview lets my team open calls knowing the prospect's exact coverage gap. It feels like having an unfair advantage.”
+            - generic [ref=f11e921]: Final Expense
+          - generic [ref=f11e934]:
+            - generic [ref=f11e935]:
+              - generic [ref=f11e936]:
+                - img "David Sterling" [ref=f11e938]
+                - generic [ref=f11e940]:
+                  - heading "David Sterling" [level=4] [ref=f11e941]
+                  - paragraph [ref=f11e942]: Agency Director • Sterling & Co. Brokers
+              - generic [ref=f11e943]: 95+ Agents Scaled
+            - paragraph [ref=f11e944]: “We scaled our remote sales force from 12 to 95 agents without purchasing a single hardware phone. Browser WebRTC is crystal clear.”
+            - generic [ref=f11e945]: Life & Annuities
+        - generic [ref=f11e958]:
+          - generic [ref=f11e959]:
+            - generic [ref=f11e960]:
+              - generic [ref=f11e961]:
+                - img "Chloe Bennett" [ref=f11e963]
+                - generic [ref=f11e965]:
+                  - heading "Chloe Bennett" [level=4] [ref=f11e966]
+                  - paragraph [ref=f11e967]: Head of Call Operations • HealthFirst Coverage
+              - generic [ref=f11e968]: 99.4% Adherence
+            - paragraph [ref=f11e969]: “The whisper coaching and AI live notes turned our junior reps into top-tier producers within two weeks. Our compliance issues dropped to zero.”
+            - generic [ref=f11e970]: Medicare Advantage
+          - generic [ref=f11e983]:
+            - generic [ref=f11e984]:
+              - generic [ref=f11e985]:
+                - img "Michael Chang" [ref=f11e987]
+                - generic [ref=f11e989]:
+                  - heading "Michael Chang" [level=4] [ref=f11e990]
+                  - paragraph [ref=f11e991]: Chief Revenue Officer • SecureLife Financial
+              - generic [ref=f11e992]: $2.4M Added Revenue
+            - paragraph [ref=f11e993]: “Call attribution down to the dollar transformed how we buy leads. We only pay for billable, qualified conversations now.”
+            - generic [ref=f11e994]: Enterprise Call Center
+          - generic [ref=f11e1007]:
+            - generic [ref=f11e1008]:
+              - generic [ref=f11e1009]:
+                - img "Rachel Adams" [ref=f11e1011]
+                - generic [ref=f11e1013]:
+                  - heading "Rachel Adams" [level=4] [ref=f11e1014]
+                  - paragraph [ref=f11e1015]: Managing Director • TrustCare Advisors
+              - generic [ref=f11e1016]: +38% Retention
+            - paragraph [ref=f11e1017]: “The seamless browser experience and automated disposition make after-call work take 3 seconds instead of 5 minutes.”
+            - generic [ref=f11e1018]: Health & P&C
+          - generic [ref=f11e1031]:
+            - generic [ref=f11e1032]:
+              - generic [ref=f11e1033]:
+                - img "Anthony Rivera" [ref=f11e1035]
+                - generic [ref=f11e1037]:
+                  - heading "Anthony Rivera" [level=4] [ref=f11e1038]
+                  - paragraph [ref=f11e1039]: Senior Partner • Horizon Mutual Group
+              - generic [ref=f11e1040]: 12,000+ Calls/Mo
+            - paragraph [ref=f11e1041]: “Handling thousands of concurrent calls without dropped lines or latency jitter. Coverage Calls is hands down the gold standard.”
+            - generic [ref=f11e1042]: High-Volume Direct
+          - generic [ref=f11e1055]:
+            - generic [ref=f11e1056]:
+              - generic [ref=f11e1057]:
+                - img "Chloe Bennett" [ref=f11e1059]
+                - generic [ref=f11e1061]:
+                  - heading "Chloe Bennett" [level=4] [ref=f11e1062]
+                  - paragraph [ref=f11e1063]: Head of Call Operations • HealthFirst Coverage
+              - generic [ref=f11e1064]: 99.4% Adherence
+            - paragraph [ref=f11e1065]: “The whisper coaching and AI live notes turned our junior reps into top-tier producers within two weeks. Our compliance issues dropped to zero.”
+            - generic [ref=f11e1066]: Medicare Advantage
+          - generic [ref=f11e1079]:
+            - generic [ref=f11e1080]:
+              - generic [ref=f11e1081]:
+                - img "Michael Chang" [ref=f11e1083]
+                - generic [ref=f11e1085]:
+                  - heading "Michael Chang" [level=4] [ref=f11e1086]
+                  - paragraph [ref=f11e1087]: Chief Revenue Officer • SecureLife Financial
+              - generic [ref=f11e1088]: $2.4M Added Revenue
+            - paragraph [ref=f11e1089]: “Call attribution down to the dollar transformed how we buy leads. We only pay for billable, qualified conversations now.”
+            - generic [ref=f11e1090]: Enterprise Call Center
+          - generic [ref=f11e1103]:
+            - generic [ref=f11e1104]:
+              - generic [ref=f11e1105]:
+                - img "Rachel Adams" [ref=f11e1107]
+                - generic [ref=f11e1109]:
+                  - heading "Rachel Adams" [level=4] [ref=f11e1110]
+                  - paragraph [ref=f11e1111]: Managing Director • TrustCare Advisors
+              - generic [ref=f11e1112]: +38% Retention
+            - paragraph [ref=f11e1113]: “The seamless browser experience and automated disposition make after-call work take 3 seconds instead of 5 minutes.”
+            - generic [ref=f11e1114]: Health & P&C
+          - generic [ref=f11e1127]:
+            - generic [ref=f11e1128]:
+              - generic [ref=f11e1129]:
+                - img "Anthony Rivera" [ref=f11e1131]
+                - generic [ref=f11e1133]:
+                  - heading "Anthony Rivera" [level=4] [ref=f11e1134]
+                  - paragraph [ref=f11e1135]: Senior Partner • Horizon Mutual Group
+              - generic [ref=f11e1136]: 12,000+ Calls/Mo
+            - paragraph [ref=f11e1137]: “Handling thousands of concurrent calls without dropped lines or latency jitter. Coverage Calls is hands down the gold standard.”
+            - generic [ref=f11e1138]: High-Volume Direct
+      - generic [ref=f11e1151]:
+        - generic [ref=f11e1152]:
+          - generic [ref=f11e1153]: 99.98%
+          - generic [ref=f11e1154]: WebRTC Call Uptime
+        - generic [ref=f11e1156]:
+          - generic [ref=f11e1157]: 4.9 / 5.0
+          - generic [ref=f11e1158]: Agent Satisfaction
+        - generic [ref=f11e1160]:
+          - generic [ref=f11e1161]: 1.8M+
+          - generic [ref=f11e1162]: Billable Calls Routed
+        - generic [ref=f11e1164]:
+          - generic [ref=f11e1165]: < 150ms
+          - generic [ref=f11e1166]: Ultra-low Latency
+    - region "Frequently asked questions" [ref=f11e1167]:
+      - generic [ref=f11e1168]:
+        - generic [ref=f11e1169]:
+          - generic [ref=f11e1170]: FREQUENTLY ASKED QUESTIONS
+          - heading "Everything you need to know aboutCoverage Calls." [level=2] [ref=f11e1173]
+          - generic [ref=f11e1174]:
+            - button "All" [ref=f11e1175] [cursor=pointer]
+            - button "Voice & WebRTC" [ref=f11e1176] [cursor=pointer]
+            - button "Billing & Leads" [ref=f11e1177] [cursor=pointer]
+            - button "AI & Features" [ref=f11e1178] [cursor=pointer]
+        - generic [ref=f11e1179]:
+          - generic [ref=f11e1180]:
+            - button "Voice & WebRTC How does browser WebRTC work without desk phones or desktop SIP clients? Coverage Calls uses low-latency WebRTC technology directly inside modern web browsers (Chrome, Edge, Safari, Firefox). When an inbound caller dials your campaign number, voice audio is routed into encrypted audio channels in under 150ms. Your agents just plug in any USB headset and click 'Answer' — no PBX boxes, desktop softphones, or SIP trunk configuration needed." [expanded] [ref=f11e1181] [cursor=pointer]:
+              - generic [ref=f11e1183]:
+                - generic [ref=f11e1184]: Voice & WebRTC
+                - heading "How does browser WebRTC work without desk phones or desktop SIP clients?" [level=3] [ref=f11e1185]
+              - paragraph [ref=f11e1191]: Coverage Calls uses low-latency WebRTC technology directly inside modern web browsers (Chrome, Edge, Safari, Firefox). When an inbound caller dials your campaign number, voice audio is routed into encrypted audio channels in under 150ms. Your agents just plug in any USB headset and click 'Answer' — no PBX boxes, desktop softphones, or SIP trunk configuration needed.
+            - button "Billing & Leads How does billable call verification work? You only pay for qualified, billable conversations that meet your custom connection threshold (e.g. connected for over 90–120 seconds with confirmed intent). Our routing engine automatically disqualifies duplicate calls, spam, and disconnected lines before they hit your agent's live screen." [ref=f11e1192] [cursor=pointer]:
+              - generic [ref=f11e1194]:
+                - generic [ref=f11e1195]: Billing & Leads
+                - heading "How does billable call verification work?" [level=3] [ref=f11e1196]
+              - paragraph [ref=f11e1200]: You only pay for qualified, billable conversations that meet your custom connection threshold (e.g. connected for over 90–120 seconds with confirmed intent). Our routing engine automatically disqualifies duplicate calls, spam, and disconnected lines before they hit your agent's live screen.
+            - button "AI & Features What is AI Whisper Coaching and how does it assist agents during live calls? Our low-latency AI Copilot transcribes the conversation in real time. It displays script adherence suggestions, detects prospect sentiment, and feeds instant rebuttals and coverage benefit bullets directly on the agent workspace without interrupting audio flow." [ref=f11e1201] [cursor=pointer]:
+              - generic [ref=f11e1203]:
+                - generic [ref=f11e1204]: AI & Features
+                - heading "What is AI Whisper Coaching and how does it assist agents during live calls?" [level=3] [ref=f11e1205]
+              - paragraph [ref=f11e1209]: Our low-latency AI Copilot transcribes the conversation in real time. It displays script adherence suggestions, detects prospect sentiment, and feeds instant rebuttals and coverage benefit bullets directly on the agent workspace without interrupting audio flow.
+          - complementary [ref=f11e1210]:
+            - heading "Have more questions?" [level=4] [ref=f11e1214]
+            - paragraph [ref=f11e1215]: Can't find the answer you're looking for? Talk directly with our technical inbound engineers.
+            - generic [ref=f11e1216]:
+              - generic [ref=f11e1217]: "Average response: < 5 mins"
+              - generic [ref=f11e1220]: Live WebRTC setup assistance
+            - link "Talk to an Expert" [ref=f11e1223] [cursor=pointer]:
+              - /url: /contact
+        - link "View all FAQs" [ref=f11e1228] [cursor=pointer]:
+          - /url: /faq
+    - generic [ref=f11e1233]:
+      - generic [ref=f11e1234]:
+        - generic [ref=f11e1235]:
+          - heading "Ready to start taking better calls?" [level=2] [ref=f11e1236]
+          - paragraph [ref=f11e1237]: Join hundreds of agents and agencies growing their business with Coverage Calls.
+        - generic [ref=f11e1238]:
+          - link "Start 7-day free trial" [ref=f11e1239] [cursor=pointer]:
+            - /url: /register
+          - link "Watch demo" [ref=f11e1243] [cursor=pointer]:
+            - /url: /#how-it-works
+      - generic [ref=f11e1248]:
+        - generic [ref=f11e1249]:
+          - img "Coverage Calls" [ref=f11e1251]
+          - paragraph [ref=f11e1252]: The inbound call platform for agents and agencies who want better conversations and better results.
+          - generic [ref=f11e1253]:
+            - link "X (Twitter)" [ref=f11e1254] [cursor=pointer]:
+              - /url: https://x.com
+            - link "LinkedIn" [ref=f11e1257] [cursor=pointer]:
+              - /url: https://linkedin.com
+        - generic [ref=f11e1260]:
+          - heading "Product" [level=4] [ref=f11e1261]
+          - list [ref=f11e1262]:
+            - listitem [ref=f11e1263]:
+              - link "Features" [ref=f11e1264] [cursor=pointer]:
+                - /url: /#features
+            - listitem [ref=f11e1265]:
+              - link "Pricing" [ref=f11e1266] [cursor=pointer]:
+                - /url: /#pricing
+            - listitem [ref=f11e1267]:
+              - link "How it Works" [ref=f11e1268] [cursor=pointer]:
+                - /url: /#how-it-works
+        - generic [ref=f11e1269]:
+          - heading "Solutions" [level=4] [ref=f11e1270]
+          - list [ref=f11e1271]:
+            - listitem [ref=f11e1272]:
+              - link "For Agents" [ref=f11e1273] [cursor=pointer]:
+                - /url: /#agent-calls
+            - listitem [ref=f11e1274]:
+              - link "For Agencies" [ref=f11e1275] [cursor=pointer]:
+                - /url: /#dashboard-preview
+            - listitem [ref=f11e1276]:
+              - link "Testimonials" [ref=f11e1277] [cursor=pointer]:
+                - /url: /#testimonials
+        - generic [ref=f11e1278]:
+          - heading "Resources" [level=4] [ref=f11e1279]
+          - list [ref=f11e1280]:
+            - listitem [ref=f11e1281]:
+              - link "FAQ" [ref=f11e1282] [cursor=pointer]:
+                - /url: /faq
+            - listitem [ref=f11e1283]:
+              - link "Privacy" [ref=f11e1284] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=f11e1285]:
+              - link "Terms" [ref=f11e1286] [cursor=pointer]:
+                - /url: /terms
+        - generic [ref=f11e1287]:
+          - heading "Company" [level=4] [ref=f11e1288]
+          - list [ref=f11e1289]:
+            - listitem [ref=f11e1290]:
+              - link "About Us" [ref=f11e1291] [cursor=pointer]:
+                - /url: /about
+            - listitem [ref=f11e1292]:
+              - link "Contact" [ref=f11e1293] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=f11e1294]:
+              - link "Privacy Policy" [ref=f11e1295] [cursor=pointer]:
+                - /url: /privacy
+        - generic [ref=f11e1296]:
+          - heading "Stay updated" [level=4] [ref=f11e1297]
+          - paragraph [ref=f11e1298]: Get product updates and tips to grow your business.
+          - generic [ref=f11e1299]:
+            - textbox "Enter your email" [ref=f11e1300]
+            - button "Subscribe" [ref=f11e1301] [cursor=pointer]
+      - paragraph [ref=f11e1305]: © 2025 Coverage Calls. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=f11e1311] [cursor=pointer]
+  - alert [ref=f11e1315]

@@ -87,6 +87,17 @@ describe("POST /api/v1/agencies leave-and-create (Phase 3, point 6)", () => {
     expect(sqls.some((s) => s.includes('UPDATE "user" SET role'))).toBe(true);
   });
 
+  it("moves the agent row with the membership (no stale agency)", async () => {
+    // Regression: the membership moved but agents.agency_id stayed behind,
+    // so the agent's own detail 404d and take-calls stuck on Loading forever.
+    const res = await route.POST(req({ name: "New Co", slug: "new-co", leaveAgency: true }), ctx);
+    expect(res.status).toBe(201);
+    const calls = clientQueryMock.mock.calls as unknown as [string, unknown[]][];
+    const move = calls.find(([sql]) => sql.includes("UPDATE app.agents SET agency_id"));
+    expect(move).toBeTruthy();
+    expect(move![1]).toContain("agency-2");
+  });
+
   it("refuses to strand an agency the user heads", async () => {
     dbQueryMock.mockResolvedValue([{ one: 1 }]);
     const res = await route.POST(req({ name: "New Co", slug: "new-co", leaveAgency: true }), ctx);

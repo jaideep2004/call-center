@@ -49,7 +49,7 @@ export default function PublisherSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (res.ok) {
         setData((prev) => (prev ? { ...prev, email: trimmed } : prev));
         showToast("Settings saved", "success");

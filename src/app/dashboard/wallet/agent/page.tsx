@@ -154,7 +154,7 @@ function AgentWalletInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount_cents: topUpAmount }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (res.ok && body.data?.url) {
         window.location.href = body.data.url;
       } else {

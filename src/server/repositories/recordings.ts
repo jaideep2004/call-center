@@ -35,6 +35,29 @@ export class RecordingRepository extends BaseRepository<RecordingRow> {
     return rows;
   }
 
+  /** List view: recording + its call code + handling agent (single query). */
+  async findByAgencyWithAgent(agencyId: string): Promise<Array<RecordingRow & {
+    call_display_code: string | null;
+    agent_id: string | null;
+    agent_name: string | null;
+  }>> {
+    return query(
+      `SELECT r.*,
+              c.display_code AS call_display_code,
+              a.id AS agent_id,
+              COALESCE(u.name, u2.name, a.display_code) AS agent_name
+         FROM app.recordings r
+         LEFT JOIN app.calls c ON c.id = r.call_id
+         LEFT JOIN app.agents a ON a.id = c.agent_id
+         LEFT JOIN app.memberships m ON m.id = a.membership_id
+         LEFT JOIN "user" u ON u.id = m.user_id
+         LEFT JOIN "user" u2 ON u2.id = a.user_id
+        WHERE r.agency_id = $1
+        ORDER BY r.created_at DESC`,
+      [agencyId],
+    );
+  }
+
   /** Agent-scoped list: only recordings of this agent's own calls. */
   async findByAgent(agencyId: string, agentId: string): Promise<RecordingRow[]> {
     return query<RecordingRow>(

@@ -30,7 +30,7 @@ export default async function PrivacyPage() {
 
   return (
     <section className="page-section">
-      <div className="content-page" style={{ maxWidth: 720, margin: "0 auto", padding: "80px 24px" }}>
+      <div className="content-page" style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
         <div className="section-label" style={{ marginBottom: 16 }}>PRIVACY / 01</div>
         <h1 style={{ font: "500 42px var(--serif)", letterSpacing: "-0.04em", margin: "0 0 16px" }}>{section?.title || "Privacy Policy"}</h1>
         {isLive ? (

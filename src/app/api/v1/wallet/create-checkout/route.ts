@@ -60,7 +60,9 @@ export const POST = apiHandler(async (req, context) => {
       stripe_session_id: session.id,
       amount_cents: creditCents,
       fee_cents: feeCents,
-      livemode: session.livemode ?? true,
+      // Unknown Stripe mode fails closed to test (never leaks into live
+      // revenue); the webhook/reconcile stamps the truth when known.
+      livemode: session.livemode ?? false,
     });
   } catch (e) {
     // Never leave a payable Stripe session without an app row (Sept-22 $1

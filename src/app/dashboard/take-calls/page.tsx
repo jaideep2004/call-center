@@ -213,9 +213,13 @@ function TakeCallsInner() {
 	// same snapshot. Never answer from here — Softphone owns answering.
 	const webrtc = useTelnyxWebRTC(agentId);
 
+	// Set when the agent profile itself can't load (e.g. stale agency after an
+	// agency switch): every agentInfo-derived check would otherwise sit on
+	// "Loading…" forever with no error anywhere.
+	const [agentLoadError, setAgentLoadError] = useState(false);
 	const loadAgent = useCallback(async () => {
 		const res = await fetch("/api/v1/me");
-		if (!res.ok) return;
+		if (!res.ok) { setAgentLoadError(true); return; }
 		const body = await res.json();
 		setMembershipId(body.data.membership?.id ?? null);
 		const aid = body.data.agentId ?? null;
@@ -225,9 +229,14 @@ function TakeCallsInner() {
 			if (agentRes.ok) {
 				const agentBody = await agentRes.json();
 				setAgentInfo(agentBody.data);
+				setAgentLoadError(false);
 				setAvailability(agentBody.data.availability ?? "offline");
 				setStatesDraft(agentBody.data.states ?? []);
+			} else {
+				setAgentLoadError(true);
 			}
+		} else {
+			setAgentLoadError(true);
 		}
 	}, []);
 
@@ -609,8 +618,10 @@ function TakeCallsInner() {
 				? "Approved to receive calls"
 				: agentInfo
 					? `${agentInfo.approval_status} — Contact admin to approve`
-					: "Loading approval…",
-			meta: isApproved ? "Approved" : (agentInfo?.approval_status ?? "pending"),
+					: agentLoadError
+						? "Couldn't load your agent profile — log out and back in; if it persists, contact admin."
+						: "Loading approval…",
+			meta: isApproved ? "Approved" : (agentInfo?.approval_status ?? (agentLoadError ? "error" : "pending")),
 		},
 		{
 			ok: fundingOk,
@@ -743,7 +754,7 @@ function TakeCallsInner() {
 							title={`Approval: ${agentInfo?.approval_status ?? "unknown"}`}>
 							{isApproved
 								? "Approved"
-								: (agentInfo?.approval_status ?? "Pending approval")}
+								: (agentInfo?.approval_status ?? (agentLoadError ? "Profile error" : "Pending approval"))}
 						</span>
 						<span
 							className='badge'
@@ -1311,10 +1322,12 @@ function TakeCallsInner() {
 										? "You are approved — routing is enabled."
 										: agentInfo
 											? `Status: ${agentInfo.approval_status}. Contact admin to approve.`
-											: "Loading…"
+											: agentLoadError
+												? "Couldn't load your agent profile — log out and back in; if it persists, contact admin."
+												: "Loading…"
 								}
 								meta={
-									isApproved ? "Approved" : (agentInfo?.approval_status ?? "…")
+									isApproved ? "Approved" : (agentInfo?.approval_status ?? (agentLoadError ? "error" : "…"))
 								}
 							/>
 							<ChecklistRow

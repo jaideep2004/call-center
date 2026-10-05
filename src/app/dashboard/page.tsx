@@ -66,6 +66,10 @@ export default function DashboardPage(){
   useEffect(()=>{
     // Wait for role resolution: no wrong-role first paint, single fetch.
     if (serverRole === null) return;
+    // Publishers live in /dashboard/publisher (layout redirects there): never
+    // fire the agent/admin fetch batch for them — every one 403s and spams
+    // the console on each login.
+    if (serverRole === "publisher") { setLoading(false); return; }
     async function loadDashboard(){
       let recentUrl="/api/v1/calls?limit=5&sortBy=started_at&order=desc";
       let agentId: string | null = null;
@@ -83,12 +87,18 @@ export default function DashboardPage(){
           }
         }catch{}
       }
+      // Revenue is admin-only (the route has no head elevation; agents and
+      // heads lack revenue:view by design — margin privacy, the payout
+      // strip). Don't fire a doomed 403 for everyone else.
+      const revenuePromise = isAdmin
+        ? fetch("/api/v1/reports/revenue?days=7").then(r=>r.ok?r.json():null)
+        : Promise.resolve(null);
       const [s,c,v,d,rv,cv,rc]=await Promise.all([
         fetch("/api/v1/reports/summary").then(r=>r.ok?r.json():null),
         fetch("/api/v1/calls?state=ringing,connected&limit=5").then(r=>r.ok?r.json():null),
         fetch("/api/v1/reports/calls-volume?days=7").then(r=>r.ok?r.json():null),
         fetch("/api/v1/reports/duration?days=7").then(r=>r.ok?r.json():null),
-        fetch("/api/v1/reports/revenue?days=7").then(r=>r.ok?r.json():null),
+        revenuePromise,
         fetch("/api/v1/reports/conversion?days=7").then(r=>r.ok?r.json():null),
         fetch(recentUrl).then(r=>r.ok?r.json():null),
       ]);
@@ -178,6 +188,19 @@ export default function DashboardPage(){
   // console for an admin (login flash) or vice versa.
   if(serverRole === null || loading || sessionPending){
     return (<div className="dashboard-page"><div className="stack" style={{gap:24}}><div className="skeleton skeleton-text" style={{width:200}}/><div className="skeleton skeleton-text" style={{width:320}}/><div className="metrics">{Array.from({length:4}).map((_,i)=><div key={i} className="skeleton skeleton-text" style={{height:100}}/>)}</div></div></div>);
+  }
+
+  if(serverRole === "publisher"){
+    // Publisher portal lives at /dashboard/publisher (layout redirects);
+    // paint a stub, never the agent console with $0s.
+    return (
+      <div className="dashboard-page">
+        <header className="console-header">
+          <div><p className="eyebrow"><i/> PUBLISHER PORTAL</p><h1>{greeting}, {firstName}.</h1><p className="text-muted" style={{fontSize:13, margin:"6px 0 0", maxWidth:560}}>Redirecting to Publisher Portal… <Link href="/dashboard/publisher" style={{color:"var(--cyan)", textDecoration:"underline"}}>Go now →</Link></p></div>
+          <div className="header-right"><Link href="/dashboard/publisher" className="btn btn-primary">Open Publisher Portal</Link></div>
+        </header>
+      </div>
+    );
   }
 
   if(isAdmin){

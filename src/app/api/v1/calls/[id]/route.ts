@@ -1,5 +1,5 @@
 import { apiHandler, ok, noContent, fail } from "@/server/api-utils";
-import { calls, callEvents, agents, campaigns } from "@/server/repositories";
+import { calls, callEvents, agents, campaigns, retreaverCalls } from "@/server/repositories";
 import { ForbiddenError, ConflictError } from "@/server/errors";
 import { validate, updateCallSchema } from "@/server/validate";
 import { assertTransition, type CallState } from "@/domain/calls";
@@ -73,9 +73,22 @@ export const GET = apiHandler(async (req, context) => {
       role: user?.role ?? "unknown",
     }));
   }
+  // Retreaver-sourced CLI for the same caller (cross-check with the Retreaver
+  // portal). Raw numbers never leave unmasked: same buffer-gated reveal
+  // policy as our own escrow — full number only when revealed, else masked.
+  let retreaver_caller: string | null = null;
+  if (access.call.retreaver_call_id) {
+    const linked = await retreaverCalls.findById(access.call.retreaver_call_id).catch(() => null);
+    const raw = linked?.caller?.trim() || null;
+    if (raw) {
+      retreaver_caller = reveal.revealed
+        ? raw
+        : `${raw.slice(0, 4)}•••${raw.slice(-2)}`;
+    }
+  }
   const { caller_number_encrypted: _escrow, ...rest } = access.call as CallRow & { caller_number_encrypted?: string | null };
   void _escrow;
-  return ok({ ...rest, events, caller_revealed: reveal.revealed, caller_number: reveal.caller_number });
+  return ok({ ...rest, events, caller_revealed: reveal.revealed, caller_number: reveal.caller_number, retreaver_caller, retreaver_caller_revealed: reveal.revealed && retreaver_caller !== null });
 }, { resource: "calls", action: "view" });
 
 export const PATCH = apiHandler(async (req, context) => {

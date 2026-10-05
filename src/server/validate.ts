@@ -474,6 +474,9 @@ export const createScriptSchema = z.object({
   category: z.enum(scriptCategories).default("general"),
   tags: z.array(z.string()).default([]),
   campaign_id: z.string().min(1).nullable().optional(),
+  // Platform admin only: file into a specific agency, or null for a global
+  // script every agency sees. Non-admins always use their own agency.
+  agency_id: z.string().min(1).nullable().optional(),
 });
 
 export const updateScriptSchema = z.object({

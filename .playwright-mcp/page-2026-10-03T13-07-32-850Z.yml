@@ -1,0 +1,453 @@
+- generic [active] [ref=f9e1]:
+  - generic [ref=f9e2]:
+    - banner:
+      - navigation [ref=f9e3]:
+        - link "Coverage Calls home" [ref=f9e4] [cursor=pointer]:
+          - /url: /
+          - img "Coverage Calls" [ref=f9e5]
+        - navigation "Primary" [ref=f9e6]:
+          - link "How it Works" [ref=f9e7] [cursor=pointer]:
+            - /url: /#how-it-works
+          - link "Features" [ref=f9e8] [cursor=pointer]:
+            - /url: /#features
+          - link "Pricing" [ref=f9e9] [cursor=pointer]:
+            - /url: /#pricing
+          - link "Testimonials" [ref=f9e10] [cursor=pointer]:
+            - /url: /#testimonials
+          - link "Blog" [ref=f9e11] [cursor=pointer]:
+            - /url: /blog
+          - link "About" [ref=f9e12] [cursor=pointer]:
+            - /url: /about
+        - generic [ref=f9e13]:
+          - link "Log in" [ref=f9e14] [cursor=pointer]:
+            - /url: /login
+          - link [ref=f9e15] [cursor=pointer]:
+            - /url: /register
+            - generic [ref=f9e16]:
+              - text: Start free trial
+              - generic [aria-hidden] [ref=f9e17]: →
+    - main [ref=f9e18]:
+      - generic [ref=f9e20]:
+        - generic [ref=f9e21]: PRIVACY / 01
+        - heading "Privacy Policy" [level=1] [ref=f9e22]
+        - generic [ref=f9e24]:
+          - paragraph
+          - heading "Privacy Policy" [level=1] [ref=f9e25]
+          - paragraph
+          - paragraph [ref=f9e26]:
+            - strong [ref=f9e27]: "Last Updated: September 23, 2026"
+          - paragraph [ref=f9e28]: CoverageCalls.com ("CoverageCalls," "we," "us," or "our") respects your privacy and is committed to protecting the personal information you provide to us or that we collect when you visit our website, interact with our advertisements, submit information through our forms, or initiate a telephone call through our marketing campaigns.
+          - paragraph [ref=f9e29]: This Privacy Policy explains what information we collect, how we use it, how we may share it, how we protect it, and the choices available to you.
+          - paragraph [ref=f9e30]: By accessing or using CoverageCalls.com or interacting with our services, you acknowledge the practices described in this Privacy Policy.
+          - paragraph [ref=f9e31]: "---"
+          - paragraph
+          - heading "1. Information We Collect" [level=2] [ref=f9e32]
+          - paragraph
+          - paragraph
+          - heading "Information You Provide" [level=3] [ref=f9e33]
+          - paragraph
+          - paragraph [ref=f9e34]: "We may collect information that you voluntarily provide when you:"
+          - paragraph
+          - list [ref=f9e35]:
+            - listitem [ref=f9e36]: Submit a form on our website
+            - listitem [ref=f9e37]: Request information regarding Final Expense, burial insurance, or related insurance products
+            - listitem [ref=f9e38]: Initiate an inbound telephone call through one of our advertisements or landing pages
+            - listitem [ref=f9e39]: Contact us by telephone, email, or other communication methods
+            - listitem [ref=f9e40]: Request information, assistance, or a connection with an insurance professional
+            - listitem [ref=f9e41]: Communicate with CoverageCalls or one of our authorized business partners
+            - paragraph
+            - paragraph [ref=f9e42]: "Depending on how you interact with us, information may include:"
+            - paragraph
+            - listitem [ref=f9e43]: Name
+            - listitem [ref=f9e44]: Telephone number
+            - listitem [ref=f9e45]: Email address
+            - listitem [ref=f9e46]: ZIP code
+            - listitem [ref=f9e47]: State of residence
+            - listitem [ref=f9e48]: Age or age range
+            - listitem [ref=f9e49]: Insurance interests
+            - listitem [ref=f9e50]: Information relevant to your request
+            - listitem [ref=f9e51]: Communication preferences
+            - listitem [ref=f9e52]: Information voluntarily provided during a telephone call
+            - paragraph
+            - paragraph
+            - heading "Information Collected Automatically" [level=3] [ref=f9e53]
+            - paragraph
+            - paragraph [ref=f9e54]: "When you visit our website or interact with our digital advertising, we may automatically collect certain technical and usage information, including:"
+            - paragraph
+            - listitem [ref=f9e55]: IP address
+            - listitem [ref=f9e56]: Browser type and version
+            - listitem [ref=f9e57]: Device type
+            - listitem [ref=f9e58]: Operating system
+            - listitem [ref=f9e59]: Pages viewed
+            - listitem [ref=f9e60]: Referring website or advertisement
+            - listitem [ref=f9e61]: Date and time of visits
+            - listitem [ref=f9e62]: General geographic information
+            - listitem [ref=f9e63]: Website interaction and usage information
+            - listitem [ref=f9e64]: Device identifiers and similar technical information
+            - paragraph
+            - paragraph [ref=f9e65]: We may collect this information through cookies, pixels, tags, scripts, analytics tools, and similar technologies.
+            - paragraph [ref=f9e66]: "---"
+            - paragraph
+            - heading "2. Information Collected Through Consumer-Initiated Calls" [level=1] [ref=f9e67]
+            - paragraph
+            - paragraph [ref=f9e68]: CoverageCalls operates advertising and marketing campaigns designed to connect consumers who are interested in insurance products, including Final Expense and burial insurance, with participating insurance agencies, licensed insurance agents, call centers, or other authorized parties.
+            - paragraph [ref=f9e69]: When you voluntarily initiate a telephone call through one of our advertisements, landing pages, websites, or other marketing channels, we may collect information associated with that call.
+            - paragraph [ref=f9e70]: "This may include:"
+            - paragraph
+            - listitem [ref=f9e71]: Telephone number
+            - listitem [ref=f9e72]: Caller identification information
+            - listitem [ref=f9e73]: Call date and time
+            - listitem [ref=f9e74]: Call duration
+            - listitem [ref=f9e75]: Call routing information
+            - listitem [ref=f9e76]: Campaign and advertisement source
+            - listitem [ref=f9e77]: Geographic information
+            - listitem [ref=f9e78]: Information voluntarily provided during the call
+            - listitem [ref=f9e79]: Information necessary to determine whether the call meets applicable campaign requirements
+            - paragraph
+            - paragraph [ref=f9e80]: We may use this information to facilitate, route, monitor, measure, document, and improve our inbound call services.
+            - paragraph [ref=f9e81]: "---"
+            - paragraph
+            - heading "3. Call Recording and Monitoring" [level=1] [ref=f9e82]
+            - paragraph
+            - paragraph [ref=f9e83]: "Telephone calls may be recorded, monitored, logged, or otherwise processed for purposes including:"
+            - paragraph
+            - listitem [ref=f9e84]: Quality assurance
+            - listitem [ref=f9e85]: Compliance monitoring
+            - listitem [ref=f9e86]: Training
+            - listitem [ref=f9e87]: Fraud prevention
+            - listitem [ref=f9e88]: Call verification
+            - listitem [ref=f9e89]: Dispute resolution
+            - listitem [ref=f9e90]: Campaign performance measurement
+            - listitem [ref=f9e91]: Billing and reporting
+            - listitem [ref=f9e92]: Service improvement
+            - listitem [ref=f9e93]: Regulatory and legal compliance
+            - paragraph
+            - paragraph [ref=f9e94]: Where required by applicable law, we or our service providers will provide appropriate notice regarding call recording and obtain any required consent.
+            - paragraph [ref=f9e95]: "---"
+            - paragraph
+            - heading "4. How We Use Information" [level=1] [ref=f9e96]
+            - paragraph
+            - paragraph [ref=f9e97]: "We may use personal information for the following purposes:"
+            - paragraph
+            - listitem [ref=f9e98]: Responding to inquiries and requests
+            - listitem [ref=f9e99]: Connecting consumers with participating insurance agencies, licensed agents, call centers, or other authorized parties
+            - listitem [ref=f9e100]: Routing consumer-initiated inbound calls
+            - listitem [ref=f9e101]: Verifying and measuring call activity
+            - listitem [ref=f9e102]: Managing and improving advertising campaigns
+            - listitem [ref=f9e103]: Measuring advertising and campaign performance
+            - listitem [ref=f9e104]: Providing reporting to authorized business partners
+            - listitem [ref=f9e105]: Maintaining call quality and compliance standards
+            - listitem [ref=f9e106]: Detecting and preventing fraud, abuse, or unauthorized activity
+            - listitem [ref=f9e107]: Operating, maintaining, and improving our website and technology
+            - listitem [ref=f9e108]: Communicating with consumers regarding their requests
+            - listitem [ref=f9e109]: Responding to privacy or customer-service requests
+            - listitem [ref=f9e110]: Maintaining business and transaction records
+            - listitem [ref=f9e111]: Complying with applicable laws and regulations
+            - listitem [ref=f9e112]: Protecting our legal rights, property, systems, and users
+            - paragraph
+            - paragraph [ref=f9e113]: "---"
+            - paragraph
+            - heading "5. How We Share Information" [level=1] [ref=f9e114]
+            - paragraph
+            - paragraph [ref=f9e115]: We may share personal information with third parties when reasonably necessary to provide or operate our services.
+            - paragraph [ref=f9e116]: "These parties may include:"
+            - paragraph
+            - heading "Insurance Agencies and Licensed Professionals" [level=3] [ref=f9e117]
+            - paragraph
+            - paragraph [ref=f9e118]: If you request information about insurance or initiate a call through one of our campaigns, information associated with your request or call may be provided to participating insurance agencies, licensed insurance agents, call centers, or other authorized recipients so that they may respond to your request.
+            - paragraph
+            - heading "Service Providers" [level=3] [ref=f9e119]
+            - paragraph
+            - paragraph [ref=f9e120]: "We may share information with vendors and service providers that help us operate our business, including providers of:"
+            - paragraph
+            - listitem [ref=f9e121]: Telephony and call-routing services
+            - listitem [ref=f9e122]: Call tracking
+            - listitem [ref=f9e123]: Analytics
+            - listitem [ref=f9e124]: Hosting and cloud infrastructure
+            - listitem [ref=f9e125]: Advertising and marketing technology
+            - listitem [ref=f9e126]: Customer relationship management systems
+            - listitem [ref=f9e127]: Data security
+            - listitem [ref=f9e128]: Fraud prevention
+            - listitem [ref=f9e129]: Compliance and consent management
+            - listitem [ref=f9e130]: Business and administrative services
+            - paragraph
+            - paragraph [ref=f9e131]: These service providers are permitted to use information only as necessary to perform services for us or as otherwise permitted by law.
+            - paragraph
+            - heading "Legal and Regulatory Requirements" [level=3] [ref=f9e132]
+            - paragraph
+            - paragraph [ref=f9e133]: "We may disclose information when we reasonably believe disclosure is necessary to:"
+            - paragraph
+            - listitem [ref=f9e134]: Comply with applicable law or regulation
+            - listitem [ref=f9e135]: Respond to legal process, subpoena, or governmental request
+            - listitem [ref=f9e136]: Protect our rights or property
+            - listitem [ref=f9e137]: Investigate fraud or security issues
+            - listitem [ref=f9e138]: Enforce our agreements
+            - listitem [ref=f9e139]: Protect the safety of our users, business partners, or others
+            - paragraph
+            - paragraph
+            - heading "Business Transfers" [level=3] [ref=f9e140]
+            - paragraph
+            - paragraph [ref=f9e141]: If CoverageCalls or substantially all of its assets are acquired, merged, reorganized, financed, or transferred, personal information may be transferred as part of that transaction, subject to applicable law.
+            - paragraph [ref=f9e142]: "---"
+            - paragraph
+            - heading "6. We Do Not Sell Personal Information" [level=1] [ref=f9e143]
+            - paragraph
+            - paragraph [ref=f9e144]: CoverageCalls does not sell personal information for monetary consideration.
+            - paragraph [ref=f9e145]: We may, however, share information with business partners and service providers as described in this Privacy Policy for purposes such as fulfilling a consumer request, routing an inbound call, operating advertising campaigns, providing services, analytics, security, compliance, and other legitimate business purposes.
+            - paragraph [ref=f9e146]: "---"
+            - paragraph
+            - heading "7. Advertising, Cookies, and Tracking Technologies" [level=1] [ref=f9e147]
+            - paragraph
+            - paragraph [ref=f9e148]: "We may use cookies, pixels, web beacons, tags, scripts, and similar technologies to:"
+            - paragraph
+            - listitem [ref=f9e149]: Operate our website
+            - listitem [ref=f9e150]: Remember preferences
+            - listitem [ref=f9e151]: Understand website usage
+            - listitem [ref=f9e152]: Measure advertising performance
+            - listitem [ref=f9e153]: Improve marketing campaigns
+            - listitem [ref=f9e154]: Analyze website traffic
+            - listitem [ref=f9e155]: Detect fraudulent or abusive activity
+            - listitem [ref=f9e156]: Improve user experience
+            - paragraph
+            - paragraph [ref=f9e157]: Third-party advertising, analytics, and technology providers may also use similar technologies when you interact with our website or advertisements.
+            - paragraph [ref=f9e158]: You may be able to control or restrict cookies through your browser settings. Disabling certain cookies may affect the functionality of portions of our website.
+            - paragraph [ref=f9e159]: "---"
+            - paragraph
+            - heading "8. Consumer Choices and Privacy Requests" [level=1] [ref=f9e160]
+            - paragraph
+            - paragraph [ref=f9e161]: "Depending on applicable law, you may have the right to request:"
+            - paragraph
+            - listitem [ref=f9e162]: Access to personal information we maintain about you
+            - listitem [ref=f9e163]: Correction of inaccurate personal information
+            - listitem [ref=f9e164]: Deletion of personal information
+            - listitem [ref=f9e165]: Information regarding how your personal information is used or shared
+            - listitem [ref=f9e166]: Restriction of certain uses of your information
+            - listitem [ref=f9e167]: Withdrawal of certain consents, where applicable
+            - paragraph
+            - paragraph [ref=f9e168]: To make a privacy request, please contact us using the information provided below.
+            - paragraph [ref=f9e169]: We may need to verify your identity before completing certain requests.
+            - paragraph [ref=f9e170]: Certain information may be retained where necessary to comply with legal, regulatory, contractual, security, accounting, or legitimate business requirements.
+            - paragraph [ref=f9e171]: "---"
+            - paragraph
+            - heading "9. Marketing and Communications" [level=1] [ref=f9e172]
+            - paragraph
+            - paragraph [ref=f9e173]: If you voluntarily provide your contact information or initiate an inquiry through one of our campaigns, you may be contacted by CoverageCalls, participating insurance professionals, or authorized service providers regarding your request.
+            - paragraph [ref=f9e174]: Communications may include telephone calls, text messages, emails, or other communications where permitted by applicable law and based on the applicable consent or authorization.
+            - paragraph [ref=f9e175]: Submitting information does not guarantee that you will qualify for or receive an insurance product, quote, policy, or offer.
+            - paragraph [ref=f9e176]: "---"
+            - paragraph
+            - heading "10. Data Retention" [level=1] [ref=f9e177]
+            - paragraph
+            - paragraph [ref=f9e178]: "We retain personal information for as long as reasonably necessary to:"
+            - paragraph
+            - listitem [ref=f9e179]: Provide and administer our services
+            - listitem [ref=f9e180]: Maintain business and transaction records
+            - listitem [ref=f9e181]: Meet contractual obligations
+            - listitem [ref=f9e182]: Satisfy legal and regulatory requirements
+            - listitem [ref=f9e183]: Resolve disputes
+            - listitem [ref=f9e184]: Prevent fraud and abuse
+            - listitem [ref=f9e185]: Enforce our agreements
+            - listitem [ref=f9e186]: Maintain appropriate compliance and audit records
+            - paragraph
+            - paragraph [ref=f9e187]: When information is no longer reasonably required, we may delete, anonymize, or de-identify it in accordance with our policies and applicable law.
+            - paragraph [ref=f9e188]: "---"
+            - paragraph
+            - heading "11. Data Security" [level=1] [ref=f9e189]
+            - paragraph
+            - paragraph [ref=f9e190]: We use reasonable administrative, technical, and organizational safeguards designed to protect personal information from unauthorized access, disclosure, alteration, or destruction.
+            - paragraph [ref=f9e191]: However, no website, telecommunications system, database, or method of transmitting information over the Internet is completely secure.
+            - paragraph [ref=f9e192]: Accordingly, we cannot guarantee the absolute security of your information.
+            - paragraph [ref=f9e193]: "---"
+            - paragraph
+            - heading "12. Third-Party Websites and Services" [level=1] [ref=f9e194]
+            - paragraph
+            - paragraph [ref=f9e195]: Our website or advertisements may contain links to websites, applications, services, or resources operated by third parties.
+            - paragraph [ref=f9e196]: CoverageCalls does not control the privacy practices of third-party websites or services.
+            - paragraph [ref=f9e197]: We encourage you to review the privacy policies of any third party before providing them with personal information.
+            - paragraph [ref=f9e198]: "---"
+            - paragraph
+            - heading "13. Children's Privacy" [level=1] [ref=f9e199]
+            - paragraph
+            - paragraph [ref=f9e200]: CoverageCalls services are not directed toward children under the age of 18.
+            - paragraph [ref=f9e201]: We do not knowingly collect personal information from children under 18.
+            - paragraph [ref=f9e202]: If we become aware that we have collected personal information from a child under 18, we will take reasonable steps to delete the information as required by applicable law.
+            - paragraph [ref=f9e203]: "---"
+            - paragraph
+            - heading "14. Insurance Disclaimer" [level=1] [ref=f9e204]
+            - paragraph
+            - paragraph [ref=f9e205]: CoverageCalls is a marketing and inbound call-generation platform and is not an insurance carrier.
+            - paragraph [ref=f9e206]: CoverageCalls does not itself issue insurance policies or make underwriting decisions.
+            - paragraph [ref=f9e207]: Insurance products, eligibility, premiums, benefits, coverage, and policy terms are determined by the applicable insurance carrier and/or licensed insurance professional.
+            - paragraph [ref=f9e208]: CoverageCalls does not guarantee that a consumer will qualify for any particular insurance product or receive a particular price, benefit, policy, or offer.
+            - paragraph [ref=f9e209]: "---"
+            - paragraph
+            - heading "15. Compliance" [level=1] [ref=f9e210]
+            - paragraph
+            - paragraph [ref=f9e211]: CoverageCalls seeks to operate its consumer acquisition and inbound call programs in accordance with applicable federal and state laws and regulations.
+            - paragraph [ref=f9e212]: Our advertising and call-generation programs may include processes designed to document consumer consent, track campaign sources, verify call activity, maintain appropriate records, and support applicable compliance requirements.
+            - paragraph [ref=f9e213]: Compliance requirements may vary depending on the campaign, state, insurance product, traffic source, and participating business partner.
+            - paragraph [ref=f9e214]: "---"
+            - paragraph
+            - heading "16. State Privacy Rights" [level=1] [ref=f9e215]
+            - paragraph
+            - paragraph [ref=f9e216]: Certain states provide residents with additional privacy rights regarding their personal information.
+            - paragraph [ref=f9e217]: Depending on your state of residence and applicable law, you may have additional rights concerning access, correction, deletion, portability, or restriction of certain uses or disclosures of your personal information.
+            - paragraph [ref=f9e218]: If you believe you are entitled to additional rights under applicable state privacy law, you may contact us using the information below.
+            - paragraph [ref=f9e219]: We will evaluate and respond to qualifying requests in accordance with applicable law.
+            - paragraph [ref=f9e220]: "---"
+            - paragraph
+            - heading "17. Purchased Inbound Calls and Leads — No-Refund Policy" [level=1] [ref=f9e221]
+            - paragraph
+            - paragraph [ref=f9e222]: CoverageCalls provides consumer-generated inbound calls and leads to participating agents, agencies, call centers, and other authorized buyers ("Buyers").
+            - paragraph [ref=f9e223]:
+              - strong [ref=f9e224]: ALL PURCHASED, ACCEPTED, RECEIVED, OR DELIVERED INBOUND CALLS AND LEADS ARE STRICTLY NON-REFUNDABLE
+              - text: ", except where CoverageCalls expressly determines that a specific call or lead failed to satisfy the applicable campaign requirements or otherwise agrees to a credit or adjustment in writing."
+            - paragraph [ref=f9e225]: Once an inbound call or lead has been delivered to, accepted by, or made available to the Buyer in accordance with the applicable campaign terms, the applicable charge becomes due.
+            - paragraph
+            - heading "No Refunds Based on Sales Performance" [level=3] [ref=f9e226]
+            - paragraph
+            - paragraph [ref=f9e227]: "A Buyer will not be entitled to a refund, credit, chargeback, or payment reversal solely because:"
+            - paragraph
+            - listitem [ref=f9e228]: The consumer did not purchase an insurance policy
+            - listitem [ref=f9e229]: The consumer did not submit an application
+            - listitem [ref=f9e230]: The consumer changed their mind
+            - listitem [ref=f9e231]: The consumer was unavailable for follow-up
+            - listitem [ref=f9e232]: The consumer did not meet the Buyer's internal sales criteria
+            - listitem [ref=f9e233]: The consumer declined an insurance offer
+            - listitem [ref=f9e234]: The Buyer or its agent was unable to close the consumer
+            - listitem [ref=f9e235]: The Buyer's agent failed to answer or accept the call
+            - listitem [ref=f9e236]: The Buyer's call center was unavailable
+            - listitem [ref=f9e237]: The Buyer's system, telephone, routing, or technical infrastructure failed
+            - listitem [ref=f9e238]: The Buyer did not follow up with the consumer
+            - listitem [ref=f9e239]: The Buyer did not have sufficient staffing
+            - listitem [ref=f9e240]: The Buyer's conversion rate or sales performance was below expectations
+            - paragraph
+            - paragraph [ref=f9e241]: CoverageCalls does not guarantee that any individual call or lead will result in a sale, application, policy issuance, commission, or revenue.
+            - paragraph
+            - heading "Buyer Responsibility" [level=3] [ref=f9e242]
+            - paragraph
+            - paragraph [ref=f9e243]: Buyers are responsible for ensuring that their agents, call centers, telephone systems, routing systems, CRM systems, and other receiving infrastructure are operational and capable of receiving traffic during applicable campaign hours.
+            - paragraph [ref=f9e244]: If a Buyer has an active campaign and a qualifying inbound call or lead is delivered or accepted according to the applicable campaign requirements, the applicable charge will apply regardless of whether the Buyer ultimately converts the consumer.
+            - paragraph
+            - heading "Valid Disputes" [level=3] [ref=f9e245]
+            - paragraph
+            - paragraph [ref=f9e246]: If a Buyer believes that a specific call or lead materially failed to meet the agreed campaign requirements, the Buyer must submit a dispute within the timeframe specified in the applicable Buyer Agreement, Master Services Agreement, Insertion Order ("IO"), campaign terms, or other written agreement.
+            - paragraph [ref=f9e247]: "Where applicable, a dispute should include:"
+            - paragraph
+            - listitem [ref=f9e248]: Call ID or lead ID
+            - listitem [ref=f9e249]: Telephone number
+            - listitem [ref=f9e250]: Date and time of the call or lead
+            - listitem [ref=f9e251]: Campaign identification
+            - listitem [ref=f9e252]: Specific reason for the dispute
+            - listitem [ref=f9e253]: Supporting information reasonably necessary for CoverageCalls to investigate the dispute
+          - paragraph
+          - paragraph [ref=f9e254]: Submission of a dispute does not automatically entitle the Buyer to a refund or credit.
+          - paragraph [ref=f9e255]: CoverageCalls will review qualifying disputes in accordance with the applicable campaign terms and may, at its discretion, issue a credit or other adjustment where a billing, delivery, routing, or campaign-qualification error is verified.
+          - paragraph
+          - heading "Chargebacks and Payment Reversals" [level=3] [ref=f9e256]
+          - paragraph
+          - paragraph [ref=f9e257]: Buyers agree not to initiate a chargeback, payment reversal, or other payment dispute solely because a purchased call or lead did not result in a sale or because the Buyer's agent was unable or unwilling to convert the consumer.
+          - paragraph [ref=f9e258]: Any unauthorized chargeback or payment reversal may be treated as a breach of the applicable Buyer Agreement or campaign terms, subject to applicable law.
+          - paragraph [ref=f9e259]: CoverageCalls reserves the right to suspend or terminate a Buyer's account or campaign access following an unauthorized payment reversal or repeated improper disputes.
+          - paragraph
+          - heading "Commercial Agreements Control" [level=3] [ref=f9e260]
+          - paragraph
+          - paragraph [ref=f9e261]: Where a separate Buyer Agreement, Master Services Agreement, Insertion Order, Campaign Agreement, or other written agreement exists between CoverageCalls and a Buyer, the commercial terms of that agreement—including pricing, qualification requirements, dispute procedures, billing terms, and any applicable refund or credit provisions—will control to the extent of any conflict with this Privacy Policy.
+          - paragraph [ref=f9e262]: Nothing in this Privacy Policy limits any rights or obligations that cannot lawfully be waived under applicable law.
+          - paragraph [ref=f9e263]: "---"
+          - paragraph
+          - heading "18. Changes to This Privacy Policy" [level=1] [ref=f9e264]
+          - paragraph
+          - paragraph [ref=f9e265]: We may update this Privacy Policy periodically to reflect changes in our services, technology, business practices, legal requirements, or regulatory obligations.
+          - paragraph [ref=f9e266]: When we make changes, we will update the "Last Updated" date at the top of this page.
+          - paragraph [ref=f9e267]: We encourage you to review this Privacy Policy periodically.
+          - paragraph [ref=f9e268]: "---"
+          - paragraph
+          - heading "19. Contact Us" [level=1] [ref=f9e269]
+          - paragraph
+          - paragraph [ref=f9e270]: "If you have questions about this Privacy Policy, want to make a privacy request, or have concerns about how your information is handled, please contact us:"
+          - paragraph [ref=f9e271]:
+            - strong [ref=f9e272]: CoverageCalls.com
+          - paragraph [ref=f9e273]:
+            - strong [ref=f9e274]: "Email:"
+            - text: "[privacy@coveragecalls.com](mailto:privacy@coveragecalls.com)"
+          - paragraph [ref=f9e275]:
+            - strong [ref=f9e276]: "Website:"
+            - text: CoverageCalls.com
+          - paragraph [ref=f9e277]:
+            - strong [ref=f9e278]: United States
+          - paragraph [ref=f9e279]: "---"
+          - paragraph [ref=f9e280]:
+            - strong [ref=f9e281]: © 2026 CoverageCalls.com. All Rights Reserved.
+    - contentinfo [ref=f9e282]:
+      - generic [ref=f9e283]:
+        - generic [ref=f9e284]:
+          - generic [ref=f9e285]:
+            - link "Coverage Calls home" [ref=f9e286] [cursor=pointer]:
+              - /url: /
+              - img "Coverage Calls" [ref=f9e287]
+            - paragraph [ref=f9e288]: The inbound call platform for agents and agencies who want better conversations and better results.
+            - generic [ref=f9e289]:
+              - link "X" [ref=f9e290] [cursor=pointer]:
+                - /url: https://x.com
+              - link "LinkedIn" [ref=f9e293] [cursor=pointer]:
+                - /url: https://linkedin.com
+          - generic [ref=f9e296]:
+            - heading "Product" [level=4] [ref=f9e297]
+            - list [ref=f9e298]:
+              - listitem [ref=f9e299]:
+                - link "Features" [ref=f9e300] [cursor=pointer]:
+                  - /url: /#features
+              - listitem [ref=f9e301]:
+                - link "Pricing" [ref=f9e302] [cursor=pointer]:
+                  - /url: /#pricing
+              - listitem [ref=f9e303]:
+                - link "How it Works" [ref=f9e304] [cursor=pointer]:
+                  - /url: /#how-it-works
+          - generic [ref=f9e305]:
+            - heading "Solutions" [level=4] [ref=f9e306]
+            - list [ref=f9e307]:
+              - listitem [ref=f9e308]:
+                - link "For Agents" [ref=f9e309] [cursor=pointer]:
+                  - /url: /#agent-calls
+              - listitem [ref=f9e310]:
+                - link "For Agencies" [ref=f9e311] [cursor=pointer]:
+                  - /url: /#dashboard-preview
+              - listitem [ref=f9e312]:
+                - link "Testimonials" [ref=f9e313] [cursor=pointer]:
+                  - /url: /#testimonials
+          - generic [ref=f9e314]:
+            - heading "Resources" [level=4] [ref=f9e315]
+            - list [ref=f9e316]:
+              - listitem [ref=f9e317]:
+                - link "Blog" [ref=f9e318] [cursor=pointer]:
+                  - /url: /blog
+              - listitem [ref=f9e319]:
+                - link "FAQ" [ref=f9e320] [cursor=pointer]:
+                  - /url: /faq
+              - listitem [ref=f9e321]:
+                - link "Privacy" [ref=f9e322] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=f9e323]:
+                - link "Terms" [ref=f9e324] [cursor=pointer]:
+                  - /url: /terms
+          - generic [ref=f9e325]:
+            - heading "Company" [level=4] [ref=f9e326]
+            - list [ref=f9e327]:
+              - listitem [ref=f9e328]:
+                - link "About Us" [ref=f9e329] [cursor=pointer]:
+                  - /url: /about
+              - listitem [ref=f9e330]:
+                - link "Contact" [ref=f9e331] [cursor=pointer]:
+                  - /url: /contact
+              - listitem [ref=f9e332]:
+                - link "Privacy Policy" [ref=f9e333] [cursor=pointer]:
+                  - /url: /privacy
+          - generic [ref=f9e334]:
+            - heading "Stay updated" [level=4] [ref=f9e335]
+            - paragraph [ref=f9e336]: Get product updates and tips to grow your business.
+            - generic [ref=f9e337]:
+              - textbox "Enter your email" [ref=f9e338]
+              - button "Subscribe" [ref=f9e339] [cursor=pointer]
+        - paragraph [ref=f9e343]: © 2025 Coverage Calls. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=f9e349] [cursor=pointer]

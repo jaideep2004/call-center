@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatCents } from "@/lib/format";
 import { showToast } from "@/lib/use-toast";
 import { DISPOSITION_OUTCOMES, DISPOSITION_LABELS } from "@/server/constants";
 
@@ -16,6 +16,8 @@ interface CallDetail {
   from_hash: string | null;
   caller_revealed?: boolean;
   caller_number?: string | null;
+  retreaver_caller?: string | null;
+  retreaver_caller_revealed?: boolean;
   caller_state: string | null;
   started_at: string | null;
   connected_at: string | null;
@@ -73,6 +75,147 @@ function formatHash(hash: string | null): string {
   if (!hash) return "—";
   if (hash.length <= 12) return hash;
   return `${hash.slice(0, 12)}…`;
+}
+
+function shortId(id: string | null | undefined): string {
+  if (!id) return "—";
+  return id.length <= 8 ? id : `${id.slice(0, 8)}…`;
+}
+
+/** Human-readable routing summary + marketplace economics. Raw JSON stays
+ * available inside a collapsed <details> for debugging. */
+function RoutingCard({ snapshot }: { snapshot: Record<string, unknown> }) {
+  const get = (k: string) => (snapshot as Record<string, unknown>)[k];
+  const strategy = typeof get("strategy") === "string" ? get("strategy") as string : "—";
+  const candidates = typeof get("candidateCount") === "number" ? get("candidateCount") as number : null;
+  const rejected = typeof get("rejectedCount") === "number" ? get("rejectedCount") as number : null;
+  const eligible = candidates !== null && rejected !== null ? candidates - rejected : null;
+  const tried = Array.isArray(get("triedAgentIds")) ? (get("triedAgentIds") as unknown[]).map(String) : [];
+  const noAnswerReason = typeof get("noAnswerReason") === "string" ? get("noAnswerReason") as string : null;
+  const noEligible = get("noEligible") === true;
+  const ringError = typeof get("ringError") === "string" ? get("ringError") as string : null;
+  const excluded = typeof get("excludedCount") === "number" ? get("excludedCount") as number : 0;
+  const stamp = typeof get("timestamp") === "string" ? get("timestamp") as string : null;
+  const rejectionReasons = (get("rejectionReasons") ?? {}) as Record<string, unknown>;
+  const rejectionEntries = Object.entries(rejectionReasons).slice(0, 8);
+  const extraRejected = Object.keys(rejectionReasons).length - rejectionEntries.length;
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2 className="card-title">Routing</h2>
+        <span className="badge">{strategy.replace(/_/g, " ")}</span>
+      </div>
+      <dl className="data-list">
+        <dt>Agents considered</dt>
+        <dd className="text-mono-sm">{candidates ?? "—"}{eligible !== null ? ` (${eligible} eligible)` : ""}</dd>
+        <dt>Connected to</dt>
+        <dd className="text-mono-sm">{shortId(typeof get("selectedAgent") === "string" ? get("selectedAgent") as string : null)}</dd>
+        {tried.length > 0 && (
+          <>
+            <dt>Agents tried</dt>
+            <dd className="text-mono-sm" title="Ring-timeout failover: each agent that didn't pick up was skipped and the call re-routed">
+              {tried.map((a) => a.slice(0, 8)).join(" → ")}{noAnswerReason ? ` (${noAnswerReason})` : ""}
+            </dd>
+          </>
+        )}
+        {excluded > 0 && (
+          <>
+            <dt>Skipped (already tried)</dt>
+            <dd className="text-mono-sm">{excluded}</dd>
+          </>
+        )}
+        {noEligible && (
+          <>
+            <dt>Outcome</dt>
+            <dd><span className="badge badge-warning">No eligible agent — caller hung up</span></dd>
+          </>
+        )}
+        {ringError && (
+          <>
+            <dt>Dial error</dt>
+            <dd className="text-mono-sm">{ringError}</dd>
+          </>
+        )}
+        {stamp && (
+          <>
+            <dt>Decided at</dt>
+            <dd className="text-mono-sm">{new Date(stamp).toLocaleString()}</dd>
+          </>
+        )}
+      </dl>
+      {rejectionEntries.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <p className="text-muted" style={{ fontSize: 11, margin: "0 0 6px" }}>Why others were skipped</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {rejectionEntries.map(([agentId, reasons]) => (
+              <div key={agentId} className="text-mono-sm" style={{ fontSize: 11 }}>
+                <span style={{ color: "var(--ink)" }}>{agentId.slice(0, 8)}…</span>{" "}
+                {(Array.isArray(reasons) ? (reasons as unknown[]).map(String) : [String(reasons)]).map((r) => (
+                  <span key={r} className="badge" style={{ marginLeft: 6 }}>{r.replace(/_/g, " ")}</span>
+                ))}
+              </div>
+            ))}
+            {extraRejected > 0 && <span className="text-muted" style={{ fontSize: 11 }}>+{extraRejected} more</span>}
+          </div>
+        </div>
+      )}
+      <details style={{ marginTop: 12 }}>
+        <summary className="text-muted" style={{ fontSize: 11, cursor: "pointer" }}>Raw routing JSON</summary>
+        <pre className="call-detail-json">{JSON.stringify(snapshot, null, 2)}</pre>
+      </details>
+    </div>
+  );
+}
+
+function QualificationCard({ snapshot }: { snapshot: Record<string, unknown> }) {
+  const get = (k: string) => (snapshot as Record<string, unknown>)[k];
+  const marketplace = (get("marketplace") ?? null) as {
+    revenue_cents?: number | null; cost_cents?: number | null; margin_cents?: number | null;
+    qualified?: boolean; reason?: string | null;
+  } | null;
+  const extraEntries = Object.entries(snapshot).filter(([k]) => k !== "marketplace");
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2 className="card-title">Billing & qualification</h2>
+        {marketplace && (
+          <span className={`badge ${marketplace.qualified ? "badge-success" : ""}`}>
+            {marketplace.qualified ? "Qualified" : "Not qualified"}
+          </span>
+        )}
+      </div>
+      {marketplace && (
+        <dl className="data-list">
+          <dt>Buyer revenue</dt>
+          <dd className="text-mono-sm">{marketplace.revenue_cents != null ? formatCents(marketplace.revenue_cents) : "—"}</dd>
+          <dt>Publisher cost</dt>
+          <dd className="text-mono-sm">{marketplace.cost_cents != null ? formatCents(marketplace.cost_cents) : "—"}</dd>
+          <dt>Margin</dt>
+          <dd className="text-mono-sm">{marketplace.margin_cents != null ? formatCents(marketplace.margin_cents) : "—"}</dd>
+          {marketplace.reason && (
+            <>
+              <dt>Why</dt>
+              <dd className="text-mono-sm">{marketplace.reason.replace(/_/g, " ")}</dd>
+            </>
+          )}
+        </dl>
+      )}
+      {extraEntries.length > 0 && (
+        <dl className="data-list" style={{ marginTop: marketplace ? 12 : 0 }}>
+          {extraEntries.map(([k, v]) => (
+            <div key={k} style={{ display: "contents" }}>
+              <dt>{k.replace(/_/g, " ")}</dt>
+              <dd className="text-mono-sm">{typeof v === "object" ? JSON.stringify(v) : String(v ?? "—")}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <details style={{ marginTop: 12 }}>
+        <summary className="text-muted" style={{ fontSize: 11, cursor: "pointer" }}>Raw qualification JSON</summary>
+        <pre className="call-detail-json">{JSON.stringify(snapshot, null, 2)}</pre>
+      </details>
+    </div>
+  );
 }
 
 function AudioPlayer({ recording, onDelete }: { recording: Recording; onDelete?: () => void }) {
@@ -204,6 +347,14 @@ export default function CallDetailPage() {
                 <span className="call-detail-label">Caller State</span>
                 <span className="call-detail-value"><span className="badge badge-info">{call.caller_state ?? "—"}</span></span>
               </div>
+              {call.retreaver_caller && (
+                <div className="call-detail-field">
+                  <span className="call-detail-label">Retreaver CLI</span>
+                  <span className="call-detail-value" title={call.retreaver_caller_revealed ? "Full number — buffer passed" : "Masked until the call passes the billing buffer"}>
+                    {call.retreaver_caller} {!call.retreaver_caller_revealed && <span className="badge" style={{ marginLeft: 6 }}>masked</span>}
+                  </span>
+                </div>
+              )}
               <div className="call-detail-field">
                 <span className="call-detail-label">Campaign</span>
                 <span className="call-detail-value text-mono-sm">{call.campaign_id.slice(0, 12)}</span>
@@ -223,9 +374,8 @@ export default function CallDetailPage() {
               {Array.isArray((call.routing_snapshot as Record<string, unknown>)?.triedAgentIds) && ((call.routing_snapshot as Record<string, unknown>).triedAgentIds as string[]).length > 0 && (
                 <div className="call-detail-field">
                   <span className="call-detail-label">Agents tried</span>
-                  <span className="call-detail-value text-mono-sm" title="Ring-timeout failover: each agent that didn't pick up in time was skipped and the call re-routed to the next eligible agent">
+                  <span className="call-detail-value text-mono-sm" title="See the Routing card below for the full failover chain">
                     {((call.routing_snapshot as Record<string, unknown>).triedAgentIds as string[]).map((a) => a.slice(0, 8)).join(" → ")}
-                    {(call.routing_snapshot as Record<string, unknown>).noAnswerReason ? ` (${String((call.routing_snapshot as Record<string, unknown>).noAnswerReason)})` : ""}
                   </span>
                 </div>
               )}
@@ -362,12 +512,7 @@ export default function CallDetailPage() {
           </div>
 
           {call.routing_snapshot && Object.keys(call.routing_snapshot).length > 0 && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">Routing</h2>
-              </div>
-              <pre className="call-detail-json">{JSON.stringify(call.routing_snapshot, null, 2)}</pre>
-            </div>
+            <RoutingCard snapshot={call.routing_snapshot} />
           )}
 
           <div className="card">
@@ -402,12 +547,7 @@ export default function CallDetailPage() {
           </div>
 
           {call.qualification_snapshot && Object.keys(call.qualification_snapshot).length > 0 && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">Qualification</h2>
-              </div>
-              <pre className="call-detail-json">{JSON.stringify(call.qualification_snapshot, null, 2)}</pre>
-            </div>
+            <QualificationCard snapshot={call.qualification_snapshot} />
           )}
         </div>
 

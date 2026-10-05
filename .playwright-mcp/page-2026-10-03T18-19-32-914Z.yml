@@ -1,0 +1,23 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - complementary [ref=f5e3]:
+      - generic [ref=f5e4]:
+        - link "Coverage Calls home" [ref=f5e5] [cursor=pointer]:
+          - /url: /
+          - img "Coverage Calls" [ref=f5e6]
+        - button "Collapse sidebar" [expanded] [ref=f5e7] [cursor=pointer]: «
+      - paragraph [ref=f5e8]: CONSOLE
+      - navigation [aria-hidden] [ref=f5e9]
+      - button "QA QA Agent qa-agent@coveragecalls.com ▾" [ref=f5e20] [cursor=pointer]:
+        - generic [ref=f5e21]: QA
+        - generic [ref=f5e22]:
+          - strong [ref=f5e23]: QA Agent
+          - generic [ref=f5e24]: qa-agent@coveragecalls.com
+        - generic [ref=f5e26]: ▾
+    - generic [ref=f5e37]:
+      - generic [ref=f5e38]:
+        - button "Go online" [disabled] [ref=f5e39] [cursor=pointer]: Go Online
+        - button "Log out" [ref=f5e43] [cursor=pointer]
+      - button "Notifications" [ref=f5e48] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f5e57] [cursor=pointer]
+  - alert [ref=f5e61]

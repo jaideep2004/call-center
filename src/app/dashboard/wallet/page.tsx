@@ -128,9 +128,10 @@ function WalletInner() {
     }
   };
 
-  // Ledger totals once per visit (last 500 entries) — not per page turn.
+  // Ledger totals once per visit (last 100 entries = the API page cap; larger
+  // limits 422 on pagination validation and the summary silently never loads).
   useEffect(() => {
-    fetch(`/api/v1/wallet/entries?page=1&limit=500`).then(async (res) => {
+    fetch(`/api/v1/wallet/entries?page=1&limit=100`).then(async (res) => {
       if (!res.ok) return;
       const body = await res.json();
       const list: WalletEntry[] = body.data ?? [];

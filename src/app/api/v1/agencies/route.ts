@@ -89,6 +89,14 @@ export const POST = apiHandler(async (req, context) => {
         `UPDATE app.memberships SET agency_id = $1, role = 'agent', status = 'active' WHERE id = $2`,
         [agencyRow.id, context.membership.id],
       );
+      // The agent row MUST follow the membership: every scoped lookup
+      // (agent detail, take-calls readiness, routing) filters agents by
+      // agency_id. Without this the agent keeps the OLD agency, their own
+      // detail 404s, and take-calls sticks on "Loading approval" forever.
+      await client.query(
+        `UPDATE app.agents SET agency_id = $1 WHERE membership_id = $2`,
+        [agencyRow.id, context.membership.id],
+      );
       await client.query(`UPDATE "user" SET role = 'agent' WHERE id = $1`, [context.user!.id]);
       await ensureAgentRow(context.membership.id);
       headMembershipId = context.membership.id;

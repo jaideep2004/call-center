@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
 import { showToast } from "@/lib/use-toast";
@@ -117,7 +118,7 @@ function AdminFeesInner() {
     setBusy(id);
     try {
       const res = await fetch(`/api/v1/agent-fees/${id}/${action}`, { method: "POST" });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (res.ok) {
         showToast(body.message ?? "Done", "success");
         refresh();
@@ -136,7 +137,7 @@ function AdminFeesInner() {
     setBusy("monthly");
     try {
       const res = await fetch("/api/v1/agent-fees", { method: "POST" });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       showToast(res.ok ? `${body.data?.generated ?? 0} fee(s) generated` : (body.message ?? "Failed"), res.ok ? "success" : "error");
       if (res.ok) refresh();
     } finally {
@@ -294,7 +295,7 @@ function AdminFeesInner() {
 
       <p className="text-muted" style={{ fontSize: 11, maxWidth: 640 }}>
         Postpaid agents: <strong>Dialer Fee</strong> (plan price, adjustable). Prepaid agents: <strong>Software Access</strong> (adjustable per agent). Weekly
-        invoices are generated every Monday and emailed to the agency automatically.
+        invoices are generated every Monday and emailed to the agency automatically. Generated invoices live under <Link href="/dashboard/wallet/invoices" style={{ color: "var(--ink)" }}>Ledger → Invoices</Link>.
       </p>
 
       <div className="filter-bar">
