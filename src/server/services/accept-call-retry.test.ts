@@ -122,7 +122,7 @@ describe("acceptCall bridge wait loop", () => {
   it("gives up after bounded retries and marks missed (never hangs forever)", async () => {
     bridgeMock.mockRejectedValue(new Error("90034 Call not answered yet"));
     const result = await runAccept();
-    expect(bridgeMock).toHaveBeenCalledTimes(8);
+    expect(bridgeMock).toHaveBeenCalledTimes(3);
     expect(updateStateMock).toHaveBeenCalledWith("call-1", "missed", "agency-1", expect.anything());
     expect(result).toBeNull();
   });
@@ -153,13 +153,13 @@ describe("acceptCall bridge wait loop", () => {
     expect(result).toMatchObject({ state: "connected" });
   });
 
-  it("stops retrying when the call ends underneath (caller hung up)", async () => {
+  it("never dials Telnyx when the call ends during the answer wait", async () => {
     bridgeMock.mockRejectedValue(new Error("90034 Call not answered yet"));
     findCallMock
       .mockResolvedValueOnce({ ...RINGING_CALL })
       .mockResolvedValue({ ...RINGING_CALL, state: "ended" });
     const result = await runAccept();
-    expect(bridgeMock).toHaveBeenCalledTimes(1);
+    expect(bridgeMock).not.toHaveBeenCalled();
     expect(updateStateMock).toHaveBeenCalledWith("call-1", "missed", "agency-1", expect.anything());
     expect(result).toBeNull();
   });

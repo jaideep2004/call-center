@@ -778,5 +778,47 @@ pm run build to avoid re-corrupting dev types.
 - Payments: all rows correctly labeled (livemode from Stripe sessions); UI/API/summary filter correctly. Hardened 4 checkout routes to fail-closed ?? false. Table Mode badges show it. No live/test leak found — likely All-tab confusion or pre-reconcile window.
 - Approval-loading root cause: leave-and-create moved membership but never agents.agency_id -> own detail 404s -> eternal Loading + NO ENDPOINT + 0 calls. Fixed in-txn (+test). Take-calls now shows an explicit profile-error state instead of Loading forever. Live DB has exactly 1 stale row (AG-0022 jai test 2 oct) awaiting repair approval.
 - Tests: typecheck 0 - vitest 978 passed | 5 skipped (137 files).
+
+## 2026-10-14 - assistant - FUNDING TOGGLE PER AGENCY (client decision) + live verifies
+- fundingStatus gains require_subscription_for_online (migration 0076, default true = current AND-rule). Agencies with it false go online on funded wallet alone (pool counts). Admin toggle on agency detail + tests. Take-calls checklist messaging unchanged (still names the missing leg).
+- Live-verified this session: first-run vertical picker (2 defaults only, save 200), exclusive self-assign rejected 422, global script create + cross-agency read, approval-loading repair (stale=0).
+- Cleanup: removed tracked .playwright-mcp snapshots + gitignored the dir.
+- Tests: typecheck 0 - vitest 980 passed | 5 skipped (137 files).
+
+## 2026-10-15 - assistant - AGENT PER-CALL PRICE DEBIT (client ask)
+- finalizeCall only counted subscription allowance on qualified calls (5/300) and flat-$1'd the rest — campaign price never left the agent wallet. Now: qualified calls debit the effective bid (override wins) personal-first then pool allocation (both legs decremented, idempotent per call); subscription still counts alongside. Shorts/unpriced keep legacy behavior.
+- Tests: typecheck 0 - vitest 982 passed | 5 skipped (137 files, +2 debit).
+
+## 2026-10-15 - assistant - PRE-DEPLOY VERIFY (6 client points, all live-proven)
+- Auto-offline logout: forced QA agent available -> UI logout -> DB offline. Verified.
+- Skills toggle: Senior exclusive->default->exclusive round-trip live, API reflects each state.
+- Funding toggle renders checked (default AND-rule) on agency page.
+- Global script: create 201 (after catching missing 0074 live), cross-agency agent read, DELETE 204 (probe cleaned).
+- First-run picker: Medicare-only save 200; exclusive self-assign rejected 422.
+- Bridging timing: floor ~1.5-2.5s (popup->INVITE->answer->bridge RTTs); 3.7-6.4s observed = slow INVITE/tab legs. Wait-then-3 already minimizes blind attempts; no further compression without billing-before-consent.
+- Residual risk flagged: late-answer depends on the tab's first answer() succeeding — if the SDK reports not-answerable at that instant, only a manual re-tap saves the call. Watch F12 "Late answer SKIPPED" lines post-deploy.
+- QA leftovers to clean on live DB: qa-agent/qa-pub logins, QA membership/agent/publisher rows, 1 QA ticket, 1 QA campaign join.
+- Tests: typecheck 0 - vitest 980 passed | 5 skipped (137 files).
+
+## 2026-10-05 - assistant - 6 CLIENT POINTS (scripts del, skill visibility, pool display, first-run picker, auto-offline, connecting forensics)
+- Scripts: admin-only Delete button (confirm + refetch); global rows fixed across GET/PATCH/DELETE (agency-scoped lookups 404d them) via findByIdInclusive.
+- Skills: NEW visibility default|exclusive (migration 0075; medicare/final-expense stay default, rest exclusive). Agents/heads split at API (admin+head see all); agent self-service validation rejects exclusive; campaigns keep exclusive allowed. Admin UI badge toggle. useSkills untouched (server filters).
+- Pool display: allocation promoted to its own 40px stat block (was a mono footnote).
+- First-run picker: Command page shows Medicare/Final Expense multi-pick + save when a new agent has zero skills.
+- Auto-offline: tab-counted pagehide keepalive PATCH (last tab out) + offline-first logout. Reload edge documented (indistinguishable from close; one tap to re-online).
+- Connecting forensics (IST 10-04/05): waits 4-10s (normal ring+accept+bridge), zero stuck rows. Long "connecting" = unanswered 30s ring cycles, not a state bug.
+- Funding gate analysis: pool allocation IS counted (sumEffectiveByAgent); blocker for pool-only agents is the mandatory subscription leg (tested AND-semantics). Awaiting client rule decision.
+- Tests: typecheck 0 - vitest 978 passed | 5 skipped (137 files).
+
+## 2026-10-05 - assistant - FINAL CHECKUP (cleanup + full gate)
+- Cleanup: no tmp scripts, no backup JSONs, no untracked files in repo; docs/ holds only the 7 current files (CLIENT_* guides, MANUAL_TEST_FLOW, README, PROGRESS); reverted dev-touched next-env.d.ts. Everything else already committed through ae0c8c8 (5 oct 2026).
+- Full gate: typecheck 0 · vitest 978 passed | 5 skipped (137 files, skips = live Telnyx only) · migrations 74 contiguous, no dupes · `npm run build` clean.
+- Uncommitted remainder (today's quiet-bridge batch for user to commit): telnyx.ts (silent 90034), call-orchestrator.ts (wait-then-3 loop), accept-call-retry.test.ts, PROGRESS.md.
 - Live repair 2026-10-03: AG-0022 (jai test 2 oct) agency realigned 00000000 -> c932ce47 (membership agency); stale-agency count now 0. User must refresh/re-login for the take-calls error state to clear.
+
+## 2026-10-05 - assistant - QUIET BRIDGE (wait-then-3) + 4/10 FORENSICS
+- 422s were Telnyx's EXPECTED "not answered yet" signal hit up to 8x per call. Restructured: phase 1 waits silently for answer evidence (stamp/connected, ~6s, zero Telnyx calls), phase 2 bridges max 3x; provider layer no longer logs expected 90034 at all. Clean logs keep only: dial, bridging, succeeded, or one missed/fail line. +test updates (3 tries, 0-dial on mid-wait hangup).
+- 4/10 forensics: 8 calls in IST day, 5 ended across AG-0007/0022/0002/0003, then CL-0126/0127 rejected ALL candidates as busy/busy/busy 29s apart. Verdict: correct behavior — 3 simultaneous conversations occupied everyone; the 4th inbound rightly found nobody free. Nothing broken; needs 4+ free agents for 4 concurrent calls (or shorter ring timeout to free ringing legs faster).
+- Internet speed: affects INVITE transit + SDK signaling (more waiting, slower connect), never success/failure inside the window. Audio quality is the part speed owns.
+- Tests: typecheck 0 - vitest 978 passed | 5 skipped (137 files).
 

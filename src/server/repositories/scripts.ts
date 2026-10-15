@@ -1,9 +1,11 @@
 import { BaseRepository } from "./base";
-import { query } from "@/server/db";
+import { query, queryOne } from "@/server/db";
+import { NotFoundError } from "@/server/errors";
 
 export interface ScriptRow {
   id: string;
-  agency_id: string;
+  /** Owning agency; NULL = global script visible to every agency (0074). */
+  agency_id: string | null;
   campaign_id: string | null;
   title: string;
   content: string;
@@ -70,9 +72,24 @@ export class ScriptRepository extends BaseRepository<ScriptRow> {
   async update(
     id: string,
     data: { title?: string; content?: string; category?: string; tags?: string[]; campaign_id?: string | null },
-    agencyId: string,
+    agencyId?: string,
   ): Promise<ScriptRow> {
     return super.update(id, { ...data, updated_at: new Date().toISOString() }, agencyId);
+  }
+
+  /**
+   * Detail/edit/delete lookup: own-agency rows plus global (NULL) rows.
+   * A plain agency-scoped findById can never match a global row, so without
+   * this every global script 404s on open.
+   */
+  async findByIdInclusive(id: string, agencyId?: string | null): Promise<ScriptRow> {
+    const row = await queryOne<ScriptRow>(
+      `SELECT * FROM app.scripts
+        WHERE id = $1 AND (agency_id = $2 OR agency_id IS NULL) AND deleted_at IS NULL`,
+      [id, agencyId ?? null],
+    );
+    if (!row) throw new NotFoundError("script not found");
+    return row;
   }
 }
 

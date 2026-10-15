@@ -10,6 +10,7 @@ interface Skill {
   name: string;
   slug: string;
   active: boolean;
+  visibility?: string | null;
   sort: number;
   created_at: string;
 }
@@ -66,6 +67,22 @@ export default function AdminSkillsPage() {
       showToast("Network error creating skill", "error");
     }
     setCreating(false);
+  }
+
+  async function toggleVisibility(skill: Skill) {
+    const next = (skill.visibility ?? "default") === "exclusive" ? "default" : "exclusive";
+    const res = await fetch(`/api/v1/skills/${skill.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: next }),
+    });
+    if (res.ok) {
+      const body = await res.json();
+      setSkills((prev) => prev.map((s) => (s.id === skill.id ? body.data : s)));
+      showToast(next === "exclusive" ? "Skill hidden from agents" : "Skill visible to agents", "success");
+    } else {
+      showToast("Failed to update skill", "error");
+    }
   }
 
   async function toggleActive(skill: Skill) {
@@ -133,6 +150,16 @@ export default function AdminSkillsPage() {
     { key: "slug", header: "Slug", sortable: true, render: (s) => <span className="text-mono-sm">{s.slug}</span> },
     { key: "sort", header: "Sort", sortable: true, render: (s) => <span className="text-mono-sm">{s.sort}</span> },
     { key: "active", header: "Status", sortable: true, render: (s) => <span className={`badge ${s.active ? "badge-success" : ""}`}>{s.active ? "Active" : "Disabled"}</span> },
+    {
+      key: "visibility", header: "Visible to", sortable: true,
+      render: (s) => (
+        <button className={`badge ${(s.visibility ?? "default") === "exclusive" ? "badge-warning" : "badge-info"}`}
+          title="Click to toggle agent visibility" style={{ cursor: "pointer", border: 0 }}
+          onClick={() => toggleVisibility(s)}>
+          {(s.visibility ?? "default") === "exclusive" ? "Heads only" : "All agents"}
+        </button>
+      ),
+    },
     { key: "created_at", header: "Created", sortable: true, render: (s) => <span className="text-mono-sm">{new Date(s.created_at).toLocaleDateString()}</span> },
     {
       key: "actions", header: "Actions", className: "actions-cell",
@@ -171,7 +198,7 @@ export default function AdminSkillsPage() {
         </form>
         {error && <p className="form-error" style={{ marginTop: 12 }}>{error}</p>}
         <p className="text-muted" style={{ fontSize: 11, marginTop: 12 }}>
-          Skills appear in agent profiles and campaign targeting. Disabling a skill hides it from new selections but keeps existing tags.
+          Skills appear in agent profiles and campaign targeting. Disabling a skill hides it from new selections but keeps existing tags. New skills start visible to all agents — click the visibility badge to restrict one to heads/admins only.
         </p>
       </section>
 

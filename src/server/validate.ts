@@ -40,6 +40,9 @@ export const updateAgencySchema = z.object({
   recording_retention_days: z.number().int().min(0).optional(),
   // Admin-only (enforced in routes): postpaid bypass for the whole agency.
   postpaid_bypass: z.boolean().optional(),
+  // Admin-only: when false, a funded wallet alone unlocks Go Online for this
+  // agency's agents (no plan subscription required). Default true.
+  require_subscription_for_online: z.boolean().optional(),
 });
 
 export const createPublisherSchema = z.object({
@@ -444,11 +447,14 @@ export const updateFeatureRequestSchema = z.object({
   vote: z.boolean().optional(),
 });
 
+export const skillVisibilities = ["default", "exclusive"] as const;
+
 export const createSkillSchema = z.object({
   name: z.string().min(1).max(100),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
   active: z.boolean().optional(),
   sort: z.number().int().min(0).optional(),
+  visibility: z.enum(skillVisibilities).optional(),
 });
 
 export const updateSkillSchema = z.object({
@@ -456,6 +462,7 @@ export const updateSkillSchema = z.object({
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
   active: z.boolean().optional(),
   sort: z.number().int().min(0).optional(),
+  visibility: z.enum(skillVisibilities).optional(),
 });
 
 export function slugify(value: string): string {

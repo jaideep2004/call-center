@@ -538,8 +538,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }).catch(() => {});
   }, [agentId, agentAvailability, isAdmin, isPublisher, pathname]);
 
+  // PresenceGC: logout / last-tab-close / browser quit drops the agent to
+  // offline so stale Online presence stops attracting calls nobody answers.
+  // Tab-counted in localStorage: closing one of several tabs keeps the rest
+  // live; only the last tab out reports. pagehide also fires on reload —
+  // that's accepted (one tap to go back online) because close vs reload is
+  // indistinguishable, and a stale Online is worse than a fresh Offline.
+  // Only fires while locally available (never downgrades an offline agent).
+  useEffect(() => {
+    if (!agentId || isAdmin || isPublisher) return;
+    const KEY = "cc-open-tabs";
+    const count = (delta: number): number => {
+      try {
+        const n = Math.max(0, (parseInt(localStorage.getItem(KEY) ?? "0", 10) || 0) + delta);
+        localStorage.setItem(KEY, String(n));
+        return n;
+      } catch {
+        return 1;
+      }
+    };
+    count(1);
+    const goOffline = () => {
+      if (agentAvailability !== "available") return;
+      try {
+        void fetch(`/api/v1/agents/${agentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ availability: "offline" }),
+          keepalive: true,
+        });
+      } catch { /* last-gasp beacon — never blocks unload */ }
+    };
+    const onPageHide = () => {
+      const remaining = count(-1);
+      if (remaining === 0) goOffline();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      count(-1);
+    };
+  }, [agentId, agentAvailability, isAdmin, isPublisher]);
+
   async function handleSignOut() {
     setDropdownOpen(false);
+    // Leave no stale presence behind: offline first, then sign out.
+    try {
+      if (agentId && !isAdmin && !isPublisher) {
+        await fetch(`/api/v1/agents/${agentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ availability: "offline" }),
+        }).catch(() => undefined);
+      }
+    } catch { /* sign-out proceeds regardless */ }
     try {
       await authClient.signOut();
     } catch {

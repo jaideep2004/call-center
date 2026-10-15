@@ -13,6 +13,7 @@ interface Agency {
   currency: string;
   recording_retention_days: number;
   postpaid_bypass: boolean;
+  require_subscription_for_online?: boolean | null;
   created_at: string;
   parent_agency_id?: string | null;
 }
@@ -31,6 +32,7 @@ export default function AgencyDetailPage() {
   const [currency, setCurrency] = useState("USD");
   const [retention, setRetention] = useState("90");
   const [postpaid, setPostpaid] = useState(false);
+  const [requireSub, setRequireSub] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
   const [error, setError] = useState("");
@@ -68,6 +70,7 @@ export default function AgencyDetailPage() {
         setCurrency(a.currency);
         setRetention(String(a.recording_retention_days));
         setPostpaid(a.postpaid_bypass === true);
+        setRequireSub(a.require_subscription_for_online !== false);
       } else {
         showToast("Agency not found", "error");
       }
@@ -91,6 +94,7 @@ export default function AgencyDetailPage() {
           currency: currency.toUpperCase().slice(0,3),
           recording_retention_days: parseInt(retention) || 90,
           postpaid_bypass: postpaid,
+          require_subscription_for_online: requireSub,
         }),
       });
       const body = await res.json();
@@ -181,6 +185,13 @@ export default function AgencyDetailPage() {
                   Postpaid agency
                 </label>
                 <span className="text-muted text-mono-sm" style={{fontSize:10, marginTop:4, display:"block"}}>Members take calls without prepay (billed post-usage). Admin-only.</span>
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input type="checkbox" checked={requireSub} onChange={(e)=>setRequireSub(e.target.checked)} />
+                  Require subscription to go online
+                </label>
+                <span className="text-muted text-mono-sm" style={{fontSize:10, marginTop:4, display:"block"}}>On: agents need a plan + funded wallet. Off: funded wallet alone (incl. pool allocation) unlocks Go Online. Admin-only.</span>
               </div>
               {error && <p className="form-error" style={{marginTop:12, color:"#e89b79", fontSize:12}}>{error}</p>}
             </section>

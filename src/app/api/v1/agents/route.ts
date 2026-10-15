@@ -58,7 +58,7 @@ export const POST = apiHandler(async (req, context) => {
     states: body.states,
     zip_prefixes: body.zip_prefixes,
     licenses: body.licenses,
-    skills: await assertValidSkills(body.skills),
+    skills: await assertValidSkills(body.skills, { includeExclusive: true }),
     npn: body.npn,
   });
   // Best-effort welcome email + inbox row (never blocks creation).

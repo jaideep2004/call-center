@@ -217,14 +217,18 @@ function AgentWalletInner() {
 
       <div className="agent-wallet-grid">
         <div className="card" style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <p className="text-muted" style={{ fontSize: 11 }}>Available Balance</p>
-            <p style={{ font: "500 48px/1 var(--serif)", margin: "4px 0", letterSpacing: "-0.05em" }}>{formatCents(balance)}</p>
-            <p className="text-mono-sm" style={{ marginTop: 4 }}>+{formatCents(thisPeriod)} this week</p>
+          <div style={{ display: "flex", gap: 32, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div>
+              <p className="text-muted" style={{ fontSize: 11 }}>Personal Balance</p>
+              <p style={{ font: "500 40px/1 var(--serif)", margin: "4px 0", letterSpacing: "-0.05em" }}>{formatCents(balance)}</p>
+              <p className="text-mono-sm" style={{ marginTop: 4 }}>+{formatCents(thisPeriod)} this week</p>
+            </div>
             {allocated > 0 && (
-              <p className="text-mono-sm" style={{ marginTop: 4, color: "var(--ink)" }}>
-                +{formatCents(allocated)} pool allocation · effective {formatCents(effective)} for call routing
-              </p>
+              <div>
+                <p className="text-muted" style={{ fontSize: 11 }}>Agency Pool Allocation</p>
+                <p style={{ font: "500 40px/1 var(--serif)", margin: "4px 0", letterSpacing: "-0.05em", color: "var(--accent)" }}>+{formatCents(allocated)}</p>
+                <p className="text-mono-sm" style={{ marginTop: 4 }}>effective {formatCents(effective)} for call routing</p>
+              </div>
             )}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

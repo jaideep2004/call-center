@@ -6,6 +6,8 @@ import dynamic from "next/dynamic";
 import { authClient } from "@/lib/auth-client";
 import { MiniDonut, MiniLine } from "@/components/dashboard-mini-charts";
 import { AgentHero, AgentFeed } from "@/components/campaign-slots";
+import { useSkills } from "@/features/skills/use-skills";
+import { showToast } from "@/lib/use-toast";
 
 const AdminCharts = dynamic(() => import("@/components/admin-home-charts"), { ssr: false });
 
@@ -46,6 +48,14 @@ export default function DashboardPage(){
   const [dispoData,setDispoData]=useState<{name:string;value:number}[]>([]);
   const [agentAvail,setAgentAvail]=useState<string>("offline");
   const [queuePos] = useState<number>(1);
+  // First-run verticals: new signups land here with zero skills and never
+  // discover the settings picker. Null = unknown (don't flash the banner).
+  const [agentSkills, setAgentSkills] = useState<string[] | null>(null);
+  const [skillDraft, setSkillDraft] = useState<string[]>([]);
+  const [savingSkills, setSavingSkills] = useState(false);
+  const [skillsDismissed, setSkillsDismissed] = useState(false);
+  const [myAgentId, setMyAgentId] = useState<string | null>(null);
+  const { names: skillOptions } = useSkills();
   const [walletCents,setWalletCents]=useState<number>(0);
 
   useEffect(()=>{
@@ -82,7 +92,21 @@ export default function DashboardPage(){
             else if(meBody.data?.availability) setAgentAvail(meBody.data.availability);
             if(agentId) {
               recentUrl=`/api/v1/calls?agent_id=${encodeURIComponent(agentId)}&limit=5&sortBy=started_at&order=desc`;
-              const aRes=await fetch(`/api/v1/agents/${agentId}`); if(aRes.ok){ const ab=await aRes.json(); if(ab.data?.availability) setAgentAvail(ab.data.availability); }
+              setMyAgentId(agentId);
+              const aRes=await fetch(`/api/v1/agents/${agentId}`); if(aRes.ok){
+                const ab=await aRes.json();
+                if(ab.data?.availability) setAgentAvail(ab.data.availability);
+                if (Array.isArray(ab.data?.skills)) {
+                  setAgentSkills(ab.data.skills);
+                  setSkillDraft(ab.data.skills);
+                } else {
+                  setAgentSkills([]);
+                }
+              } else {
+                setAgentSkills([]);
+              }
+            } else {
+              setAgentSkills([]);
             }
           }
         }catch{}
@@ -253,6 +277,65 @@ export default function DashboardPage(){
           <Link href="/dashboard/take-calls" className="btn btn-ghost btn-sm" style={{ borderRadius:9999, border:"1px solid var(--line)" }}>{isAvailable ? "Go Offline" : "Go Online"}</Link>
         </div>
       </header>
+
+      {/* First-run verticals: fresh signups arrive with zero skills and would
+          otherwise never discover the settings picker. Default verticals
+          only (server filters exclusive out for agents). */}
+      {!isAdmin && agentSkills !== null && agentSkills.length === 0 && !skillsDismissed && (
+        <section className="card" aria-label="Pick your verticals" style={{ borderColor: "rgba(168,85,247,.3)", background: "linear-gradient(135deg, rgba(33,20,61,.96), rgba(26,16,51,.92))" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <h2 style={{ font: "500 16px var(--serif)", margin: 0, letterSpacing: "-0.02em" }}>What do you sell? Pick your verticals</h2>
+              <p className="text-muted" style={{ fontSize: 12, margin: "4px 0 0" }}>Campaigns requiring these route to you. You can change this anytime in Settings.</p>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSkillsDismissed(true)}>Later</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+            {skillOptions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={skillDraft.includes(s) ? "badge badge-success" : "badge"}
+                style={{ cursor: "pointer", border: 0, fontSize: 13, padding: "8px 14px" }}
+                onClick={() => setSkillDraft((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))}
+              >
+                {s}
+              </button>
+            ))}
+            {skillOptions.length === 0 && <span className="text-muted" style={{ fontSize: 12 }}>Loading verticals…</span>}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={savingSkills || skillDraft.length === 0 || !myAgentId}
+              onClick={async () => {
+                if (!myAgentId) return;
+                setSavingSkills(true);
+                try {
+                  const res = await fetch(`/api/v1/agents/${myAgentId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ skills: skillDraft }),
+                  });
+                  if (res.ok) {
+                    const body = await res.json();
+                    setAgentSkills(body.data?.skills ?? skillDraft);
+                    showToast("Verticals saved — calls can now route to you", "success");
+                  } else {
+                    const body = await res.json().catch(() => ({}));
+                    showToast(body.message ?? "Failed to save verticals", "error");
+                  }
+                } catch {
+                  showToast("Network error saving verticals", "error");
+                }
+                setSavingSkills(false);
+              }}
+            >
+              {savingSkills ? "Saving…" : `Save verticals${skillDraft.length ? ` (${skillDraft.length})` : ""}`}
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* ROW 1: Ready + Performance + Goal */}
       <div className="cc-row cc-row--agent-hero">

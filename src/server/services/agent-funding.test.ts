@@ -33,8 +33,24 @@ describe("funding gate (go-online eligibility)", () => {
     vi.mocked(walletEntries.sumEffectiveByAgent).mockResolvedValue(1600);
     vi.mocked(agentSubscriptions.findActiveByAgent).mockResolvedValue({ id: "sub-1" } as never);
     const s = await fundingStatus("agent-1");
-    expect(s).toEqual({ funded: true, effectiveCents: 1600, hasSubscription: true, agencyPostpaid: false, needsSubscription: false, needsTopup: false });
+    expect(s).toEqual({ funded: true, effectiveCents: 1600, hasSubscription: true, agencyPostpaid: false, requireSubscription: true, needsSubscription: false, needsTopup: false });
     await expect(canGoOnline("agent-1")).resolves.toBe(true);
+  });
+
+  it("funded by wallet alone when the agency waives subscriptions", async () => {
+    vi.mocked(walletEntries.sumEffectiveByAgent).mockResolvedValue(25000);
+    vi.mocked(queryOne).mockResolvedValue({ postpaid_bypass: false, require_subscription_for_online: false });
+    const s = await fundingStatus("agent-1");
+    expect(s).toMatchObject({ funded: true, requireSubscription: false, needsSubscription: false, needsTopup: false });
+    await expect(canGoOnline("agent-1")).resolves.toBe(true);
+  });
+
+  it("still blocked on empty wallet when subscriptions are waived", async () => {
+    vi.mocked(queryOne).mockResolvedValue({ postpaid_bypass: false, require_subscription_for_online: false });
+    const s = await fundingStatus("agent-1");
+    expect(s.funded).toBe(false);
+    expect(s.needsTopup).toBe(true);
+    expect(s.needsSubscription).toBe(false);
   });
 
   it("blocked with balance but no subscription", async () => {
@@ -57,14 +73,14 @@ describe("funding gate (go-online eligibility)", () => {
 
   it("unfunded with zero balance and no subscription", async () => {
     const s = await fundingStatus("agent-1");
-    expect(s).toEqual({ funded: false, effectiveCents: 0, hasSubscription: false, agencyPostpaid: false, needsSubscription: true, needsTopup: true });
+    expect(s).toEqual({ funded: false, effectiveCents: 0, hasSubscription: false, agencyPostpaid: false, requireSubscription: true, needsSubscription: true, needsTopup: true });
     await expect(canGoOnline("agent-1")).resolves.toBe(false);
   });
 
   it("funded by agency postpaid bypass with zero balance and no subscription", async () => {
     vi.mocked(queryOne).mockResolvedValue({ postpaid_bypass: true });
     const s = await fundingStatus("agent-1");
-    expect(s).toEqual({ funded: true, effectiveCents: 0, hasSubscription: false, agencyPostpaid: true, needsSubscription: false, needsTopup: false });
+    expect(s).toEqual({ funded: true, effectiveCents: 0, hasSubscription: false, agencyPostpaid: true, requireSubscription: true, needsSubscription: false, needsTopup: false });
     await expect(canGoOnline("agent-1")).resolves.toBe(true);
   });
 

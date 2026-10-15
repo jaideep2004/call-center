@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import DataTable from "@/components/data-table";
 import type { Column } from "@/components/data-table";
+import { showToast } from "@/lib/use-toast";
 
 interface Script {
   id: string;
@@ -29,6 +30,8 @@ function ScriptsInner() {
   const [debouncedQ, setDebouncedQ] = useState(initialQ);
   const [page, setPage] = useState(initialPage);
   const hasMounted = useRef(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchScripts = useCallback(async () => {
     setLoading(true);
@@ -52,6 +55,7 @@ function ScriptsInner() {
       if (!res.ok) { setIsPublisher(false); return; }
       const body = await res.json();
       setIsPublisher(body.data?.user?.role === "publisher");
+      setIsAdmin(body.data?.user?.role === "admin");
     }).catch(() => setIsPublisher(false));
   }, []);
   useEffect(() => {
@@ -95,11 +99,40 @@ function ScriptsInner() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
 
+  async function handleDelete(s: Script) {
+    if (!confirm(`Delete script "${s.title}"? It will disappear from every agent library.`)) return;
+    setDeletingId(s.id);
+    try {
+      const res = await fetch(`/api/v1/scripts/${s.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setScripts((prev) => prev.filter((x) => x.id !== s.id));
+        showToast("Script deleted", "success");
+      } else {
+        const body = await res.json().catch(() => ({}));
+        showToast(body.message ?? "Failed to delete script", "error");
+      }
+    } catch {
+      showToast("Network error deleting script", "error");
+    }
+    setDeletingId(null);
+  }
+
   const columns: Column<Script>[] = [
     { key: "title", header: "Title", render: (s) => <Link href={`/dashboard/scripts/${s.id}`} className="clickable" style={{ fontWeight: 500 }}>{s.title}</Link> },
     { key: "category", header: "Category", render: (s) => <span className="badge badge-info">{s.category}</span> },
-    { key: "tags", header: "Tags", render: (s) => <span className="text-mono-sm">{s.tags.slice(0, 3).join(", ") || "\u2014"}</span> },
+    { key: "tags", header: "Tags", render: (s) => <span className="text-mono-sm">{s.tags.slice(0, 3).join(", ") || "—"}</span> },
     { key: "created_at", header: "Created", render: (s) => <span className="text-mono-sm">{new Date(s.created_at).toLocaleDateString()}</span> },
+    ...(isAdmin ? [{
+      key: "actions", header: "", className: "actions-cell",
+      render: (s: Script) => (
+        <button className="btn btn-ghost btn-sm" aria-label={`Delete ${s.title}`} title="Delete script"
+          disabled={deletingId === s.id}
+          onClick={() => handleDelete(s)}
+          style={{ padding: "6px 8px", lineHeight: 1, color: "var(--danger)" }}>
+          {deletingId === s.id ? "…" : "×"}
+        </button>
+      ),
+    } as Column<Script>] : []),
   ];
 
   return (

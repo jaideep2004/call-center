@@ -6,26 +6,31 @@ export interface FundingStatus {
   effectiveCents: number;
   hasSubscription: boolean;
   agencyPostpaid: boolean;
-  /** True when the agent still needs to buy a plan (postpaid agencies exempt). */
+  /** Per-agency toggle (admin-set): false lets wallet-only agents online. */
+  requireSubscription: boolean;
+  /** True when the agent still needs to buy a plan (postpaid agencies and
+   * subscription-optional agencies exempt). */
   needsSubscription: boolean;
   /** True when the wallet is empty (postpaid agencies exempt). */
   needsTopup: boolean;
 }
 
 /**
- * Go-online gate: an agent may only take calls when BOTH funded legs hold —
- * an active plan subscription AND a positive effective wallet balance
- * (personal ledger + pool allocation) — OR the agency-level postpaid flag
- * (admin-set: the whole agency takes calls without prepay). Either leg
- * missing keeps the agent offline; routing separately still skips unfunded
- * agents per call so a depleted wallet stops ringing mid-session.
+ * Go-online gate (default): an agent may only take calls when BOTH funded
+ * legs hold — an active plan subscription AND a positive effective wallet
+ * balance (personal ledger + pool allocation) — OR the agency-level postpaid
+ * flag (admin-set: the whole agency takes calls without prepay). Agencies
+ * with require_subscription_for_online=false accept a funded wallet alone
+ * (pool-funded buyers without plans). Either missing leg keeps the agent
+ * offline; routing separately still skips unfunded agents per call so a
+ * depleted wallet stops ringing mid-session.
  */
 export async function fundingStatus(agentId: string): Promise<FundingStatus> {
   const [effectiveCents, subscription, agency] = await Promise.all([
     walletEntries.sumEffectiveByAgent(agentId).catch(() => 0),
     agentSubscriptions.findActiveByAgent(agentId).catch(() => null),
-    queryOne<{ postpaid_bypass: boolean }>(
-      `SELECT ag.postpaid_bypass FROM app.agents a
+    queryOne<{ postpaid_bypass: boolean; require_subscription_for_online: boolean }>(
+      `SELECT ag.postpaid_bypass, ag.require_subscription_for_online FROM app.agents a
        JOIN app.agencies ag ON ag.id = a.agency_id
        WHERE a.id = $1`,
       [agentId],
@@ -33,13 +38,16 @@ export async function fundingStatus(agentId: string): Promise<FundingStatus> {
   ]);
   const hasSubscription = subscription != null;
   const agencyPostpaid = agency?.postpaid_bypass === true;
+  // Pre-migration rows lack the column (undefined) — default to required.
+  const requireSubscription = agency?.require_subscription_for_online !== false;
   const toppedUp = effectiveCents > 0;
   return {
-    funded: agencyPostpaid || (toppedUp && hasSubscription),
+    funded: agencyPostpaid || (toppedUp && (hasSubscription || !requireSubscription)),
     effectiveCents,
     hasSubscription,
     agencyPostpaid,
-    needsSubscription: !agencyPostpaid && !hasSubscription,
+    requireSubscription,
+    needsSubscription: !agencyPostpaid && requireSubscription && !hasSubscription,
     needsTopup: !agencyPostpaid && !toppedUp,
   };
 }

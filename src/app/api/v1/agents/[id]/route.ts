@@ -48,7 +48,7 @@ export const PATCH = apiHandler(async (req, { params, user, membership, agencyId
   }
   const body = validate(updateAgentSchema, await req.json());
   if (body.skills) {
-    body.skills = await assertValidSkills(body.skills);
+    body.skills = await assertValidSkills(body.skills, { includeExclusive: true });
   }
   if ((body as { availability?: string }).availability === "available") {
     const blockers = await onlineBlockers(id);

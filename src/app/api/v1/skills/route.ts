@@ -2,9 +2,15 @@ import { apiHandler, ok, created } from "@/server/api-utils";
 import { skills } from "@/server/repositories";
 import { validate, createSkillSchema, slugify } from "@/server/validate";
 
-export const GET = apiHandler(async (req) => {
+export const GET = apiHandler(async (req, context) => {
   const url = new URL(req.url);
   const activeOnly = url.searchParams.get("active") === "true";
+  // Admins (and heads) manage the full library incl. exclusive skills.
+  // Everyone else — agent pickers, campaign fallbacks — sees Default only.
+  const privileged = context.user?.role === "admin" || context.isHead === true;
+  if (!privileged) {
+    return ok(await skills.findDefaultActive());
+  }
   const rows = activeOnly ? await skills.findActive() : await skills.findAll();
   return ok(rows);
 }, { resource: "skills", action: "view" });
@@ -16,6 +22,7 @@ export const POST = apiHandler(async (req) => {
     slug: body.slug ?? slugify(body.name),
     active: body.active ?? true,
     sort: body.sort ?? 0,
+    ...(body.visibility ? { visibility: body.visibility } : {}),
   });
   return created(row, "Skill created");
 }, { resource: "skills", action: "manage" });

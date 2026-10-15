@@ -25,7 +25,7 @@ export const PATCH = apiHandler(async (req, { params, agencyId, user }) => {
   const { id } = await params;
   const body = validate(updateCampaignSchema, await req.json());
   if (body.required_skills) {
-    body.required_skills = await assertValidSkills(body.required_skills);
+    body.required_skills = await assertValidSkills(body.required_skills, { includeExclusive: true });
   }
   const data: Record<string, unknown> = { ...body };
   delete data.rtb_postback_key;

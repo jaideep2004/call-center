@@ -14,6 +14,8 @@ export interface AgencyRow {
   head_membership_id: string | null;
   /** Postpaid bypass: members take calls without prepay (admin-only to set). */
   postpaid_bypass: boolean;
+  /** When false, a funded wallet alone unlocks Go Online (no subscription). */
+  require_subscription_for_online: boolean;
   /** Human-readable serial (AC-NNNN, DB default). UUID stays the PK. */
   display_code: string | null;
   created_at: string;

@@ -6,6 +6,8 @@ export interface SkillRow {
   name: string;
   slug: string;
   active: boolean;
+  /** default = agent-visible verticals; exclusive = head/admin-only. */
+  visibility: string;
   sort: number;
   created_at: string;
 }
@@ -26,8 +28,17 @@ export class SkillRepository extends BaseRepository<SkillRow> {
     );
   }
 
-  async findNames(): Promise<string[]> {
-    const rows = await this.findActive();
+  /** Agent-facing verticals: active + default visibility only. Exclusive
+   * skills never reach agent pickers (or agent self-service validation). */
+  async findDefaultActive(): Promise<SkillRow[]> {
+    return query<SkillRow>(
+      `SELECT * FROM app.skills WHERE deleted_at IS NULL AND active = true
+         AND visibility = 'default' ORDER BY sort ASC, name ASC`,
+    );
+  }
+
+  async findNames(options?: { includeExclusive?: boolean }): Promise<string[]> {
+    const rows = options?.includeExclusive ? await this.findActive() : await this.findDefaultActive();
     return rows.map((r) => r.name);
   }
 }

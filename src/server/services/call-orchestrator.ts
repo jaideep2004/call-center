@@ -871,9 +871,14 @@ export async function finalizeCall(callId: string, client?: PoolClient) {
       reason: marketplace.reason,
     }));
 
-    // Agent pays per call (subscription allowance or wallet credit).
+    // Agent pays per call: subscription allowance counting always applies,
+    // and QUALIFIED calls additionally debit the campaign price from the
+    // agent's effective wallet (personal ledger first, then pool allocation).
+    // Shorts/unpriced calls keep the legacy behavior (allowance or $1).
     if (call.agent_id) {
-      await deductAgentForCall(call.agent_id, call.agency_id, call.id, client);
+      await deductAgentForCall(call.agent_id, call.agency_id, call.id, {
+        priceCents: marketplace.qualified ? marketplace.revenue_cents : null,
+      }, client);
     }
 
     // Balance gate only for per-second charges. Never throws: an underfunded
@@ -920,18 +925,59 @@ export async function finalizeCall(callId: string, client?: PoolClient) {
   });
 }
 
-async function deductAgentForCall(agentId: string, agencyId: string, callId: string, client?: PoolClient) {
+async function deductAgentForCall(
+  agentId: string,
+  agencyId: string,
+  callId: string,
+  opts?: { priceCents?: number | null },
+  client?: PoolClient,
+) {
   const sub = await agentSubscriptions.findActiveByAgent(agentId);
   if (sub) {
     await agentSubscriptions.incrementCallsUsed(sub.id, callId, client);
-  } else {
-    // Per-call wallet debit (flat $1 charge): spend the personal ledger
-    // first, then the agency-pool allocation. Pool spend decrements BOTH the
-    // allocation and the pool balance — otherwise pool money would route
-    // unlimited calls (credit without debit). Runs inside finalize's
-    // transaction via client.
-    // Funding agency = the AGENT's own agency (not the call's): cross-agency
-    // rings must move the agent's money, never the buyer's pool.
+  }
+  // Qualified calls debit the campaign price ON TOP of allowance counting:
+  // personal ledger first, then the agency-pool allocation. Pool spend
+  // decrements BOTH the allocation and the pool balance — otherwise pool
+  // money would route unlimited calls (credit without debit). Runs inside
+  // finalize's transaction via client.
+  // Funding agency = the AGENT's own agency (not the call's): cross-agency
+  // rings must move the agent's money, never the buyer's pool.
+  // Unqualified/unpriced calls keep the legacy path (allowance or flat $1).
+  const priceCents = opts?.priceCents ?? null;
+  if (priceCents != null && priceCents > 0) {
+    const ownerAgency = (await agents.findById(agentId).catch(() => null))?.agency_id ?? agencyId;
+    const personal = await walletEntries.sumByAgent(agentId, client);
+    const fromPersonal = personal > 0 ? Math.min(personal, priceCents) : 0;
+    const fromPool = priceCents - fromPersonal;
+    if (fromPersonal > 0) {
+      await walletEntries.create({
+        agency_id: ownerAgency,
+        agent_id: agentId,
+        type: "charge",
+        amount_cents: -fromPersonal,
+        call_id: callId,
+        idempotency_key: `agent_charge_${callId}`,
+      }, client);
+    }
+    if (fromPool > 0) {
+      const { agencyWallets } = await import("@/server/repositories/agency-wallets");
+      const spent = await agencyWallets.spendAllocation(ownerAgency, agentId, fromPool, client);
+      if (spent > 0) {
+        await walletEntries.create({
+          agency_id: ownerAgency,
+          agent_id: agentId,
+          type: "charge",
+          amount_cents: -spent,
+          call_id: callId,
+          idempotency_key: `agent_charge_pool_${callId}`,
+        }, client);
+      }
+    }
+    return;
+  }
+  if (!sub) {
+    // Legacy short-call path (flat $1 charge).
     const ownerAgency = (await agents.findById(agentId).catch(() => null))?.agency_id ?? agencyId;
     const amount = 100;
     const personal = await walletEntries.sumByAgent(agentId, client);
@@ -1001,29 +1047,37 @@ export async function acceptCall(callId: string) {
   if (agentCallId) {
     // The agent leg is OUTBOUND from Telnyx's view (we dialed the agent), so
     // only the agent's device can answer it — a server-side answer() always
-    // 422s (90102) and is pure noise. Instead, bridge in a bounded wait loop:
-    // the agent may pick up seconds after clicking Accept (late popup), and a
-    // single 800ms retry was too short. ~8s of retries stays well under the
-    // ring timeout; afterwards the call goes down the normal missed path.
-    //
-    // Fast wake: the agent-leg `connected` webhook stamps
-    // routing_snapshot.agent_answered_at while state is still ringing. Between
-    // attempts we poll for that stamp (or a terminal state) every 150ms —
-    // capped ~0.6s per gap so all 8 attempts stay spread across the window
-    // instead of collapsing into immediate tries, while a late SDK answer
-    // (INVITE lands just after accept) is picked up within ~a second.
-    const BRIDGE_ATTEMPTS = 8;
+    // 422s (90102) and is pure noise. Two phases instead of a blind retry
+    // storm (which sprayed 90034 "not answered yet" lines into every log):
+    //   1. WAIT for answer evidence (agent_answered_at stamp or a terminal
+    //      state), polling silently — zero Telnyx calls, zero log lines.
+    //   2. BRIDGE, at most 3 tries. A 90034 here only means the stamp raced
+    //      the media; anything else fails straight to the missed path.
+    // Total window stays ~8s, well under the ring timeout.
     const BRIDGE_WINDOW_MS = 8000;
-    const ANSWER_POLL_MS = 150;
-    const GAP_BUDGET_MS = 600;
+    const ANSWER_WAIT_MS = 6000;
+    const ANSWER_POLL_MS = 200;
+    const BRIDGE_ATTEMPTS = 3;
+    const isTerminalState = (s: string | undefined) =>
+      s === "ended" || s === "missed" || s === "failed" || s === "cancelled";
     const deadline = Date.now() + BRIDGE_WINDOW_MS;
     let bridged = false;
     let stopped = false;
     let lastErr: string | null = null;
+    const answerDeadline = Date.now() + ANSWER_WAIT_MS;
+    while (Date.now() < answerDeadline && Date.now() < deadline && !stopped) {
+      await new Promise((r) => setTimeout(r, ANSWER_POLL_MS));
+      call = await calls.findById(callId).catch(() => null) ?? call;
+      if (!call || isTerminalState(call.state)) {
+        stopped = true;
+        break;
+      }
+      const snap = (call.routing_snapshot ?? {}) as Record<string, unknown>;
+      if (snap.agent_answered_at || call.state === "connected") break;
+    }
     for (let attempt = 1; attempt <= BRIDGE_ATTEMPTS && !bridged && !stopped; attempt++) {
       try {
-        if (attempt > 1) console.log(`[acceptCall] bridge attempt ${attempt}/${BRIDGE_ATTEMPTS} for ${callId.slice(0, 8)}`);
-        else console.log(`[acceptCall] bridging agent=${agentCallId.slice(0, 12)} to caller=${call.provider_call_id.slice(0, 12)}`);
+        if (attempt === 1) console.log(`[acceptCall] bridging agent=${agentCallId.slice(0, 12)} to caller=${call.provider_call_id.slice(0, 12)}`);
         const bridgeStart = Date.now();
         await provider.bridge({ callId: call.provider_call_id, providerAttemptId: agentCallId });
         console.log(`[acceptCall] bridge succeeded in ${Date.now() - bridgeStart}ms (accept total ${Date.now() - startedAt}ms)`);
@@ -1038,22 +1092,10 @@ export async function acceptCall(callId: string) {
         lastErr = msg;
         const isNotAnsweredYet = msg.includes("90034") || msg.includes("not been answered") || msg.includes("Call not answered");
         if (!isNotAnsweredYet) break; // leg gone or other fatal — straight to missed path
-        // Wait for the answer stamp (or a terminal state), polling quickly
-        // but bounded per gap so attempts stay spread across the window.
-        const gapEnd = Date.now() + GAP_BUDGET_MS;
-        while (Date.now() < deadline && Date.now() < gapEnd) {
-          await new Promise((r) => setTimeout(r, ANSWER_POLL_MS));
-          // Refresh: if either side ended while we wait, stop retrying.
+        if (attempt < BRIDGE_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, 500));
           call = await calls.findById(callId).catch(() => null) ?? call;
-          if (!call || call.state === "ended" || call.state === "missed" || call.state === "failed" || call.state === "cancelled") {
-            stopped = true;
-            break;
-          }
-          const snap = (call.routing_snapshot ?? {}) as Record<string, unknown>;
-          if (snap.agent_answered_at) {
-            console.log(`[acceptCall] agent answer stamp seen for ${callId.slice(0, 8)} — bridging now`);
-            break;
-          }
+          if (!call || isTerminalState(call.state)) stopped = true;
         }
       }
     }
@@ -1063,7 +1105,7 @@ export async function acceptCall(callId: string) {
       if (!isNotAnsweredYet) {
         console.error(`[acceptCall] bridge FAILED for call=${callId.slice(0, 8)} after ${Date.now() - startedAt}ms: ${msg}`);
       } else {
-        console.warn(`[acceptCall] agent never answered for call=${callId.slice(0, 8)} after ${BRIDGE_ATTEMPTS}s of retries — marking missed`);
+        console.warn(`[acceptCall] agent never answered for call=${callId.slice(0, 8)} — marking missed`);
       }
       // One of the legs is gone (e.g. originator cancelled) — hang up both and finalize as missed.
       try { await provider.cancel({ providerAttemptId: call.provider_call_id }); } catch {}

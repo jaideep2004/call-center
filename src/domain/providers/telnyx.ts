@@ -219,7 +219,12 @@ export const telnyxProvider: TelephonyProvider = {
       });
       console.log(`[telnyx bridge] result:`, JSON.stringify(result));
     } catch (e: any) {
-      console.error(`[telnyx bridge] failed:`, e?.message ?? e, e?.status, e?.raw?.body ?? "");
+      // 90034 "not answered yet" is the EXPECTED signal while waiting for the
+      // device — acceptCall manages it silently and logs one summary line on
+      // final outcome. Only unexpected failures are loud here.
+      const msg = String(e?.message ?? e);
+      const expected = msg.includes("90034") || msg.includes("not been answered") || msg.includes("Call not answered");
+      if (!expected) console.error(`[telnyx bridge] failed:`, msg, e?.status, e?.raw?.body ?? "");
       throw e;
     }
   },

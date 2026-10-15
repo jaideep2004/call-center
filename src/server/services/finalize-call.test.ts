@@ -256,6 +256,32 @@ describe("finalizeCall marketplace margin (P1.5)", () => {
     });
   });
 
+  it("debits the campaign price from the agent wallet on qualified calls (plus allowance)", async () => {
+    findActiveByAgentMock.mockResolvedValue({ id: "sub-1" });
+    sumByAgentMock.mockResolvedValue(500);
+    spendAllocationMock.mockResolvedValue(3000);
+    await finalizeCall("call-1");
+    // Subscription still counts…
+    expect(incrementCallsUsedMock).toHaveBeenCalledTimes(1);
+    // …AND the $35.00 bid debits: $5.00 personal + $30.00 pool.
+    expect(walletCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ agent_id: "agent-1", amount_cents: -500 }),
+      expect.anything(),
+    );
+    expect(spendAllocationMock).toHaveBeenCalledWith("agency-1", "agent-1", 3000, expect.anything());
+  });
+
+  it("debits personal-only when the ledger covers the whole price", async () => {
+    sumByAgentMock.mockResolvedValue(9000);
+    await finalizeCall("call-1");
+    expect(walletCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ agent_id: "agent-1", amount_cents: -3500 }),
+      expect.anything(),
+    );
+    expect(spendAllocationMock).not.toHaveBeenCalled();
+    expect(incrementCallsUsedMock).not.toHaveBeenCalled();
+  });
+
   it("never double-records margin on redelivered finalize", async () => {
     let first = true;
     clientQueryMock.mockImplementation((sql: string) => {
