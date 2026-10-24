@@ -198,7 +198,7 @@ describe("runCallMaintenance", () => {
 
     const result = await runCallMaintenance();
 
-    expect(result).toEqual({ expired: 0, requeued: 0, stuckFailed: 0, skipped: true });
+    expect(result).toEqual({ expired: 0, requeued: 0, stuckFailed: 0, presenceExpired: 0, skipped: true });
     expect(handleNoAnswerMock).not.toHaveBeenCalled();
     expect(enqueueRouteCallMock).not.toHaveBeenCalled();
   });
@@ -214,10 +214,12 @@ describe("runCallMaintenance", () => {
 
     const result = await runCallMaintenance();
 
-    expect(result).toEqual({ expired: 0, requeued: 0, stuckFailed: 0, skipped: false });
+    expect(result).toEqual({ expired: 0, requeued: 0, stuckFailed: 0, presenceExpired: 0, skipped: false });
     expect(client.query).toHaveBeenCalledWith(expect.stringContaining("pg_try_advisory_lock"), expect.anything());
     expect(client.query).toHaveBeenCalledWith(expect.stringContaining("pg_advisory_unlock"), expect.anything());
     expect(client.release).toHaveBeenCalled();
     expect(handleNoAnswerMock).not.toHaveBeenCalled();
+    // Stale heartbeat rows are flipped offline in the same sweep.
+    expect(db.pool.query).toHaveBeenCalledWith(expect.stringContaining("presence_seen_at <= now()"));
   });
 });

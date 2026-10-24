@@ -1,5 +1,6 @@
 import { BaseRepository, FindManyParams } from "./base";
 import { queryOne, query } from "@/server/db";
+import { presenceFreshSql } from "@/lib/presence";
 import type { PoolClient } from "pg";
 
 export interface AgentRow {
@@ -20,6 +21,8 @@ export interface AgentRow {
   forwarding_number: string | null;
   npn: string | null;
   display_code: string | null;
+  /** Last dashboard heartbeat. Only a fresh stamp counts as online. */
+  presence_seen_at: string | null;
   /** Derived: agent has an active call (ringing/connecting/connected). Only set by findAvailable. */
   is_busy?: boolean;
 }
@@ -74,6 +77,8 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     // ringing/connecting/connected call is busy, even if the manual availability
     // toggle still says "available". Self-healing when calls end.
     // Soft-deleted and suspended agents never route.
+    // Presence must be fresh: a closed tab that left availability=available
+    // must not keep attracting calls nobody can answer.
     // Agency scope: a specific agency (or agencies) when the campaign is
     // assigned/exclusive — otherwise undefined = open platform-wide routing.
     const ids = agencyId == null ? [] : Array.isArray(agencyId) ? agencyId.filter(Boolean) : [agencyId];
@@ -94,6 +99,7 @@ export class AgentRepository extends BaseRepository<AgentRow> {
           ${agencyClause}
           AND a.approval_status = 'approved'
           AND a.availability = 'available'
+          AND ${presenceFreshSql("a")}
           AND a.deleted_at IS NULL
         ORDER BY a.priority ASC, a.last_assigned_at ASC NULLS FIRST`,
       queryParams,
@@ -227,6 +233,23 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     return this.update(id, { availability }, agencyId);
   }
 
+  /**
+   * Refresh presence for a live dashboard tab (single query, membership
+   * scoped). An offline row is never revived by a stale tab: only an agent
+   * that is currently `available` may beat.
+   */
+  async touchPresence(membershipId: string): Promise<boolean> {
+    const row = await queryOne<{ id: string }>(
+      `UPDATE app.agents
+          SET presence_seen_at = now()
+        WHERE membership_id = $1
+          AND availability = 'available'
+        RETURNING id`,
+      [membershipId],
+    );
+    return Boolean(row);
+  }
+
   async updateApproval(id: string, approval_status: string, agencyId: string): Promise<AgentRow> {
     return this.update(id, { approval_status }, agencyId);
   }
@@ -246,6 +269,14 @@ export class AgentRepository extends BaseRepository<AgentRow> {
     const patch: Record<string, unknown> = { ...data };
     if (patch.approval_status === "suspended" || patch.approval_status === "rejected") {
       patch.availability = "offline";
+    }
+    // Presence stamps belong to the server: going online starts the
+    // heartbeat window now, going offline clears it. A plain approval edit
+    // must never touch either.
+    if (patch.availability === "available") {
+      patch.presence_seen_at = new Date();
+    } else if (patch.availability === "offline") {
+      patch.presence_seen_at = null;
     }
     return super.update(id, patch, agencyId, client);
   }

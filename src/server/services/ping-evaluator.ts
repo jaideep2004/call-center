@@ -1,5 +1,6 @@
 import { query, queryOne } from "@/server/db";
 import { normalizeE164 } from "@/domain/phone";
+import { presenceFreshSql } from "@/lib/presence";
 import { effectiveBalanceSql } from "@/server/repositories/agency-wallets";
 import { findRoutableAgencyIds } from "@/server/repositories/campaign-assignments";
 
@@ -209,6 +210,7 @@ export async function findRoutableAgentId(input: {
      WHERE ($1::uuid[] IS NULL OR a.agency_id = ANY($1::uuid[]))
        AND a.approval_status = 'approved'
        AND a.availability = 'available'
+       AND ${presenceFreshSql("a")}
        AND a.deleted_at IS NULL
        ${clauses.join("\n       ")}
        AND (

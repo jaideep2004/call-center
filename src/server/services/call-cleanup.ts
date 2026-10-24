@@ -2,6 +2,7 @@ import { pool } from "@/server/db";
 import { getTelephonyProvider } from "@/server/telephony-registry";
 import { handleNoAnswer } from "@/server/services/call-orchestrator";
 import { enqueueRouteCall } from "@/server/services/route-queue";
+import { expireStalePresence } from "@/server/services/agent-presence";
 
 /**
  * Advisory-lock key that serializes the ring/routing maintenance sweep across
@@ -164,16 +165,22 @@ export async function runCallMaintenance(options?: { limit?: number }): Promise<
   expired: number;
   requeued: number;
   stuckFailed: number;
+  presenceExpired: number;
   skipped: boolean;
 }> {
   const client = await pool.connect();
   try {
     const lock = await client.query("SELECT pg_try_advisory_lock($1) AS ok", [CALL_MAINTENANCE_LOCK_KEY]);
-    if (lock.rows[0]?.ok !== true) return { expired: 0, requeued: 0, stuckFailed: 0, skipped: true };
+    if (lock.rows[0]?.ok !== true) {
+      return { expired: 0, requeued: 0, stuckFailed: 0, presenceExpired: 0, skipped: true };
+    }
 
     const expired = await expireRingingCalls({ limit: options?.limit });
     const stuck = await requeueStuckRoutingCalls({ limit: options?.limit });
-    return { expired, ...stuck, skipped: false };
+    // Heartbeat expiry: a closed/crashed/suspended tab stops beating, so its
+    // stale "available" flag stops counting as online everywhere.
+    const presenceExpired = await expireStalePresence().catch(() => 0);
+    return { expired, ...stuck, presenceExpired, skipped: false };
   } finally {
     await client.query("SELECT pg_advisory_unlock($1)", [CALL_MAINTENANCE_LOCK_KEY]).catch(() => undefined);
     client.release();

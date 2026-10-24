@@ -22,7 +22,8 @@ describe("agents.update suspend auto-offline", () => {
     const [sql, params] = queryOneMock.mock.calls[0] as [string, unknown[]];
     expect(sql).toContain("approval_status = $2");
     expect(sql).toContain("availability = $3");
-    expect(params).toEqual(["ag-1", "suspended", "offline", "agency-1"]);
+    expect(sql).toContain("presence_seen_at = $4");
+    expect(params).toEqual(["ag-1", "suspended", "offline", null, "agency-1"]);
   });
 
   it("forces offline on reject too, via updateApproval", async () => {
@@ -40,11 +41,15 @@ describe("agents.update suspend auto-offline", () => {
     expect(params).toEqual(["ag-1", "approved", "agency-1"]);
   });
 
-  it("plain availability edits pass through untouched", async () => {
+  it("plain availability edits pass through with a server presence stamp", async () => {
     queryOneMock.mockResolvedValueOnce({ id: "ag-1", availability: "available" });
     await agents.updateAvailability("ag-1", "available", "agency-1");
     const [sql, params] = queryOneMock.mock.calls[0] as [string, unknown[]];
     expect(sql).toContain("availability = $2");
-    expect(params).toEqual(["ag-1", "available", "agency-1"]);
+    expect(sql).toContain("presence_seen_at = $3");
+    expect(params[0]).toBe("ag-1");
+    expect(params[1]).toBe("available");
+    expect(params[2]).toBeInstanceOf(Date);
+    expect(params[3]).toBe("agency-1");
   });
 });

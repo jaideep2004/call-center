@@ -822,3 +822,13 @@ pm run build to avoid re-corrupting dev types.
 - Internet speed: affects INVITE transit + SDK signaling (more waiting, slower connect), never success/failure inside the window. Audio quality is the part speed owns.
 - Tests: typecheck 0 - vitest 978 passed | 5 skipped (137 files).
 
+
+## 2026-10-24 - assistant - STALE AGENT PRESENCE FIX (client: phantom agents 3/13 online)
+
+- Root cause: app.agents.availability was a client-set flag with no TTL/heartbeat; closed or killed browsers left 3 agents stuck available since 2026-10-15. Dashboard counts and routing trusted it forever.
+- Migration 0077 applied live: adds presence_seen_at to app.agents; existing online rows stamped fresh.
+- New POST /api/v1/agent/presence dashboard heartbeat (every 60s per tab) refreshes the stamp only while the row is available.
+- Counts (reports/summary) and routing (findAvailable, ping evaluator) now require availability = available AND heartbeat freshness (180s TTL).
+- 30s call-maintenance sweep (expireStalePresence) flips expired agents to offline.
+- Tests: typecheck 0 - vitest 989 passed | 5 skipped.
+- Notes: agents need one refresh after deploy so the heartbeat JS loads; ghosts age out within about 3 minutes regardless.

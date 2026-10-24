@@ -1,5 +1,6 @@
 import { apiHandler, okCached } from "@/server/api-utils";
 import { queryOne, query } from "@/server/db";
+import { presenceFreshSql } from "@/lib/presence";
 
 interface Summary {
   total_calls: number;
@@ -33,7 +34,11 @@ export const GET = apiHandler(async (_req, context) => {
       (SELECT COUNT(*) FROM app.calls WHERE true${callsClause})::int as total_calls,
       (SELECT COALESCE(SUM(total_cents), 0) FROM app.invoices WHERE status = 'paid'${invClause})::bigint as total_revenue_cents,
       (SELECT COUNT(*) FROM app.campaigns WHERE status = 'active'${campClause})::int as active_campaigns,
-      (SELECT COUNT(*) FROM app.agents WHERE availability = 'available'${agentClause})::int as agents_online,
+      (SELECT COUNT(*) FROM app.agents
+        WHERE availability = 'available'
+          AND approval_status = 'approved'
+          AND deleted_at IS NULL
+          AND ${presenceFreshSql("agents")}${agentClause})::int as agents_online,
       (SELECT COUNT(*) FROM app.leads WHERE true${leadClause})::int as total_leads`,
     params,
   );

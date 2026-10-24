@@ -155,8 +155,8 @@ async function main() {
   await boss.work("expire-ringing-calls", { localConcurrency: 1 }, async (jobs) => {
     for (const job of jobs) {
       try {
-        const { expired, requeued, stuckFailed, skipped } = await runCallMaintenance();
-        console.info(JSON.stringify({ event: "ringing_expired", jobId: job.id, expired, requeued, stuckFailed, skipped }));
+        const { expired, requeued, stuckFailed, presenceExpired, skipped } = await runCallMaintenance();
+        console.info(JSON.stringify({ event: "ringing_expired", jobId: job.id, expired, requeued, stuckFailed, presenceExpired, skipped }));
       } catch (error) {
         // Scheduled reconciliation: don't retry the job itself — next 30s tick re-runs the sweep.
         console.error(JSON.stringify({ event: "ringing_expire_failed", jobId: job.id, error: String(error) }));

@@ -13,6 +13,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { showToast, useToast } from "@/lib/use-toast";
 import { useSocket } from "@/lib/use-socket";
+import { PRESENCE_HEARTBEAT_MS } from "@/lib/presence";
 import Softphone from "@/components/softphone";
 import "@/styles/dashboard.css";
 
@@ -537,6 +538,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     }).catch(() => {});
   }, [agentId, agentAvailability, isAdmin, isPublisher, pathname]);
+
+  // Presence heartbeat: `availability` alone survives a closed/killed tab, so
+  // the server only trusts it while this dashboard keeps beating. Sent from
+  // every agent page (not only the toggle) because Take Calls owns its own
+  // availability state; the server ignores beats for offline rows. Wake/focus
+  // beats close the gap after a suspended tab or laptop sleep.
+  useEffect(() => {
+    if (!agentId || isAdmin || isPublisher || !roleReady) return;
+    let stopped = false;
+    const beat = () => {
+      if (stopped) return;
+      void fetch("/api/v1/agent/presence", { method: "POST" }).catch(() => {});
+    };
+    beat();
+    const timer = window.setInterval(beat, PRESENCE_HEARTBEAT_MS);
+    const onWake = () => {
+      if (document.visibilityState === "visible") beat();
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    window.addEventListener("online", onWake);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("online", onWake);
+    };
+  }, [agentId, isAdmin, isPublisher, roleReady]);
 
   // PresenceGC: logout / last-tab-close / browser quit drops the agent to
   // offline so stale Online presence stops attracting calls nobody answers.
